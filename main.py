@@ -143,10 +143,21 @@ if __name__ == "__main__":
 
     extract_matchup_scores(maythebestteamwin, weekly_cat_scores)
 
-    week_1_scores = pd.DataFrame(weekly_cat_scores[:, :, 0])
-    week_1_scores.columns = [cat[0] for cat in CATEGORIES]
+    rr_cumulative = pd.DataFrame()
+
     with pd.option_context('display.max_rows', 20, 'display.max_columns', 20):
         #print(week_1_scores)
         for i in range(curr_week-1):
             print("\n-------Week " + str(i+1) + ":")
-            print(round_robin(weekly_cat_scores[:, :, i]))
+            rr_week_i = round_robin(weekly_cat_scores[:, :, i])
+            print(rr_week_i)
+            if i == 0:
+                rr_cumulative = rr_week_i
+            else:
+                rr_cumulative = rr_cumulative.add(rr_week_i[["W", "L", "T", "CatsWon", "Pts"]])
+
+    rr_cumulative["Player"] = rr_week_i["Player"]
+    rr_cumulative.sort_values(by=["Pts"], ascending=False, inplace=True)
+    rr_cumulative = rr_cumulative[["Player", "W", "L", "T", "CatsWon", "Pts"]]
+    print("\n #### Accumulated Scores:")
+    print(rr_cumulative)
