@@ -4,16 +4,26 @@ from espn_api.hockey import League
 
 
 # League info
+# Cookies for login purposes (use your own)
+
 LEAGUE_ID = 66082163
 YEAR = 2021
-
-# Cookies for login purposes (use your own)
 SWID = '{C00A35AB-85C6-494A-AA9B-F479E7DE4023}'
 ESPN_S2 = 'AEC4RCmF5SmVt843LzQsM2eLIZJyT%2BRyZb9Dg7mmH4zIwnKLYELnX1aRCV797tog' \
           'yY2%2B6skSfH5DuPDjKfokEnlfldMBu84MBrrPQStDZ58wuRZPikIs7Ip5pi1wOgls' \
           '4e0S%2BUTAZxhSyRs2n7anYAF810kEfP0k1Exu9mfwFjasyZirLDEI3jy9JDu00J34' \
           'm242rD%2F8Ys6vTRvQIq40KbxQjln0dyoVsH0G5G8SFlYy7b4TobzVD7x8OO%2F46g' \
           'ALC30%3D'
+
+# 2022
+#LEAGUE_ID = 576726473
+#YEAR = 2023
+#SWID = '{C00A35AB-85C6-494A-AA9B-F479E7DE4023}'
+#ESPN_S2 = 'AEBSog1%2BzMJ53yfdocP2KSge9AWxjw%2B2y4X34b%2BjqhSxjHgLRpNq6BFMG2Nxo' \
+#          '3uS8Sk787ens4A7m%2FiULjEowCIZR933eO5idCi4S0KqqMYyKtCgxLEKfvTp04WeqW' \
+#          'HExk%2FI1DJ3tcLs3dtiPHnr%2BID1aoKfX5Cx4mfWVmsV2uTx98qm%2Bni5yJzAoVY' \
+#          'tCAxJdGzr11S8n2hloXe0YAKnlVQzLo53RGY6KI6xJDiH%2BO1qrrJP4DQJYQ91CDIU' \
+#          'Lm39h0EXi9ipe3Q4a%2BWB1GHCOwX0'
 
 # Map category name to index (with a defined order)
 # mark inverted categories by adding any string (e.g. "inverted_cat")
@@ -57,6 +67,9 @@ def extract_matchup_scores(league, dest):
      - axis 1 (columns): categories
      - axis 3 ("depth"): matchup week
     """
+    # todo use league/settings to find matchup numbers?
+    # todo use league.scoreboard(week_number) to get each weeks results
+    # todo adjust categories
     current_week = league.currentMatchupPeriod
     for matchup in league.data["schedule"]:
         week_number = matchup["matchupPeriodId"]
@@ -132,8 +145,11 @@ def matchup_result(player_stats, opponent_stats):
 
 if __name__ == "__main__":
 
-    maythebestteamwin = League(league_id=LEAGUE_ID, year=2021, espn_s2=ESPN_S2, swid=SWID)
+    maythebestteamwin = League(league_id=LEAGUE_ID, year=YEAR, espn_s2=ESPN_S2, swid=SWID)
+    maythebestteamwin.fetch_league()
     curr_week = maythebestteamwin.currentMatchupPeriod
+    scoreboard = maythebestteamwin.scoreboard(curr_week)
+    box_scores = maythebestteamwin.box_scores(curr_week)
 
     #  Collect Weekly scores in all categories for each player
     # axis 0 (rows): player score for a given week (player_id = row_idx + 1)
