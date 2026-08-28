@@ -1,7 +1,7 @@
 """CLI tools. Register new tools in the TOOLS list."""
 import pandas as pd
 
-from .analysis import luck, round_robin
+from .analysis import category_contestedness, category_win_rates, luck, round_robin
 from .espn_data import LeagueData
 
 # points awarded for a real matchup result ("NA" -> no luck value yet)
@@ -99,9 +99,36 @@ def luck_ranking(data: LeagueData) -> None:
         print(table)
 
 
+def category_profile(data: LeagueData) -> None:
+    """Print each team's per-category round-robin win% over completed weeks,
+    plus how contested each category is league-wide."""
+    completed_weeks = data.current_week - 1
+    if completed_weeks == 0:
+        print("No completed weeks yet.")
+        return
+
+    scores = data.weekly_cat_scores[:, :, :completed_weeks]
+    cat_names = [cat.name for cat in data.config.categories]
+    table = category_win_rates(scores, data.config.categories, data.team_names)
+    contested = category_contestedness(table, data.config.categories).round(2)
+    table["Overall"] = table[cat_names].mean(axis=1)
+    table[cat_names + ["Overall"]] = table[cat_names + ["Overall"]].round(2)
+    table = _ranked(table[["Player"] + cat_names + ["Overall"]], by="Overall")
+
+    footer = pd.DataFrame(
+        [{"Player": "(contested)", **contested.to_dict(), "Overall": ""}], index=[""])
+    table = pd.concat([table, footer])
+    with pd.option_context('display.max_rows', 25, 'display.max_columns', 30,
+                           'display.width', 0):
+        print("\n #### Category Strength Profile "
+              "(win rate per category, completed weeks):")
+        print(table)
+
+
 # (menu label, callable) — extend here for new tools
 TOOLS = [
     ("Show weekly scores", weekly_scores),
     ("Show accumulated scores", accumulated_scores),
     ("Show luck ranking", luck_ranking),
+    ("Show category strength profile", category_profile),
 ]

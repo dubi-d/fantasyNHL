@@ -63,6 +63,52 @@ def round_robin(scores: np.ndarray, categories: list[Category],
     return rr_summary
 
 
+def category_win_rates(weekly_scores: np.ndarray, categories: list[Category],
+                       team_names: list[str]) -> pd.DataFrame:
+    """
+    Per-team win percentage per category across all pairwise round-robin
+    comparisons of the given weeks. Ties count as half a win, so every
+    category column averages 0.5 across the league.
+
+    :param weekly_scores: scores of the weeks to cover (teams x categories x weeks)
+    :param categories: category definitions (order matching the score columns)
+    :param team_names: team names by row index
+    :return: win rates in [0, 1] (teams x categories), plus a Player column
+    """
+    num_teams, _, num_weeks = weekly_scores.shape
+    wins = np.zeros((num_teams, len(categories)))
+
+    for week in range(num_weeks):
+        scores = weekly_scores[:, :, week]
+        higher = scores[:, None, :] > scores[None, :, :]  # (team, opponent, category)
+        lower = scores[:, None, :] < scores[None, :, :]
+        tied = scores[:, None, :] == scores[None, :, :]
+        for i, cat in enumerate(categories):
+            won = lower[:, :, i] if cat.inverted else higher[:, :, i]
+            # the diagonal self-comparison always ties, subtract it
+            wins[:, i] += won.sum(axis=1) + 0.5 * (tied[:, :, i].sum(axis=1) - 1)
+
+    rates = wins / ((num_teams - 1) * num_weeks)
+    table = pd.DataFrame(rates, columns=[cat.name for cat in categories])
+    table["Player"] = team_names[:num_teams]
+    return table
+
+
+def category_contestedness(win_rates: pd.DataFrame,
+                           categories: list[Category]) -> pd.Series:
+    """
+    How up-for-grabs each category is, from the spread of the teams' win
+    rates: 1 - std / 0.5. 1 means full parity (every team near 0.5),
+    0 means structurally locked (win rates split into 1s and 0s).
+
+    :param win_rates: per-team win rates as returned by category_win_rates
+    :param categories: category definitions
+    :return: contestedness in [0, 1], indexed by category name
+    """
+    cat_names = [cat.name for cat in categories]
+    return 1 - 2 * win_rates[cat_names].std(ddof=0)
+
+
 def luck(actual_pts, rr_pts, num_opponents: int):
     """
     Schedule luck: actual matchup points minus points expected from

@@ -47,6 +47,14 @@ once per session and reused.
 - **Show luck ranking** — Ranks teams by accumulated schedule luck over all
   completed weeks, luckiest first, alongside their actual record, actual
   points and expected points.
+- **Show category strength profile** — For each team, the win rate per
+  category across all completed weeks' round-robin comparisons (ties count as
+  half a win, so each column averages 0.5 across the league). Values near 1
+  are structural strengths, values near 0 are weaknesses. An
+  `Overall` column averages across categories and sorts the table; a
+  `(contested)` footer row shows how up-for-grabs each category is
+  league-wide (`1 − std/0.5` of the column: 1 = full parity, so small roster
+  moves can swing it; 0 = structurally locked by a few teams).
 
 ### Luck
 
