@@ -512,16 +512,18 @@ _INJURY_ABBREV = {"DAY_TO_DAY": "DTD", "OUT": "OUT",
 
 def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
                        categories: list[Category], blend_weight: float,
-                       streamers: list[str], align: int) -> None:
+                       streamers: list[str], align: int,
+                       page_size: int = 15) -> None:
     """Render the free agent candidate table: schedule fit on the open days
-    plus blended per-game rates for the skater categories."""
+    plus blended per-game rates for the skater categories. Shown in pages of
+    ``page_size``, extending on request."""
     look = ctx.lookahead_periods
     labels = _day_labels(ctx.periods + look, ctx.period_dates)
     keep = [p for p in ctx.roster if p.name not in streamers]
     ranked = rank_streaming_candidates(candidates, keep, ctx.slot_counts,
                                        ctx.playing_by_period,
                                        ctx.actionable_periods)
-    ranked = ranked[ranked["Fit"] > 0].head(15)
+    ranked = ranked[ranked["Fit"] > 0]
     if ranked.empty:
         console.print("No free agent fills an open seat on the remaining "
                       "days.", style="yellow")
@@ -553,6 +555,7 @@ def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
         })
     table = pd.DataFrame(rows, index=range(1, len(rows) + 1))
 
+    # widths from the full table so all pages align with the other tables
     hash_w = max(1, len(str(len(table))))
     team_w = _col_width("Team", list(table["Team"]))
     fa_lead = _lead(hash_w, _col_width("Player", list(table["Player"])),
@@ -564,12 +567,21 @@ def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
     styles.update({labels[d]: (lambda _: "dim") for d in look})
     styles["Inj"] = lambda v: "red" if v in ("OUT", "IR") else (
         "yellow" if v else "")
-    print_df(table, f"Free agent candidates — top {len(table)} by open days "
-             "filled (• = fills an open seat, · = plays)"
-             + (" — streamers dropped" if streamers else ""),
-             styles=styles,
-             widths={"Team": team_w + max(0, align - fa_lead)},
-             header_styles={labels[d]: "dim" for d in look})
+
+    for start in range(0, len(table), page_size):
+        page = table.iloc[start:start + page_size]
+        print_df(page, f"Free agent candidates {start + 1}–"
+                 f"{start + len(page)} of {len(table)} by open days "
+                 "filled (• = fills an open seat, · = plays)"
+                 + (" — streamers dropped" if streamers else ""),
+                 styles=styles,
+                 widths={"Team": team_w + max(0, align - fa_lead)},
+                 header_styles={labels[d]: "dim" for d in look})
+        if start + page_size >= len(table):
+            break
+        if not questionary.confirm("Show more candidates?",
+                                   default=True).ask():
+            break
 
 # (menu label, callable) — extend here for new tools
 TOOLS = [
