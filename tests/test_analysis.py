@@ -1,7 +1,8 @@
 import numpy as np
+import pandas as pd
 import pytest
 
-from fantasy_nhl.analysis import matchup_result, round_robin
+from fantasy_nhl.analysis import luck, matchup_result, round_robin
 from fantasy_nhl.config import Category
 
 CATEGORIES = [
@@ -62,3 +63,28 @@ class TestRoundRobin:
     def test_points_are_two_wins_plus_ties(self, scores, team_names):
         result = round_robin(scores, CATEGORIES, team_names)
         assert (result["Pts"] == 2 * result["W"] + result["T"]).all()
+
+
+class TestLuck:
+    def test_lucky(self):
+        # won the real matchup (2 pts) but only beat 1 of 3 opponents
+        assert luck(2, 2, 3) == pytest.approx(4 / 3)
+
+    def test_unlucky(self):
+        # lost the real matchup despite winning all round-robin matchups
+        assert luck(0, 6, 3) == pytest.approx(-2)
+
+    def test_zero_when_actual_matches_expected(self):
+        assert luck(1, 3, 3) == 0
+
+    def test_vectorized(self):
+        actual = pd.Series([2, 0, 1])
+        rr_pts = pd.Series([2, 6, 3])
+        result = luck(actual, rr_pts, 3)
+        assert result.tolist() == pytest.approx([4 / 3, -2, 0])
+
+    def test_league_luck_sums_to_zero(self):
+        # every week: total actual pts == total expected pts
+        actual = pd.Series([2, 2, 0, 0])
+        rr_pts = pd.Series([6, 4, 2, 0])
+        assert luck(actual, rr_pts, 3).sum() == pytest.approx(0)

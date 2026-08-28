@@ -34,13 +34,37 @@ once per session and reused.
   prints a round-robin table: every team is matched against every other team
   using their category totals of that week, yielding W/L/T, categories won,
   and points (2 per win, 1 per tie). A `Result` column shows the team's actual
-  ESPN matchup outcome that week (`NA` while undecided). Sorted by points,
-  indexed by rank.
+  ESPN matchup outcome that week (`NA` while undecided), and a `Luck` column
+  quantifies that week's schedule luck (see below; empty while the matchup is
+  undecided). Sorted by points, indexed by rank.
 - **Show accumulated scores** — Sums the weekly round-robin results over all
-  completed weeks into overall standings, sorted by round-robin points and
-  indexed by rank. The actual matchup record (W/L/T) is shown next to the
-  team name, separated from the round-robin stats (`rrW/rrL/rrT`). Useful as
-  a schedule-independent measure of season-long team strength.
+  completed weeks into overall standings, sorted by round-robin strength and
+  indexed by rank. The actual matchup record (W/L/T) and points (`Pts`) are
+  shown next to the team name, separated from the round-robin stats
+  (`rrW/rrL/rrT`) and the expected points (`xPts`, see below). Useful as
+  a schedule-independent measure of season-long team strength. A `Luck`
+  column shows the accumulated schedule luck.
+- **Show luck ranking** — Ranks teams by accumulated schedule luck over all
+  completed weeks, luckiest first, alongside their actual record, actual
+  points and expected points.
+
+### Luck
+
+The round-robin table tells you how strong a team really was; the actual
+record also depends on who the schedule happened to serve up. `Luck` is the
+difference between actual and expected matchup points:
+
+```
+xPts = rr points / (teams − 1)
+Luck = Pts − xPts
+```
+
+Each week a team earns actual points from its real matchup (2 for a win,
+1 for a tie) and round-robin points from its `teams − 1` hypothetical
+matchups; dividing the latter by `teams − 1` gives `xPts`, the points an
+average schedule would have produced. Positive luck means the team got easier
+opponents than average (its record flatters its strength), negative means
+it ran into a tough schedule. Luck sums to zero across the league each week.
 
 ## Tests
 

@@ -61,3 +61,16 @@ def round_robin(scores: np.ndarray, categories: list[Category],
     rr_summary = pd.DataFrame(rr_summary, columns=rr_cats)
     rr_summary["Player"] = team_names[:number_of_teams]
     return rr_summary
+
+
+def luck(actual_pts, rr_pts, num_opponents: int):
+    """
+    Schedule luck: actual matchup points minus points expected from
+    round-robin strength. Positive means the schedule was favorable.
+
+    :param actual_pts: points from real matchups (2*W + T), scalar or Series
+    :param rr_pts: round-robin points over the same weeks, scalar or Series
+    :param num_opponents: round-robin matchups per week (teams - 1)
+    :return: actual_pts - rr_pts / num_opponents
+    """
+    return actual_pts - rr_pts / num_opponents
