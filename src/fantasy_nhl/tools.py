@@ -2,6 +2,7 @@
 import pandas as pd
 
 from .analysis import category_contestedness, category_win_rates, luck, round_robin
+from .display import console, diverging_style, heatmap_style, print_df, result_style
 from .espn_data import LeagueData
 
 # points awarded for a real matchup result ("NA" -> no luck value yet)
@@ -22,20 +23,19 @@ def _ranked(table: pd.DataFrame, by: str = "Pts") -> pd.DataFrame:
 
 def weekly_scores(data: LeagueData) -> None:
     """Print the round-robin table for every week, including the ongoing one."""
-    with pd.option_context('display.max_rows', 20, 'display.max_columns', 20,
-                           'display.width', 0):
-        for week in range(1, data.current_week + 1):
-            table = _round_robin_week(data, week)
-            table["Result"] = [row_results[week - 1] for row_results in data.weekly_results]
-            table = table.rename(columns={"W": "rrW", "L": "rrL", "T": "rrT"})
-            actual_pts = table["Result"].map(RESULT_PTS)
-            table["Luck"] = luck(actual_pts, table["Pts"], len(data.team_names) - 1).round(2)
-            table["|"] = "|"
-            table = _ranked(
-                table[["Player", "Result", "|", "rrW", "rrL", "rrT", "CatsWon", "Pts", "Luck"]])
-            ongoing = " (ongoing)" if week == data.current_week else ""
-            print(f"\n-------Week {week}{ongoing}:")
-            print(table)
+    for week in range(1, data.current_week + 1):
+        table = _round_robin_week(data, week)
+        table["Result"] = [row_results[week - 1] for row_results in data.weekly_results]
+        table = table.rename(columns={"W": "rrW", "L": "rrL", "T": "rrT"})
+        actual_pts = table["Result"].map(RESULT_PTS)
+        table["Luck"] = luck(actual_pts, table["Pts"], len(data.team_names) - 1).round(2)
+        table = _ranked(
+            table[["Player", "Result", "rrW", "rrL", "rrT", "CatsWon", "Pts", "Luck"]])
+        ongoing = " (ongoing)" if week == data.current_week else ""
+        # weekly luck is bounded by +-2
+        print_df(table, f"Week {week}{ongoing}",
+                 styles={"Result": result_style,
+                         "Luck": lambda v: diverging_style(v, 2)})
 
 
 def accumulated_scores(data: LeagueData) -> None:
@@ -43,18 +43,16 @@ def accumulated_scores(data: LeagueData) -> None:
     over all completed weeks."""
     accumulated = _accumulated_table(data)
     if accumulated is None:
-        print("No completed weeks yet.")
+        console.print("No completed weeks yet.", style="yellow")
         return
 
-    accumulated["|"] = "|"
     accumulated = _ranked(
-        accumulated[["Player", "W", "L", "T", "Pts", "|",
+        accumulated[["Player", "W", "L", "T", "Pts",
                      "rrW", "rrL", "rrT", "CatsWon", "xPts", "Luck"]],
         by="xPts")
-    with pd.option_context('display.max_rows', 20, 'display.max_columns', 20,
-                           'display.width', 0):
-        print("\n #### Accumulated Scores (matchup | round-robin):")
-        print(accumulated)
+    luck_scale = accumulated["Luck"].abs().max()
+    print_df(accumulated, "Accumulated Scores (matchup vs round-robin)",
+             styles={"Luck": lambda v: diverging_style(v, luck_scale)})
 
 
 def _accumulated_table(data: LeagueData) -> pd.DataFrame | None:
@@ -87,16 +85,15 @@ def luck_ranking(data: LeagueData) -> None:
     """Print teams ranked by accumulated schedule luck (luckiest first)."""
     table = _accumulated_table(data)
     if table is None:
-        print("No completed weeks yet.")
+        console.print("No completed weeks yet.", style="yellow")
         return
 
     table = table.sort_values(by=["Luck"], ascending=False)
     table.index = range(1, len(table) + 1)
     table = table[["Player", "W", "L", "T", "Pts", "xPts", "Luck"]]
-    with pd.option_context('display.max_rows', 20, 'display.max_columns', 20,
-                           'display.width', 0):
-        print("\n #### Luck Ranking (positive = favorable schedule):")
-        print(table)
+    luck_scale = table["Luck"].abs().max()
+    print_df(table, "Luck Ranking (positive = favorable schedule)",
+             styles={"Luck": lambda v: diverging_style(v, luck_scale)})
 
 
 def category_profile(data: LeagueData) -> None:
@@ -104,7 +101,7 @@ def category_profile(data: LeagueData) -> None:
     plus how contested each category is league-wide."""
     completed_weeks = data.current_week - 1
     if completed_weeks == 0:
-        print("No completed weeks yet.")
+        console.print("No completed weeks yet.", style="yellow")
         return
 
     scores = data.weekly_cat_scores[:, :, :completed_weeks]
@@ -116,13 +113,11 @@ def category_profile(data: LeagueData) -> None:
     table = _ranked(table[["Player"] + cat_names + ["Overall"]], by="Overall")
 
     footer = pd.DataFrame(
-        [{"Player": "(contested)", **contested.to_dict(), "Overall": ""}], index=[""])
-    table = pd.concat([table, footer])
-    with pd.option_context('display.max_rows', 25, 'display.max_columns', 30,
-                           'display.width', 0):
-        print("\n #### Category Strength Profile "
-              "(win rate per category, completed weeks):")
-        print(table)
+        [{"Player": "(contested)", **contested.to_dict()}], index=[""])
+    print_df(table, "Category Strength Profile "
+             "(win rate per category, completed weeks)",
+             styles={col: heatmap_style for col in cat_names + ["Overall"]},
+             footer=footer)
 
 
 # (menu label, callable) — extend here for new tools

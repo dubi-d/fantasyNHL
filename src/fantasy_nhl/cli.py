@@ -1,45 +1,44 @@
 """Interactive CLI entrypoint."""
+import questionary
+
 from .config import LeagueConfig, load_config
+from .display import console
 from .espn_data import fetch_league_data
 from .tools import TOOLS
 
 
-def _choose_league(leagues: list[LeagueConfig]) -> LeagueConfig:
+def _choose_league(leagues: list[LeagueConfig]) -> LeagueConfig | None:
     if len(leagues) == 1:
         return leagues[0]
 
-    print("\nAvailable leagues:")
-    for i, league in enumerate(leagues, start=1):
-        print(f"  {i}. {league.name} ({league.year})")
-    while True:
-        choice = input(f"Select league [1-{len(leagues)}]: ").strip()
-        if choice.isdigit() and 1 <= int(choice) <= len(leagues):
-            return leagues[int(choice) - 1]
-        print("Invalid selection.")
+    return questionary.select(
+        "Select league:",
+        choices=[questionary.Choice(f"{league.name} ({league.year})", value=league)
+                 for league in leagues],
+    ).ask()
 
 
 def main() -> None:
     leagues = load_config()
     league_config = _choose_league(leagues)
+    if league_config is None:  # Ctrl-C
+        return
 
-    print(f"\nFetching data for '{league_config.name}'...")
-    data = fetch_league_data(league_config)
-    print(f"Loaded {data.current_week - 1} completed weeks, "
-          f"{len(data.team_names)} teams.")
+    with console.status(f"Fetching data for '{league_config.name}'..."):
+        data = fetch_league_data(league_config)
+    console.print(f"Loaded [bold]{data.current_week - 1}[/] completed weeks, "
+                  f"[bold]{len(data.team_names)}[/] teams.")
 
     while True:
-        print("\nTools:")
-        for i, (label, _) in enumerate(TOOLS, start=1):
-            print(f"  {i}. {label}")
-        print("  q. Quit")
-
-        choice = input(f"Select tool [1-{len(TOOLS)}, q]: ").strip().lower()
-        if choice == "q":
+        choice = questionary.select(
+            "Select tool:",
+            choices=[questionary.Choice(label, value=tool) for label, tool in TOOLS]
+                    + [questionary.Choice("Quit", value=None, shortcut_key="q")],
+            use_shortcuts=True,
+        ).ask()
+        if choice is None:  # Quit or Ctrl-C
             break
-        if choice.isdigit() and 1 <= int(choice) <= len(TOOLS):
-            TOOLS[int(choice) - 1][1](data)
-        else:
-            print("Invalid selection.")
+        choice(data)
 
 
 if __name__ == "__main__":

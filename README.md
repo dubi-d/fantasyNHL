@@ -24,9 +24,8 @@ entry in `secrets.yaml`.
 .venv/bin/fantasy-nhl
 ```
 
-Starts an interactive session: pick a league, then choose a tool from the menu
-(weekly round-robin scores, accumulated standings). League data is fetched
-once per session and reused.
+Starts an interactive session: pick a league and tools from arrow-key menus.
+League data is fetched once per session and reused.
 
 ## Tools
 
@@ -91,6 +90,7 @@ src/fantasy_nhl/
   config.py                  # YAML loading into LeagueConfig/Category dataclasses
   espn_data.py               # ESPN API access; fetches weekly category scores
   analysis.py                # pure logic: matchup results, round-robin tables
+  display.py                 # rich rendering: tables, color gradients
   tools.py                   # CLI tools and the TOOLS registry
 tests/                       # pytest suite for the pure analysis logic
 ```
@@ -101,7 +101,8 @@ tests/                       # pytest suite for the pure analysis logic
 - **Adding a tool:** write a function in `tools.py` taking a `LeagueData`
   argument and register it in the `TOOLS` list — it appears in the CLI menu
   automatically. Keep computation in `analysis.py` (pure functions, no API
-  calls) and data fetching in `espn_data.py`.
+  calls), data fetching in `espn_data.py`, and render tables via
+  `display.print_df` (per-cell styling through the `styles` mapping).
 - **Adding a league:** append an entry under `leagues:` in `config.yaml` and
   a matching credentials entry in `secrets.yaml`.
   The category list must match what the league actually scores on ESPN;
