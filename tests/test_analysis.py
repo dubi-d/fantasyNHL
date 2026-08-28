@@ -40,7 +40,7 @@ class TestMatchupResult:
 class TestRoundRobin:
     @pytest.fixture
     def team_names(self):
-        return {1: "AAA", 2: "BBB", 3: "CCC"}
+        return ["AAA", "BBB", "CCC"]
 
     @pytest.fixture
     def scores(self):

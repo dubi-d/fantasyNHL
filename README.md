@@ -28,6 +28,20 @@ Starts an interactive session: pick a league, then choose a tool from the menu
 (weekly round-robin scores, accumulated standings). League data is fetched
 once per session and reused.
 
+## Tools
+
+- **Show weekly scores** — For each matchup week (including the ongoing one),
+  prints a round-robin table: every team is matched against every other team
+  using their category totals of that week, yielding W/L/T, categories won,
+  and points (2 per win, 1 per tie). A `Result` column shows the team's actual
+  ESPN matchup outcome that week (`NA` while undecided). Sorted by points,
+  indexed by rank.
+- **Show accumulated scores** — Sums the weekly round-robin results over all
+  completed weeks into overall standings, sorted by round-robin points and
+  indexed by rank. The actual matchup record (W/L/T) is shown next to the
+  team name, separated from the round-robin stats (`rrW/rrL/rrT`). Useful as
+  a schedule-independent measure of season-long team strength.
+
 ## Tests
 
 ```bash

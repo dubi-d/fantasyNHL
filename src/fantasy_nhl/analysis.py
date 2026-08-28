@@ -34,14 +34,14 @@ def matchup_result(player_stats: np.ndarray, opponent_stats: np.ndarray,
 
 
 def round_robin(scores: np.ndarray, categories: list[Category],
-                team_names: dict[int, str]) -> pd.DataFrame:
+                team_names: list[str]) -> pd.DataFrame:
     """
     Calculate W, L, T, Pts, CatsWon if every team played every other team
     simultaneously in the given week.
 
     :param scores: Scores summary of a single week (teams x categories).
     :param categories: category definitions (order matching the score columns)
-    :param team_names: team_id -> name (team_id = row_idx + 1)
+    :param team_names: team names by row index
     :return: Summary statistics
     """
     rr_cats = ["W", "L", "T", "CatsWon", "Pts"]
@@ -59,5 +59,5 @@ def round_robin(scores: np.ndarray, categories: list[Category],
         rr_summary[i, -1] = 2 * rr_summary[i, 0] + rr_summary[i, 2]  # calculate points
 
     rr_summary = pd.DataFrame(rr_summary, columns=rr_cats)
-    rr_summary["Player"] = [team_names[i + 1] for i in range(number_of_teams)]
+    rr_summary["Player"] = team_names[:number_of_teams]
     return rr_summary
