@@ -1,8 +1,30 @@
 """Pure analysis logic for round-robin category scoring."""
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+
 import numpy as np
 import pandas as pd
 
 from .config import Category
+
+# categories that are per-game ratios (averaged by goalie games, not summed)
+RATIO_CATEGORIES = frozenset({"GAA", "SV%"})
+
+_GOALIE_SLOT = "Goalie"
+
+
+@dataclass
+class PreviewPlayer:
+    """Roster player input for matchup previews (active players only).
+
+    Stat dicts are raw season/projection totals keyed by ESPN stat name,
+    including games played ('GP' for skaters, 'GS' for goalies).
+    """
+    name: str
+    pro_team: str
+    eligible_slots: list[str]  # active lineup slots only (no Bench/IR)
+    season_stats: dict[str, float] = field(default_factory=dict)
+    projected_stats: dict[str, float] = field(default_factory=dict)
 
 
 def matchup_result(player_stats: np.ndarray, opponent_stats: np.ndarray,
@@ -120,3 +142,140 @@ def luck(actual_pts, rr_pts, num_opponents: int):
     :return: actual_pts - rr_pts / num_opponents
     """
     return actual_pts - rr_pts / num_opponents
+
+
+def max_lineup_seats(eligible_slots: list[list[str]],
+                     slot_counts: dict[str, int]) -> list[int]:
+    """
+    Maximum matching (Kuhn's augmenting paths) of players to lineup slots.
+    Earlier players get priority: once seated they may be moved to another
+    eligible slot, but are never displaced entirely.
+
+    :param eligible_slots: per player, the lineup slots they can fill
+    :param slot_counts: available slots (name -> capacity)
+    :return: indices of the players that get a seat
+    """
+    seats = [slot for slot, count in slot_counts.items() for _ in range(count)]
+    seated: list[int | None] = [None] * len(seats)  # seat -> player index
+
+    def take_seat(player: int, visited: set[int]) -> bool:
+        for s, slot in enumerate(seats):
+            if slot in eligible_slots[player] and s not in visited:
+                visited.add(s)
+                if seated[s] is None or take_seat(seated[s], visited):
+                    seated[s] = player
+                    return True
+        return False
+
+    return [p for p in range(len(eligible_slots)) if take_seat(p, set())]
+
+
+def seat_counts(players: list[PreviewPlayer], slot_counts: dict[str, int],
+                playing_by_period: dict[int, set[str]],
+                periods: Iterable[int]) -> list[int]:
+    """
+    How many games each player can play over the given days: per day, players
+    whose NHL team plays compete for the active lineup slots.
+
+    :param players: roster
+    :param slot_counts: active lineup slots (name -> capacity)
+    :param playing_by_period: scoring period -> NHL teams with a game that day
+    :param periods: scoring periods to cover
+    :return: playable games per player (matching the players order)
+    """
+    counts = [0] * len(players)
+    for period in periods:
+        playing = playing_by_period.get(period, set())
+        candidates = [i for i, p in enumerate(players) if p.pro_team in playing]
+        eligible = [players[i].eligible_slots for i in candidates]
+        for j in max_lineup_seats(eligible, slot_counts):
+            counts[candidates[j]] += 1
+    return counts
+
+
+def _blend(season: float | None, projected: float | None,
+           weight: float) -> float | None:
+    """Linear blend, falling back to whichever value exists."""
+    if season is None:
+        return projected
+    if projected is None:
+        return season
+    return weight * season + (1 - weight) * projected
+
+
+def _stat_games(stats: dict[str, float]) -> float:
+    return stats.get("GP") or stats.get("GS") or 0
+
+
+def blended_per_game(player: PreviewPlayer, stat: str,
+                     weight: float) -> float | None:
+    """
+    Per-game rate of an additive stat, blending current-season and projected
+    rates. Missing stat keys count as 0 for a player with games played.
+
+    :param weight: weight of the current-season rate (0 = projection only)
+    :return: blended per-game rate, or None if neither split has games
+    """
+    def rate(stats: dict[str, float]) -> float | None:
+        games = _stat_games(stats)
+        return stats.get(stat, 0.0) / games if games else None
+
+    return _blend(rate(player.season_stats), rate(player.projected_stats), weight)
+
+
+def blended_ratio(player: PreviewPlayer, stat: str,
+                  weight: float) -> float | None:
+    """Blend a ratio stat (e.g. GAA) directly; None if neither split has it."""
+    return _blend(player.season_stats.get(stat),
+                  player.projected_stats.get(stat), weight)
+
+
+def preview_week(players: list[PreviewPlayer], slot_counts: dict[str, int],
+                 playing_by_period: dict[int, set[str]],
+                 remaining_periods: list[int],
+                 actual_scores: np.ndarray, categories: list[Category],
+                 blend_weight: float, actual_games: int = 0,
+                 actual_goalie_games: int = 0) -> tuple[int, np.ndarray]:
+    """
+    Playable games and predicted final category scores of one team's matchup
+    week: actual accumulated scores plus per-game-rate predictions over the
+    remaining days. Ratio categories (GAA, SV%) are averaged per goalie game
+    instead of summed; the actual portion is weighted by the goalie games
+    actually played on the elapsed days.
+
+    :param players: current roster (active players only)
+    :param slot_counts: active lineup slots (name -> capacity)
+    :param playing_by_period: scoring period -> NHL teams with a game that day
+    :param remaining_periods: the scoring periods that still have to be predicted
+    :param actual_scores: accumulated real category scores so far (config order)
+    :param categories: category definitions
+    :param blend_weight: weight of current-season rates vs projections
+    :param actual_games: player games actually counted on the elapsed days
+    :param actual_goalie_games: goalie games actually counted on the elapsed days
+    :return: (actual plus playable remaining games, predicted category scores)
+    """
+    remaining = seat_counts(players, slot_counts, playing_by_period,
+                            remaining_periods)
+    games = int(actual_games) + sum(remaining)
+
+    is_goalie = [_GOALIE_SLOT in p.eligible_slots for p in players]
+
+    totals = np.zeros(len(categories))
+    for i, cat in enumerate(categories):
+        if cat.name in RATIO_CATEGORIES:
+            weighted = actual_scores[i] * actual_goalie_games
+            goalie_games = actual_goalie_games
+            for player, n, goalie in zip(players, remaining, is_goalie):
+                if not (goalie and n):
+                    continue
+                value = blended_ratio(player, cat.name, blend_weight)
+                if value is None:
+                    continue
+                weighted += value * n
+                goalie_games += n
+            totals[i] = weighted / goalie_games if goalie_games else actual_scores[i]
+        else:
+            totals[i] = actual_scores[i] + sum(
+                (blended_per_game(player, cat.name, blend_weight) or 0.0) * n
+                for player, n in zip(players, remaining))
+    return games, totals

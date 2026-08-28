@@ -29,14 +29,16 @@ def main() -> None:
     console.print(f"Loaded [bold]{data.current_week - 1}[/] completed weeks, "
                   f"[bold]{len(data.team_names)}[/] teams.")
 
+    quit_sentinel = object()  # questionary replaces a None value with the title
     while True:
         choice = questionary.select(
             "Select tool:",
             choices=[questionary.Choice(label, value=tool) for label, tool in TOOLS]
-                    + [questionary.Choice("Quit", value=None, shortcut_key="q")],
+                    + [questionary.Choice("Quit", value=quit_sentinel,
+                                          shortcut_key="q")],
             use_shortcuts=True,
         ).ask()
-        if choice is None:  # Quit or Ctrl-C
+        if choice is None or choice is quit_sentinel:  # Quit or Ctrl-C
             break
         choice(data)
 

@@ -2,8 +2,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from fantasy_nhl.analysis import (category_contestedness, category_win_rates,
-                                  luck, matchup_result, round_robin)
+from fantasy_nhl.analysis import (
+    PreviewPlayer,
+    blended_per_game,
+    category_contestedness,
+    category_win_rates,
+    luck,
+    matchup_result,
+    max_lineup_seats,
+    preview_week,
+    round_robin,
+    seat_counts,
+)
 from fantasy_nhl.config import Category
 
 CATEGORIES = [
@@ -156,3 +166,150 @@ class TestLuck:
         actual = pd.Series([2, 2, 0, 0])
         rr_pts = pd.Series([6, 4, 2, 0])
         assert luck(actual, rr_pts, 3).sum() == pytest.approx(0)
+
+
+class TestMaxLineupSeats:
+    def test_greedy_trap_resolved(self):
+        # flexible player must yield the Center slot to the Center-only player
+        eligible = [["Center", "Left Wing"], ["Center"]]
+        assert max_lineup_seats(eligible, {"Center": 1, "Left Wing": 1}) == [0, 1]
+
+    def test_slot_capacity(self):
+        eligible = [["Defense"], ["Defense"], ["Defense"]]
+        assert max_lineup_seats(eligible, {"Defense": 2}) == [0, 1]
+
+    def test_displacement_chain(self):
+        # third player cannot be seated: both slots stay occupied
+        eligible = [["Center", "Left Wing"], ["Center"], ["Left Wing"]]
+        seated = max_lineup_seats(eligible, {"Center": 1, "Left Wing": 1})
+        assert len(seated) == 2
+
+    def test_ineligible_player(self):
+        assert max_lineup_seats([["Goalie"]], {"Center": 1}) == []
+
+    def test_no_players(self):
+        assert max_lineup_seats([], {"Center": 1}) == []
+
+
+class TestSeatCounts:
+    SLOTS = {"Center": 1, "Goalie": 1}
+
+    def test_counts_days_with_games(self):
+        players = [PreviewPlayer("A", "Boston Bruins", ["Center"])]
+        playing = {1: {"Boston Bruins"}, 2: set(), 3: {"Boston Bruins"}}
+        assert seat_counts(players, self.SLOTS, playing, [1, 2, 3]) == [2]
+
+    def test_team_without_game_excluded(self):
+        players = [PreviewPlayer("A", "Boston Bruins", ["Center"])]
+        playing = {1: {"Dallas Stars"}}
+        assert seat_counts(players, self.SLOTS, playing, [1]) == [0]
+
+    def test_capped_by_slots(self):
+        players = [PreviewPlayer("A", "Boston Bruins", ["Center"]),
+                   PreviewPlayer("B", "Dallas Stars", ["Center"])]
+        playing = {1: {"Boston Bruins", "Dallas Stars"}}
+        assert seat_counts(players, self.SLOTS, playing, [1]) == [1, 0]
+
+
+class TestBlendedPerGame:
+    PLAYER = PreviewPlayer("A", "Boston Bruins", ["Center"],
+                           season_stats={"GP": 10, "G": 5},
+                           projected_stats={"GP": 80, "G": 20})
+
+    def test_full_season_weight(self):
+        assert blended_per_game(self.PLAYER, "G", 1.0) == pytest.approx(0.5)
+
+    def test_full_projection_weight(self):
+        assert blended_per_game(self.PLAYER, "G", 0.0) == pytest.approx(0.25)
+
+    def test_blend(self):
+        assert blended_per_game(self.PLAYER, "G", 0.5) == pytest.approx(0.375)
+
+    def test_no_season_games_falls_back_to_projection(self):
+        player = PreviewPlayer("A", "Boston Bruins", ["Center"],
+                               season_stats={"GP": 0, "G": 0},
+                               projected_stats={"GP": 80, "G": 20})
+        assert blended_per_game(player, "G", 1.0) == pytest.approx(0.25)
+
+    def test_goalie_uses_games_started(self):
+        goalie = PreviewPlayer("G", "Boston Bruins", ["Goalie"],
+                               season_stats={"GS": 10, "SV": 250})
+        assert blended_per_game(goalie, "SV", 1.0) == pytest.approx(25.0)
+
+    def test_missing_stat_counts_as_zero(self):
+        # e.g. DEF for a forward with games played
+        assert blended_per_game(self.PLAYER, "DEF", 1.0) == pytest.approx(0.0)
+
+    def test_no_data_returns_none(self):
+        player = PreviewPlayer("A", "Boston Bruins", ["Center"])
+        assert blended_per_game(player, "G", 0.5) is None
+
+
+class TestPreviewWeek:
+    CATEGORIES = [Category("G"), Category("GAA", inverted=True)]
+    SLOTS = {"Center": 1, "Goalie": 1}
+
+    @pytest.fixture
+    def players(self):
+        return [
+            PreviewPlayer("Skater", "Boston Bruins", ["Center"],
+                          season_stats={"GP": 10, "G": 5, "GAA": 99}),
+            PreviewPlayer("Goalie", "Dallas Stars", ["Goalie"],
+                          season_stats={"GS": 10, "GAA": 2.0}),
+        ]
+
+    # both NHL teams play every day of the 3-day week
+    PLAYING = {p: {"Boston Bruins", "Dallas Stars"} for p in (1, 2, 3)}
+
+    def test_completed_week_returns_actual(self, players):
+        actual = np.array([7.0, 3.5])
+        games, totals = preview_week(players, self.SLOTS, self.PLAYING,
+                                     [], actual, self.CATEGORIES, 1.0,
+                                     actual_games=5, actual_goalie_games=3)
+        assert games == 5  # taken from actual games, not the roster replay
+        assert totals == pytest.approx([7.0, 3.5])
+
+    def test_future_week_pure_prediction(self, players):
+        games, totals = preview_week(players, self.SLOTS, self.PLAYING,
+                                     [1, 2, 3], np.zeros(2),
+                                     self.CATEGORIES, 1.0)
+        assert games == 6
+        # skater: 0.5 G/game * 3 games; goalie GAA: his own average
+        assert totals == pytest.approx([1.5, 2.0])
+
+    def test_ongoing_week_blends_actual_and_prediction(self, players):
+        # day 1-2 elapsed (actual: 2 G, GAA 3.5, 4 games), day 3 predicted
+        actual = np.array([2.0, 3.5])
+        games, totals = preview_week(players, self.SLOTS, self.PLAYING,
+                                     [3], actual, self.CATEGORIES, 1.0,
+                                     actual_games=4, actual_goalie_games=2)
+        assert games == 6
+        # G: 2 + 0.5 * 1; GAA: (3.5 * 2 + 2.0 * 1) / 3
+        assert totals == pytest.approx([2.5, 3.0])
+
+    def test_ratio_ignores_skater_stats(self, players):
+        # the skater's bogus GAA=99 must not contaminate the goalie average
+        _, totals = preview_week(players, self.SLOTS, self.PLAYING,
+                                 [1], np.zeros(2), self.CATEGORIES, 1.0)
+        assert totals[1] == pytest.approx(2.0)
+
+    def test_ratio_multiple_goalies_weighted_by_games(self):
+        players = [
+            PreviewPlayer("G1", "Boston Bruins", ["Goalie"],
+                          season_stats={"GS": 10, "GAA": 2.0}),
+            PreviewPlayer("G2", "Dallas Stars", ["Goalie"],
+                          season_stats={"GS": 10, "GAA": 3.0}),
+        ]
+        # two goalie slots: G1 plays days 1+2, G2 only day 1
+        playing = {1: {"Boston Bruins", "Dallas Stars"}, 2: {"Boston Bruins"}}
+        _, totals = preview_week(players, {"Goalie": 2}, playing,
+                                 [1, 2], np.zeros(2),
+                                 self.CATEGORIES, 1.0)
+        assert totals[1] == pytest.approx((2.0 * 2 + 3.0 * 1) / 3)
+
+    def test_projection_blend_weight(self, players):
+        players[0].projected_stats = {"GP": 10, "G": 10}  # 1.0 G/game
+        _, totals = preview_week(players, self.SLOTS, self.PLAYING,
+                                 [1], np.zeros(2), self.CATEGORIES, 0.5)
+        # blended rate (0.5 + 1.0) / 2 = 0.75 over one game
+        assert totals[0] == pytest.approx(0.75)

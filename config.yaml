@@ -46,6 +46,7 @@ leagues:
     categories:
       - name: G
       - name: A
+      - name: STP
       - name: SOG
       - name: HIT
       - name: BLK
@@ -60,6 +61,7 @@ leagues:
     categories:
       - name: G
       - name: A
+      - name: STP
       - name: SOG
       - name: HIT
       - name: BLK
