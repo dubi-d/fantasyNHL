@@ -4,12 +4,16 @@ import questionary
 
 from .analysis import (
     RATIO_CATEGORIES,
+    StreamingContext,
     category_contestedness,
     category_win_rates,
     luck,
     matchup_result,
+    open_seat_counts,
+    position_open_seats,
     preview_week,
     round_robin,
+    team_gap_coverage,
 )
 from .display import (
     StyleFn,
@@ -19,7 +23,12 @@ from .display import (
     print_df,
     result_style,
 )
-from .espn_data import LeagueData, fetch_preview_data
+from .espn_data import (
+    LeagueData,
+    fetch_adds_used,
+    fetch_preview_data,
+    fetch_week_dates,
+)
 
 # points awarded for a real matchup result ("NA" -> no luck value yet)
 RESULT_PTS = {"W": 2, "T": 1, "L": 0}
@@ -147,20 +156,34 @@ def _pair_style(home_raw: float, away_raw: float, inverted: bool,
     return lambda value: "bold green" if value == winner else "bold red"
 
 
+def _ask_week(data: LeagueData) -> int | None:
+    """Prompt for a matchup week (None on Ctrl-C)."""
+    weeks = data.total_weeks or data.current_week
+    with console.status("Fetching matchup dates..."):
+        week_dates = fetch_week_dates(data)
+
+    def dates(week: int) -> str:
+        if week not in week_dates:
+            return ""
+        start, end = week_dates[week]
+        return f" ({start:%b %-d} – {end:%b %-d})"
+
+    choices = [questionary.Choice(
+        f"Matchup {week}" + dates(week)
+        + (" (playoffs)" if 0 < data.regular_weeks < week else "")
+        + (" (current)" if week == data.current_week else ""),
+        value=week) for week in range(1, weeks + 1)]
+    return questionary.select(
+        "Select matchup:", choices=choices,
+        default=choices[min(data.current_week, weeks) - 1]).ask()
+
+
 def matchup_preview(data: LeagueData) -> None:
     """Preview a matchup week: player games and predicted category scores per
     head-to-head pairing. Elapsed days use real data (scores and games actually
     played), remaining days per-game-rate predictions with the current roster
     filling all active slots."""
-    weeks = data.total_weeks or data.current_week
-    choices = [questionary.Choice(
-        f"Week {week}"
-        + (" (playoffs)" if 0 < data.regular_weeks < week else "")
-        + (" (current)" if week == data.current_week else ""),
-        value=week) for week in range(1, weeks + 1)]
-    week = questionary.select(
-        "Select matchup week:", choices=choices,
-        default=choices[min(data.current_week, weeks) - 1]).ask()
+    week = _ask_week(data)
     if week is None:  # Ctrl-C
         return
 
@@ -225,6 +248,236 @@ def matchup_preview(data: LeagueData) -> None:
                  styles=styles)
 
 
+# specific positions first; Forward/Util add no information for the label
+_SLOT_ABBREV = {"Center": "C", "Left Wing": "LW", "Right Wing": "RW",
+                "Defense": "D", "Goalie": "G", "Forward": "F", "Util": "U"}
+_SLOT_ORDER = {slot: i for i, slot in enumerate(_SLOT_ABBREV)}
+
+
+def _position_label(eligible_slots: list[str]) -> str:
+    specific = [s for s in eligible_slots if s not in ("Forward", "Util")]
+    slots = sorted(specific or eligible_slots, key=_SLOT_ORDER.get)
+    return "/".join(_SLOT_ABBREV.get(s, s) for s in slots)
+
+
+def _day_labels(periods: list[int],
+                period_dates: dict[int, object]) -> dict[int, str]:
+    return {p: (f"{period_dates[p]:%a %-d}" if p in period_dates
+                else f"Day {p}") for p in periods}
+
+
+def streaming_planner(data: LeagueData) -> None:
+    """Plan streamer moves for a matchup week: per-day roster grid with open
+    active seats (with and without the designated streamers) and NHL teams
+    ranked by how well their schedule covers the open days."""
+    week = _ask_week(data)
+    if week is None:  # Ctrl-C
+        return
+
+    with console.status(f"Fetching streaming data for week {week}..."):
+        preview = fetch_preview_data(data, week)
+        adds_used = fetch_adds_used(data, week)
+
+    my_row = questionary.select(
+        "Select your team:",
+        choices=[questionary.Choice(name, value=row)
+                 for row, name in enumerate(data.team_names)]).ask()
+    if my_row is None:  # Ctrl-C
+        return
+    roster = sorted(preview.rosters[my_row],
+                    key=lambda p: min(_SLOT_ORDER.get(s, len(_SLOT_ORDER))
+                                      for s in p.eligible_slots))
+
+    actionable = [p for p in preview.periods if p >= preview.current_period]
+    simulated_from = None
+    if not actionable and preview.periods:
+        labels = _day_labels(preview.periods, preview.period_dates)
+        # 0 = no simulation (questionary swallows None values)
+        sim = questionary.select(
+            "Week is over — simulate it as ongoing to preview the planner?",
+            choices=[questionary.Choice("No, just show the roster grid",
+                                        value=0)]
+            + [questionary.Choice(f"Plan as if today were {labels[p]}",
+                                  value=p) for p in preview.periods]).ask()
+        if sim:
+            actionable = [p for p in preview.periods if p >= sim]
+            simulated_from = labels[sim]
+
+    streamers: list[str] = []
+    if actionable:
+        streamers = questionary.checkbox(
+            "Mark your streamers (droppable roster spots):",
+            choices=[p.name for p in roster]).ask() or []
+
+    context = StreamingContext(
+        roster=roster,
+        slot_counts=preview.slot_counts,
+        playing_by_period=preview.playing_by_period,
+        periods=preview.periods,
+        actionable_periods=actionable,
+        period_dates=preview.period_dates,
+        adds_used=adds_used[my_row],
+        adds_limit=preview.add_limit,
+        lookahead_periods=preview.next_periods[:2],
+    )
+    _render_streaming_plan(context, week, data.team_names[my_row], streamers,
+                           simulated_from)
+
+
+def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
+                           streamers: list[str],
+                           simulated_from: str | None = None) -> None:
+    look = ctx.lookahead_periods
+    labels = _day_labels(ctx.periods + look, ctx.period_dates)
+    elapsed = [p for p in ctx.periods if p not in set(ctx.actionable_periods)]
+
+    used = "?" if ctx.adds_used is None else ctx.adds_used
+    limit = "\u221e" if ctx.adds_limit is None else ctx.adds_limit
+    console.print(f"\n[bold]Week {week} streaming planner[/] — {team_name}, "
+                  f"adds used this week: [bold]{used} / {limit}[/]")
+    if simulated_from:
+        console.print(f"SIMULATION — planning as if today were "
+                      f"{simulated_from}; the grid shows the current roster, "
+                      f"not the historical lineups of that week.",
+                      style="bold magenta")
+    elif not ctx.actionable_periods:
+        console.print("Week is over — the grid shows the current roster, not "
+                      "the historical lineups of that week.", style="yellow")
+    elif elapsed:
+        console.print("Dimmed days are elapsed and excluded from open seats "
+                      "and coverage; today counts as actionable.", style="dim")
+    if look and ctx.actionable_periods:
+        console.print(f"Columns after {labels[max(ctx.periods)]} preview next "
+                      "week's first days — informational only, excluded from "
+                      "the coverage ranking.", style="dim")
+
+    # roster grid: game markers per day, open seats as footer
+    grid = pd.DataFrame([{
+        "Player": p.name + (" *" if p.name in streamers else ""),
+        "Pos": _position_label(p.eligible_slots),
+        "Team": p.pro_team,
+        **{labels[d]: "•" if p.pro_team in ctx.playing_by_period.get(d, set())
+           else "" for d in ctx.periods + look},
+    } for p in ctx.roster], index=[""] * len(ctx.roster))
+
+    keep = [p for p in ctx.roster if p.name not in streamers]
+    seat_periods = ctx.actionable_periods + look
+    open_current = open_seat_counts(ctx.roster, ctx.slot_counts,
+                                    ctx.playing_by_period, seat_periods)
+    open_dropped = open_seat_counts(keep, ctx.slot_counts,
+                                    ctx.playing_by_period, seat_periods)
+
+    def open_row(name: str, opened: dict[int, tuple[int, int]],
+                 part: int) -> dict[str, str]:
+        return {"Player": name,
+                **{labels[d]: str(seats[part]) if seats[part] else "-"
+                   for d, seats in opened.items()}}
+
+    footer_rows = [open_row("(open skater seats)", open_current, 0),
+                   open_row("(open goalie seats)", open_current, 1)]
+    if streamers:
+        footer_rows += [open_row("(skater, streamers out)", open_dropped, 0),
+                        open_row("(goalie, streamers out)", open_dropped, 1)]
+    footer = pd.DataFrame(footer_rows, index=[""] * len(footer_rows)) \
+        if ctx.actionable_periods else None
+
+    # disjoint per-slot open seats; specific seats are filled before F/Util
+    pos_table = totals = None
+    if ctx.actionable_periods:
+        open_slots = position_open_seats(keep, ctx.slot_counts,
+                                         ctx.playing_by_period, seat_periods)
+        pos_table = pd.DataFrame([{
+            "Pos": _SLOT_ABBREV.get(slot, slot),
+            **{labels[d]: str(open_slots[d][slot]) if open_slots[d][slot] else "-"
+               for d in seat_periods},
+        } for slot in ctx.slot_counts], index=[""] * len(ctx.slot_counts))
+        totals = pd.DataFrame([{
+            "Pos": "(total)",
+            **{labels[d]: str(sum(open_slots[d].values()))
+               if any(open_slots[d].values()) else "-"
+               for d in seat_periods},
+        }], index=[""])
+
+    # coverage counts games on days that still have any open seat
+    open_periods = {d for d in ctx.actionable_periods
+                    if sum(open_dropped[d]) > 0}
+    cov_table = None
+    if ctx.actionable_periods and open_periods:
+        coverage = team_gap_coverage(ctx.playing_by_period, open_periods,
+                                     ctx.actionable_periods)
+        coverage = coverage[coverage["Cover"] > 0].head(12)
+        cov_table = pd.DataFrame({
+            "Team": coverage["Team"],
+            **{labels[d]: coverage[d].map({True: "•", False: ""})
+               for d in ctx.actionable_periods},
+            **{labels[d]: coverage["Team"].map(
+                lambda t, d=d: "•" if t in ctx.playing_by_period.get(d, set())
+                else "") for d in look},
+            "Cover": coverage["Cover"],
+            "Games": coverage["Games"],
+        })
+        cov_table.index = range(1, len(cov_table) + 1)
+
+    # pad each table's last leading column so day columns line up across tables
+    def width(header: str, values: list) -> int:
+        return max([len(header)] + [len(str(v)) for v in values])
+
+    def lead(*col_widths: int) -> int:
+        # rendered width of leading columns (content + padding + divider each)
+        return sum(w + 3 for w in col_widths)
+
+    grid_team_w = width("Team", list(grid["Team"]))
+    grid_lead = lead(1, width("Player", list(grid["Player"])
+                              + [r["Player"] for r in footer_rows]),
+                     width("Pos", list(grid["Pos"])), grid_team_w) \
+        + sum(len(labels[d]) + 3 for d in elapsed)
+    leads = [grid_lead]
+    if pos_table is not None:
+        pos_w = width("Pos", list(pos_table["Pos"]) + ["(total)"])
+        leads.append(lead(1, pos_w))
+    if cov_table is not None:
+        cov_hash_w = max(1, len(str(len(cov_table))))
+        cov_team_w = width("Team", list(cov_table["Team"]))
+        leads.append(lead(cov_hash_w, cov_team_w))
+    target = max(leads)
+
+    look_dim = {labels[d]: "dim" for d in look}
+    styles: dict[str, StyleFn] = {labels[d]: (lambda _: "dim")
+                                  for d in elapsed + look}
+    print_df(grid, f"Roster week {week}"
+             + (" (* = streamer)" if streamers else ""),
+             styles=styles, footer=footer,
+             widths={"Team": grid_team_w + target - grid_lead},
+             header_styles=look_dim)
+
+    if not ctx.actionable_periods:
+        return
+
+    print_df(pos_table, "Open seats by lineup slot"
+             + (" — streamers dropped" if streamers else ""),
+             styles={labels[d]: (lambda _: "dim") for d in look},
+             footer=totals,
+             widths={"Pos": pos_w + target - lead(1, pos_w)},
+             header_styles=look_dim)
+
+    if cov_table is None:
+        console.print("No open seats on the remaining days — mark streamers "
+                      "to see which teams could cover their spots.",
+                      style="yellow")
+        return
+
+    marker_styles: dict[str, StyleFn] = {
+        labels[d]: (lambda v: "bold green" if v == "•" else "")
+        for d in open_periods}
+    marker_styles.update({labels[d]: (lambda _: "dim") for d in look})
+    open_labels = ", ".join(labels[d] for d in sorted(open_periods))
+    print_df(cov_table, f"NHL teams covering the open days ({open_labels})"
+             + (" — streamers dropped" if streamers else ""),
+             styles=marker_styles,
+             widths={"Team": cov_team_w + target - lead(cov_hash_w, cov_team_w)},
+             header_styles=look_dim)
+
+
 # (menu label, callable) — extend here for new tools
 TOOLS = [
     ("Show weekly scores", weekly_scores),
@@ -232,4 +485,5 @@ TOOLS = [
     ("Show luck ranking", luck_ranking),
     ("Show category strength profile", category_profile),
     ("Show matchup preview", matchup_preview),
+    ("Plan streaming week", streaming_planner),
 ]

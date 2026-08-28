@@ -32,6 +32,9 @@ class LeagueData:
     total_weeks: int = 0  # matchup weeks including playoffs
     regular_weeks: int = 0  # regular-season matchup weeks
     espn_league: League | None = field(default=None, repr=False)
+    # lazy cache: week -> (first day, last day), filled by fetch_week_dates
+    week_dates: dict[int, tuple[date, date]] | None = field(default=None,
+                                                            repr=False)
 
 
 @dataclass
@@ -50,6 +53,10 @@ class PreviewData:
     actual_goalie_games: np.ndarray  # goalie games counted on elapsed days
     start_date: date | None = None  # first calendar day of the week
     end_date: date | None = None  # last calendar day of the week
+    current_period: int = 0  # today's scoring period
+    period_dates: dict[int, date] = field(default_factory=dict)  # week's days
+    add_limit: int | None = None  # weekly acquisition limit (None = no limit)
+    next_periods: list[int] = field(default_factory=list)  # next week's days
 
 
 def fetch_league_data(config: LeagueConfig) -> LeagueData:
@@ -181,17 +188,53 @@ def _week_scoring_periods(league: League,
     return mapping
 
 
-def _fetch_slot_counts(league: League) -> dict[str, int]:
-    """Active lineup slot capacities from the raw settings (the espn_api
-    wrapper does not retain rosterSettings)."""
+def _fetch_roster_settings(league: League) -> tuple[dict[str, int], int | None]:
+    """Active lineup slot capacities and weekly add limit from the raw
+    settings (the espn_api wrapper does not retain either)."""
     data = league.espn_request.league_get(params={"view": "mSettings"})
-    raw_counts = data["settings"]["rosterSettings"]["lineupSlotCounts"]
+    settings = data["settings"]
+    raw_counts = settings["rosterSettings"]["lineupSlotCounts"]
     slot_counts = {}
     for slot_id, count in raw_counts.items():
         name = POSITION_MAP.get(int(slot_id))
         if count > 0 and isinstance(name, str) and name not in ("Bench", "IR"):
             slot_counts[name] = count
-    return slot_counts
+    limit = settings.get("acquisitionSettings", {}).get("matchupAcquisitionLimit")
+    # ESPN reports "no limit" as a negative value
+    add_limit = int(limit) if limit is not None and limit >= 0 else None
+    return slot_counts, add_limit
+
+
+def fetch_week_dates(data: LeagueData) -> dict[int, tuple[date, date]]:
+    """First and last calendar day of every matchup week (cached)."""
+    if data.week_dates is None:
+        league = data.espn_league
+        if league is None:
+            raise ValueError("LeagueData has no live ESPN session.")
+        period_dates = _period_dates(league._get_all_pro_schedule(),
+                                     league.firstScoringPeriod,
+                                     league.finalScoringPeriod)
+        week_periods = _week_scoring_periods(league, period_dates)
+        data.week_dates = {w: (period_dates[min(ps)], period_dates[max(ps)])
+                           for w, ps in week_periods.items() if ps}
+    return data.week_dates
+
+
+def fetch_adds_used(data: LeagueData, week: int) -> list[int | None]:
+    """Adds already used in the given matchup week per team (by row), from
+    the raw transaction counters (not exposed by the espn_api wrapper).
+    None where ESPN does not report the counter."""
+    league = data.espn_league
+    if league is None:
+        raise ValueError("LeagueData has no live ESPN session.")
+    raw = league.espn_request.league_get(params={"view": "mTeam"})
+    used_by_id = {}
+    for team in raw.get("teams", []):
+        totals = team.get("transactionCounter", {}).get("matchupAcquisitionTotals")
+        if isinstance(totals, dict):
+            # weeks without any transaction are simply absent
+            used_by_id[team["id"]] = totals.get(str(week), totals.get(week, 0))
+    return [used_by_id.get(team.team_id) for team in league.teams]
 
 
 def _preview_rosters(league: League, year: int,
@@ -273,6 +316,7 @@ def fetch_preview_data(data: LeagueData, week: int) -> PreviewData:
     if week not in week_periods:
         raise ValueError(f"No scoring periods known for week {week}.")
     periods = week_periods[week]
+    next_periods = week_periods.get(week + 1, [])
     # live totals already cover today; predict only the days after it
     remaining_periods = [p for p in periods if p > league.scoringPeriodId]
 
@@ -312,7 +356,7 @@ def fetch_preview_data(data: LeagueData, week: int) -> PreviewData:
         actual_games[row] = games_by_id.get(team_id, 0)
         actual_goalie_games[row] = goalie_by_id.get(team_id, 0)
 
-    slot_counts = _fetch_slot_counts(league)
+    slot_counts, add_limit = _fetch_roster_settings(league)
     return PreviewData(
         week=week,
         pairings=pairings,
@@ -327,4 +371,9 @@ def fetch_preview_data(data: LeagueData, week: int) -> PreviewData:
         actual_goalie_games=actual_goalie_games,
         start_date=period_dates.get(min(periods)) if periods else None,
         end_date=period_dates.get(max(periods)) if periods else None,
+        current_period=league.scoringPeriodId,
+        period_dates={p: period_dates[p] for p in periods + next_periods
+                      if p in period_dates},
+        add_limit=add_limit,
+        next_periods=next_periods,
     )

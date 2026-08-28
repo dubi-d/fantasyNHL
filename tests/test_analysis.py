@@ -10,9 +10,12 @@ from fantasy_nhl.analysis import (
     luck,
     matchup_result,
     max_lineup_seats,
+    open_seat_counts,
+    position_open_seats,
     preview_week,
     round_robin,
     seat_counts,
+    team_gap_coverage,
 )
 from fantasy_nhl.config import Category
 
@@ -313,3 +316,149 @@ class TestPreviewWeek:
                                  [1], np.zeros(2), self.CATEGORIES, 0.5)
         # blended rate (0.5 + 1.0) / 2 = 0.75 over one game
         assert totals[0] == pytest.approx(0.75)
+
+
+class TestOpenSeatCounts:
+    SLOTS = {"Center": 1, "Defense": 1, "Goalie": 1}
+
+    def test_all_seats_open_when_nobody_plays(self):
+        players = [PreviewPlayer("A", "Boston Bruins", ["Center"])]
+        assert open_seat_counts(players, self.SLOTS, {1: set()}, [1]) \
+            == {1: (2, 1)}
+
+    def test_playing_player_fills_a_seat(self):
+        players = [PreviewPlayer("A", "Boston Bruins", ["Center"])]
+        playing = {1: {"Boston Bruins"}}
+        assert open_seat_counts(players, self.SLOTS, playing, [1]) \
+            == {1: (1, 1)}
+
+    def test_goalie_pool_is_separate(self):
+        # a goalie never fills a skater seat, a skater never a goalie seat
+        players = [PreviewPlayer("G", "Boston Bruins", ["Goalie"]),
+                   PreviewPlayer("A", "Boston Bruins", ["Center", "Defense"]),
+                   PreviewPlayer("B", "Boston Bruins", ["Center", "Defense"]),
+                   PreviewPlayer("C", "Boston Bruins", ["Center"])]
+        playing = {1: {"Boston Bruins"}}
+        assert open_seat_counts(players, self.SLOTS, playing, [1]) \
+            == {1: (0, 0)}
+
+    def test_matching_moves_flexible_player(self):
+        # the C/D player must shift to Defense so both seats fill
+        players = [PreviewPlayer("A", "Boston Bruins", ["Center", "Defense"]),
+                   PreviewPlayer("B", "Boston Bruins", ["Center"])]
+        playing = {1: {"Boston Bruins"}}
+        assert open_seat_counts(players, self.SLOTS, playing, [1]) \
+            == {1: (0, 1)}
+
+    def test_dropping_a_player_opens_his_days(self):
+        players = [PreviewPlayer("A", "Boston Bruins", ["Center"]),
+                   PreviewPlayer("B", "Dallas Stars", ["Defense"])]
+        playing = {1: {"Boston Bruins", "Dallas Stars"}, 2: {"Boston Bruins"}}
+        kept = [p for p in players if p.name != "A"]
+        assert open_seat_counts(players, self.SLOTS, playing, [1, 2]) \
+            == {1: (0, 1), 2: (1, 1)}
+        assert open_seat_counts(kept, self.SLOTS, playing, [1, 2]) \
+            == {1: (1, 1), 2: (2, 1)}
+
+    def test_multiple_days(self):
+        players = [PreviewPlayer("A", "Boston Bruins", ["Center"])]
+        playing = {1: {"Boston Bruins"}, 2: set()}
+        assert open_seat_counts(players, self.SLOTS, playing, [1, 2]) \
+            == {1: (1, 1), 2: (2, 1)}
+
+
+class TestPositionOpenSeats:
+    def test_all_slots_reported_separately(self):
+        slots = {"Center": 1, "Left Wing": 1, "Util": 1}
+        assert position_open_seats([], slots, {1: set()}, [1]) \
+            == {1: {"Center": 1, "Left Wing": 1, "Util": 1}}
+
+    def test_specific_seat_filled_before_util(self):
+        slots = {"Center": 1, "Util": 1}
+        players = [PreviewPlayer("A", "Boston Bruins", ["Center", "Util"])]
+        playing = {1: {"Boston Bruins"}}
+        assert position_open_seats(players, slots, playing, [1]) \
+            == {1: {"Center": 0, "Util": 1}}
+
+    def test_util_used_when_unavoidable(self):
+        slots = {"Center": 1, "Util": 1}
+        players = [PreviewPlayer("A", "Boston Bruins", ["Center", "Util"]),
+                   PreviewPlayer("B", "Boston Bruins", ["Center", "Util"])]
+        playing = {1: {"Boston Bruins"}}
+        assert position_open_seats(players, slots, playing, [1]) \
+            == {1: {"Center": 0, "Util": 0}}
+
+    def test_forward_filled_before_util(self):
+        slots = {"Center": 1, "Forward": 1, "Util": 1}
+        players = [PreviewPlayer("A", "Boston Bruins",
+                                 ["Center", "Forward", "Util"]),
+                   PreviewPlayer("B", "Boston Bruins",
+                                 ["Center", "Forward", "Util"])]
+        playing = {1: {"Boston Bruins"}}
+        assert position_open_seats(players, slots, playing, [1]) \
+            == {1: {"Center": 0, "Forward": 0, "Util": 1}}
+
+    def test_augmenting_reassigns_flexible_player(self):
+        # A must move from Center to Left Wing so B fits; no Util needed
+        slots = {"Center": 1, "Left Wing": 1, "Util": 1}
+        players = [PreviewPlayer("A", "Boston Bruins",
+                                 ["Center", "Left Wing", "Util"]),
+                   PreviewPlayer("B", "Boston Bruins", ["Center", "Util"])]
+        playing = {1: {"Boston Bruins"}}
+        assert position_open_seats(players, slots, playing, [1]) \
+            == {1: {"Center": 0, "Left Wing": 0, "Util": 1}}
+
+    def test_goalie_cannot_fill_util(self):
+        slots = {"Goalie": 1, "Util": 1}
+        players = [PreviewPlayer("G", "Boston Bruins", ["Goalie"]),
+                   PreviewPlayer("H", "Boston Bruins", ["Goalie"])]
+        playing = {1: {"Boston Bruins"}}
+        assert position_open_seats(players, slots, playing, [1]) \
+            == {1: {"Goalie": 0, "Util": 1}}
+
+    def test_sums_match_total_open_seats(self):
+        slots = {"Center": 2, "Defense": 2, "Goalie": 1, "Util": 1}
+        players = [PreviewPlayer("A", "Boston Bruins", ["Center", "Util"]),
+                   PreviewPlayer("B", "Boston Bruins", ["Defense", "Util"]),
+                   PreviewPlayer("G", "Boston Bruins", ["Goalie"])]
+        playing = {1: {"Boston Bruins"}}
+        by_slot = position_open_seats(players, slots, playing, [1])[1]
+        skater_open, goalie_open = open_seat_counts(
+            players, slots, playing, [1])[1]
+        assert sum(by_slot.values()) == skater_open + goalie_open
+        assert by_slot["Goalie"] == goalie_open
+
+
+class TestTeamGapCoverage:
+    PLAYING = {
+        1: {"Boston Bruins", "Dallas Stars"},
+        2: {"Boston Bruins"},
+        3: {"Dallas Stars", "Ottawa Senators"},
+    }
+
+    def test_cover_counts_only_open_days(self):
+        table = team_gap_coverage(self.PLAYING, {2, 3}, [1, 2, 3])
+        by_team = table.set_index("Team")
+        assert by_team.loc["Boston Bruins", "Cover"] == 1  # plays day 2
+        assert by_team.loc["Dallas Stars", "Cover"] == 1  # plays day 3
+        assert by_team.loc["Ottawa Senators", "Cover"] == 1
+
+    def test_games_counts_all_days(self):
+        table = team_gap_coverage(self.PLAYING, {2, 3}, [1, 2, 3])
+        by_team = table.set_index("Team")
+        assert by_team.loc["Boston Bruins", "Games"] == 2
+        assert by_team.loc["Ottawa Senators", "Games"] == 1
+
+    def test_sorted_by_cover_then_games(self):
+        table = team_gap_coverage(self.PLAYING, {1, 2, 3}, [1, 2, 3])
+        assert list(table["Team"]) == ["Boston Bruins", "Dallas Stars",
+                                       "Ottawa Senators"]
+
+    def test_day_columns_are_play_flags(self):
+        table = team_gap_coverage(self.PLAYING, {1}, [1, 2, 3])
+        row = table.set_index("Team").loc["Boston Bruins"]
+        assert bool(row[1]) and bool(row[2]) and not bool(row[3])
+
+    def test_no_periods_gives_empty_table(self):
+        table = team_gap_coverage(self.PLAYING, set(), [])
+        assert table.empty

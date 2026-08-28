@@ -39,19 +39,27 @@ def result_style(result: str) -> str:
 
 def print_df(df: pd.DataFrame, title: str,
              styles: dict[str, StyleFn] | None = None,
-             footer: pd.DataFrame | None = None) -> None:
+             footer: pd.DataFrame | None = None,
+             widths: dict[str, int] | None = None,
+             header_styles: dict[str, str] | None = None) -> None:
     """Render a DataFrame as a rich table, index shown as '#'.
 
     styles maps column name -> (value -> style string) for per-cell styling.
     footer rows are appended dim in a separate section.
+    widths maps column name -> minimum content width.
+    header_styles maps column name -> extra style layered on the header.
     """
     styles = styles or {}
+    widths = widths or {}
+    header_styles = header_styles or {}
     table = Table(title=title, title_style="bold", title_justify="left",
                   header_style="bold cyan")
     table.add_column("#", justify="right", style="dim")
     for col in df.columns:
         justify = "left" if df[col].dtype == object else "right"
-        table.add_column(str(col), justify=justify)
+        table.add_column(str(col), justify=justify,
+                         min_width=widths.get(str(col)),
+                         header_style=header_styles.get(str(col)))
 
     def cell(col: str, value: object) -> str:
         style = styles.get(col, lambda _: "")(value)

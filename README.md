@@ -54,6 +54,20 @@ League data is fetched once per session and reused.
   `(contested)` footer row shows how up-for-grabs each category is
   league-wide (`1 − std/0.5` of the column: 1 = full parity, so small roster
   moves can swing it; 0 = structurally locked by a few teams).
+- **Show matchup preview** — Predicted category scores for every head-to-head
+  pairing of a selected matchup. Elapsed days use real data (live scores and
+  games actually played), remaining days use per-game-rate predictions
+  (current-season stats blended with preseason projections) with the current
+  roster filling all active lineup slots against the NHL schedule. Shows
+  games played/playable, per-category winners, and a projected result.
+- **Plan streaming week** — Helps plan streamer pickups for a selected
+  matchup: a per-day roster grid with game markers and open active seats
+  (optionally with your designated streamers dropped), a per-lineup-slot
+  breakdown of the open seats, and NHL teams ranked by how many of the open
+  days their schedule covers. Shows your used/allowed weekly adds. The first
+  two days of the next matchup appear as informational columns. Elapsed
+  days are excluded (dimmed); for finished weeks the tool offers to simulate
+  the week as ongoing.
 
 ### Luck
 
@@ -88,8 +102,8 @@ pyproject.toml               # package metadata, dependencies, CLI entrypoint
 src/fantasy_nhl/
   cli.py                     # interactive session: league picker + tool menu
   config.py                  # YAML loading into LeagueConfig/Category dataclasses
-  espn_data.py               # ESPN API access; fetches weekly category scores
-  analysis.py                # pure logic: matchup results, round-robin tables
+  espn_data.py               # ESPN API access: scores, rosters, NHL schedule, settings
+  analysis.py                # pure logic: round-robin tables, predictions, lineup seats
   display.py                 # rich rendering: tables, color gradients
   tools.py                   # CLI tools and the TOOLS registry
 tests/                       # pytest suite for the pure analysis logic
