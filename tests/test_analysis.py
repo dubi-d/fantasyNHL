@@ -13,6 +13,7 @@ from fantasy_nhl.analysis import (
     open_seat_counts,
     position_open_seats,
     preview_week,
+    rank_streaming_candidates,
     round_robin,
     seat_counts,
     team_gap_coverage,
@@ -461,4 +462,91 @@ class TestTeamGapCoverage:
 
     def test_no_periods_gives_empty_table(self):
         table = team_gap_coverage(self.PLAYING, set(), [])
+        assert table.empty
+
+
+class TestRankStreamingCandidates:
+    SLOTS = {"Center": 1, "Util": 1, "Goalie": 1}
+    KEEP = [PreviewPlayer("Mine", "Boston Bruins", ["Center", "Util"])]
+
+    def test_fit_when_open_seat_matches(self):
+        playing = {1: {"Boston Bruins", "Dallas Stars"}}
+        cand = PreviewPlayer("FA", "Dallas Stars", ["Center", "Util"])
+        table = rank_streaming_candidates([cand], self.KEEP, self.SLOTS,
+                                          playing, [1])
+        row = table.iloc[0]
+        assert row[1] == "fit" and row["Fit"] == 1 and row["Games"] == 1
+
+    def test_play_but_no_fit_when_seats_taken(self):
+        slots = {"Center": 1}
+        playing = {1: {"Boston Bruins", "Dallas Stars"}}
+        keep = [PreviewPlayer("Mine", "Boston Bruins", ["Center"])]
+        cand = PreviewPlayer("FA", "Dallas Stars", ["Center"])
+        table = rank_streaming_candidates([cand], keep, slots, playing, [1])
+        row = table.iloc[0]
+        assert row[1] == "play" and row["Fit"] == 0 and row["Games"] == 1
+
+    def test_no_game_day_is_empty(self):
+        playing = {1: {"Boston Bruins"}}
+        cand = PreviewPlayer("FA", "Dallas Stars", ["Center"])
+        table = rank_streaming_candidates([cand], self.KEEP, self.SLOTS,
+                                          playing, [1])
+        row = table.iloc[0]
+        assert row[1] == "" and row["Fit"] == 0 and row["Games"] == 0
+
+    def test_open_goalie_seat_does_not_fit_skater(self):
+        slots = {"Center": 1, "Goalie": 1}
+        playing = {1: {"Boston Bruins", "Dallas Stars"}}
+        keep = [PreviewPlayer("Mine", "Boston Bruins", ["Center"])]
+        cand = PreviewPlayer("FA", "Dallas Stars", ["Center"])
+        table = rank_streaming_candidates([cand], keep, slots, playing, [1])
+        assert table.iloc[0]["Fit"] == 0
+
+    def test_goalie_candidate_never_fits_skater_seats(self):
+        playing = {1: {"Boston Bruins", "Dallas Stars"}}
+        cand = PreviewPlayer("FA G", "Dallas Stars", ["Goalie"])
+        table = rank_streaming_candidates([cand], self.KEEP, self.SLOTS,
+                                          playing, [1])
+        row = table.iloc[0]
+        assert row["Fit"] == 0 and row[1] == "play"
+
+    def test_sorted_by_fit_then_input_order(self):
+        playing = {2: {"Dallas Stars", "Ottawa Senators"},
+                   3: {"Ottawa Senators"}}
+        two_fits = PreviewPlayer("Two", "Ottawa Senators", ["Center"])
+        one_fit = PreviewPlayer("First", "Dallas Stars", ["Center", "Util"])
+        # same fit and games as First, but listed later (less owned)
+        tied_later = PreviewPlayer("Later", "Dallas Stars", ["Center"])
+        keep = [PreviewPlayer("Mine", "Boston Bruins", ["Center", "Util"])]
+        slots = {"Center": 1, "Util": 1}
+        table = rank_streaming_candidates(
+            [one_fit, tied_later, two_fits], keep, slots, playing, [2, 3])
+        assert list(table["Player"]) == ["Two", "First", "Later"]
+
+    def test_games_break_fit_ties(self):
+        slots = {"Center": 1}
+        keep = [PreviewPlayer("Mine", "Boston Bruins", ["Center"])]
+        # day 1 seat open, day 2 seat taken by Mine
+        playing = {1: {"Dallas Stars", "Ottawa Senators"},
+                   2: {"Boston Bruins", "Dallas Stars"}}
+        one_game = PreviewPlayer("OneGame", "Ottawa Senators", ["Center"])
+        two_games = PreviewPlayer("TwoGames", "Dallas Stars", ["Center"])
+        table = rank_streaming_candidates([one_game, two_games], keep, slots,
+                                          playing, [1, 2])
+        assert list(table["Player"]) == ["TwoGames", "OneGame"]
+        assert list(table["Fit"]) == [1, 1]
+        assert list(table["Games"]) == [2, 1]
+
+    def test_injury_and_slots_passed_through(self):
+        cand = PreviewPlayer("FA", "Dallas Stars", ["Center", "Util"],
+                             injury="DAY_TO_DAY")
+        table = rank_streaming_candidates([cand], self.KEEP, self.SLOTS,
+                                          {1: set()}, [1])
+        row = table.iloc[0]
+        assert row["Injury"] == "DAY_TO_DAY"
+        assert row["Slots"] == ["Center", "Util"]
+
+    def test_empty_candidates(self):
+        table = rank_streaming_candidates([], self.KEEP, self.SLOTS,
+                                          {1: set()}, [1])
         assert table.empty

@@ -11,6 +11,10 @@ from .config import Category
 # categories that are per-game ratios (averaged by goalie games, not summed)
 RATIO_CATEGORIES = frozenset({"GAA", "SV%"})
 
+# categories only goalies produce (ESPN stat labels)
+GOALIE_CATEGORIES = frozenset(
+    {"GA", "GAA", "SA", "SV", "SV%", "SO", "GS", "W", "L", "OTL", "MIN ?"})
+
 _GOALIE_SLOT = "Goalie"
 
 
@@ -26,6 +30,7 @@ class PreviewPlayer:
     eligible_slots: list[str]  # active lineup slots only (no Bench/IR)
     season_stats: dict[str, float] = field(default_factory=dict)
     projected_stats: dict[str, float] = field(default_factory=dict)
+    injury: str = ""  # ESPN injuryStatus (empty = fine/unknown)
 
 
 def matchup_result(player_stats: np.ndarray, opponent_stats: np.ndarray,
@@ -304,6 +309,51 @@ def position_open_seats(players: list[PreviewPlayer],
         eligible = [p.eligible_slots for p in players if p.pro_team in playing]
         open_by_period[period] = _open_slots(eligible, slot_counts)
     return open_by_period
+
+
+def rank_streaming_candidates(candidates: list[PreviewPlayer],
+                              keep_roster: list[PreviewPlayer],
+                              slot_counts: dict[str, int],
+                              playing_by_period: dict[int, set[str]],
+                              periods: list[int]) -> pd.DataFrame:
+    """
+    Rank streaming candidates by how many days they would actually fill an
+    open skater seat if added to the given roster. A candidate fits a day
+    when seating them reduces that day's open skater seats (i.e. their team
+    plays and the matching finds them a seat without displacing anyone).
+
+    :param candidates: free agents, input order is the final tiebreak
+    :param keep_roster: roster after dropping the designated streamers
+    :param slot_counts: active lineup slots (name -> capacity)
+    :param playing_by_period: scoring period -> NHL teams with a game that day
+    :param periods: the (actionable) periods to consider
+    :return: DataFrame with Player, Team, Injury, Slots (eligible slots), one
+        column per period ('fit', 'play' or ''), Fit (days seated) and Games
+        (days with a game); best fit first, then most games
+    """
+    base = open_seat_counts(keep_roster, slot_counts, playing_by_period,
+                            periods)
+    rows = []
+    for cand in candidates:
+        added = open_seat_counts(keep_roster + [cand], slot_counts,
+                                 playing_by_period, periods)
+        days = {}
+        for p in periods:
+            if added[p][0] < base[p][0]:
+                days[p] = "fit"
+            elif cand.pro_team in playing_by_period.get(p, set()):
+                days[p] = "play"
+            else:
+                days[p] = ""
+        rows.append({"Player": cand.name, "Team": cand.pro_team,
+                     "Injury": cand.injury, "Slots": cand.eligible_slots,
+                     **days,
+                     "Fit": sum(v == "fit" for v in days.values()),
+                     "Games": sum(v != "" for v in days.values())})
+    table = pd.DataFrame(rows, columns=["Player", "Team", "Injury", "Slots",
+                                        *periods, "Fit", "Games"])
+    return table.sort_values(["Fit", "Games"], ascending=False,
+                             kind="stable", ignore_index=True)
 
 
 def team_gap_coverage(playing_by_period: dict[int, set[str]],

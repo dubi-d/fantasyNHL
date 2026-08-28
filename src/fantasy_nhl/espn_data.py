@@ -237,6 +237,25 @@ def fetch_adds_used(data: LeagueData, week: int) -> list[int | None]:
     return [used_by_id.get(team.team_id) for team in league.teams]
 
 
+def _preview_player(player, year: int,
+                    slot_counts: dict[str, int]) -> PreviewPlayer | None:
+    """Build a PreviewPlayer from an espn_api Player, or None if the player
+    fits no active lineup slot."""
+    eligible = [s for s in player.eligibleSlots if s in slot_counts]
+    if not eligible:
+        return None
+    return PreviewPlayer(
+        name=player.name,
+        pro_team=player.proTeam,
+        eligible_slots=eligible,
+        season_stats=player.stats.get(f"Total {year}",
+                                      {}).get("total") or {},
+        projected_stats=player.stats.get(f"Projected {year}",
+                                         {}).get("total") or {},
+        injury=getattr(player, "injuryStatus", "") or "",
+    )
+
+
 def _preview_rosters(league: League, year: int,
                      slot_counts: dict[str, int]) -> list[list[PreviewPlayer]]:
     """Current rosters as PreviewPlayers by team row, excluding IR players."""
@@ -246,20 +265,28 @@ def _preview_rosters(league: League, year: int,
         for player in team.roster:
             if player.lineupSlot == "IR":
                 continue
-            eligible = [s for s in player.eligibleSlots if s in slot_counts]
-            if not eligible:
-                continue
-            players.append(PreviewPlayer(
-                name=player.name,
-                pro_team=player.proTeam,
-                eligible_slots=eligible,
-                season_stats=player.stats.get(f"Total {year}",
-                                              {}).get("total") or {},
-                projected_stats=player.stats.get(f"Projected {year}",
-                                                 {}).get("total") or {},
-            ))
+            preview = _preview_player(player, year, slot_counts)
+            if preview is not None:
+                players.append(preview)
         rosters.append(players)
     return rosters
+
+
+def fetch_free_agents(data: LeagueData, slot_counts: dict[str, int],
+                      size: int = 100) -> list[PreviewPlayer]:
+    """Skater free agents in ESPN ownership order (most-owned first),
+    excluding goalies. Injury status is passed through."""
+    league = data.espn_league
+    if league is None:
+        raise ValueError("LeagueData has no live ESPN session.")
+    agents = []
+    # the Util slot filter matches all skaters but no goalies
+    for fa in league.free_agents(week=league.scoringPeriodId, size=size,
+                                 position="Util"):
+        player = _preview_player(fa, data.config.year, slot_counts)
+        if player is not None and "Goalie" not in player.eligible_slots:
+            agents.append(player)
+    return agents
 
 
 def _actual_games(league: League, week: int,

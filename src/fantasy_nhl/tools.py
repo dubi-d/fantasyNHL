@@ -3,8 +3,11 @@ import pandas as pd
 import questionary
 
 from .analysis import (
+    GOALIE_CATEGORIES,
     RATIO_CATEGORIES,
+    PreviewPlayer,
     StreamingContext,
+    blended_per_game,
     category_contestedness,
     category_win_rates,
     luck,
@@ -12,9 +15,11 @@ from .analysis import (
     open_seat_counts,
     position_open_seats,
     preview_week,
+    rank_streaming_candidates,
     round_robin,
     team_gap_coverage,
 )
+from .config import Category
 from .display import (
     StyleFn,
     console,
@@ -26,6 +31,7 @@ from .display import (
 from .espn_data import (
     LeagueData,
     fetch_adds_used,
+    fetch_free_agents,
     fetch_preview_data,
     fetch_week_dates,
 )
@@ -320,13 +326,38 @@ def streaming_planner(data: LeagueData) -> None:
         adds_limit=preview.add_limit,
         lookahead_periods=preview.next_periods[:2],
     )
-    _render_streaming_plan(context, week, data.team_names[my_row], streamers,
-                           simulated_from)
+    align = _render_streaming_plan(context, week, data.team_names[my_row],
+                                   streamers, simulated_from)
+
+    if align is None:  # no open days to stream for
+        return
+    show_fa = questionary.confirm(
+        "Show free agent candidates for the open days?", default=True).ask()
+    if not show_fa:
+        return
+    with console.status("Fetching free agents..."):
+        candidates = fetch_free_agents(data, preview.slot_counts)
+    if simulated_from:
+        console.print("FA pool and stats are today's, not those of the "
+                      "simulated week.", style="dim")
+    _render_candidates(context, candidates, data.config.categories,
+                       preview.blend_weight, streamers, align)
+
+
+def _col_width(header: str, values: list) -> int:
+    return max([len(header)] + [len(str(v)) for v in values])
+
+
+def _lead(*col_widths: int) -> int:
+    # rendered width of leading columns (content + padding + divider each)
+    return sum(w + 3 for w in col_widths)
 
 
 def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
                            streamers: list[str],
-                           simulated_from: str | None = None) -> None:
+                           simulated_from: str | None = None) -> int | None:
+    """Render the planner tables. Returns the shared day-column alignment
+    width when there are open days worth streaming for, else None."""
     look = ctx.lookahead_periods
     labels = _day_labels(ctx.periods + look, ctx.period_dates)
     elapsed = [p for p in ctx.periods if p not in set(ctx.actionable_periods)]
@@ -419,26 +450,19 @@ def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
         cov_table.index = range(1, len(cov_table) + 1)
 
     # pad each table's last leading column so day columns line up across tables
-    def width(header: str, values: list) -> int:
-        return max([len(header)] + [len(str(v)) for v in values])
-
-    def lead(*col_widths: int) -> int:
-        # rendered width of leading columns (content + padding + divider each)
-        return sum(w + 3 for w in col_widths)
-
-    grid_team_w = width("Team", list(grid["Team"]))
-    grid_lead = lead(1, width("Player", list(grid["Player"])
-                              + [r["Player"] for r in footer_rows]),
-                     width("Pos", list(grid["Pos"])), grid_team_w) \
+    grid_team_w = _col_width("Team", list(grid["Team"]))
+    grid_lead = _lead(1, _col_width("Player", list(grid["Player"])
+                                    + [r["Player"] for r in footer_rows]),
+                      _col_width("Pos", list(grid["Pos"])), grid_team_w) \
         + sum(len(labels[d]) + 3 for d in elapsed)
     leads = [grid_lead]
     if pos_table is not None:
-        pos_w = width("Pos", list(pos_table["Pos"]) + ["(total)"])
-        leads.append(lead(1, pos_w))
+        pos_w = _col_width("Pos", list(pos_table["Pos"]) + ["(total)"])
+        leads.append(_lead(1, pos_w))
     if cov_table is not None:
         cov_hash_w = max(1, len(str(len(cov_table))))
-        cov_team_w = width("Team", list(cov_table["Team"]))
-        leads.append(lead(cov_hash_w, cov_team_w))
+        cov_team_w = _col_width("Team", list(cov_table["Team"]))
+        leads.append(_lead(cov_hash_w, cov_team_w))
     target = max(leads)
 
     look_dim = {labels[d]: "dim" for d in look}
@@ -457,7 +481,7 @@ def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
              + (" — streamers dropped" if streamers else ""),
              styles={labels[d]: (lambda _: "dim") for d in look},
              footer=totals,
-             widths={"Pos": pos_w + target - lead(1, pos_w)},
+             widths={"Pos": pos_w + target - _lead(1, pos_w)},
              header_styles=look_dim)
 
     if cov_table is None:
@@ -474,9 +498,78 @@ def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
     print_df(cov_table, f"NHL teams covering the open days ({open_labels})"
              + (" — streamers dropped" if streamers else ""),
              styles=marker_styles,
-             widths={"Team": cov_team_w + target - lead(cov_hash_w, cov_team_w)},
+             widths={"Team": cov_team_w + target
+                     - _lead(cov_hash_w, cov_team_w)},
              header_styles=look_dim)
+    return target
 
+
+# injury statuses worth flagging next to a candidate
+_INJURY_ABBREV = {"DAY_TO_DAY": "DTD", "OUT": "OUT",
+                  "INJURY_RESERVE": "IR", "SUSPENSION": "SUS",
+                  "ACTIVE": "", "": ""}
+
+
+def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
+                       categories: list[Category], blend_weight: float,
+                       streamers: list[str], align: int) -> None:
+    """Render the free agent candidate table: schedule fit on the open days
+    plus blended per-game rates for the skater categories."""
+    look = ctx.lookahead_periods
+    labels = _day_labels(ctx.periods + look, ctx.period_dates)
+    keep = [p for p in ctx.roster if p.name not in streamers]
+    ranked = rank_streaming_candidates(candidates, keep, ctx.slot_counts,
+                                       ctx.playing_by_period,
+                                       ctx.actionable_periods)
+    ranked = ranked[ranked["Fit"] > 0].head(15)
+    if ranked.empty:
+        console.print("No free agent fills an open seat on the remaining "
+                      "days.", style="yellow")
+        return
+
+    by_name = {c.name: c for c in candidates}
+    marker = {"fit": "•", "play": "·", "": ""}
+    # candidates are skaters only, so goalie categories carry no signal
+    rate_cats = [c for c in categories
+                 if c.name not in RATIO_CATEGORIES
+                 and c.name not in GOALIE_CATEGORIES]
+    rows = []
+    for _, r in ranked.iterrows():
+        cand = by_name[r["Player"]]
+        rates = {cat.name: blended_per_game(cand, cat.name, blend_weight)
+                 for cat in rate_cats}
+        rows.append({
+            "Player": r["Player"],
+            "Pos": _position_label(r["Slots"]),
+            "Team": r["Team"],
+            **{labels[d]: marker[r[d]] for d in ctx.actionable_periods},
+            **{labels[d]: "·" if r["Team"] in ctx.playing_by_period.get(d, set())
+               else "" for d in look},
+            "Fit": r["Fit"],
+            "Games": r["Games"],
+            **{name: None if v is None else round(v, 2)
+               for name, v in rates.items()},
+            "Inj": _INJURY_ABBREV.get(r["Injury"], r["Injury"][:3]),
+        })
+    table = pd.DataFrame(rows, index=range(1, len(rows) + 1))
+
+    hash_w = max(1, len(str(len(table))))
+    team_w = _col_width("Team", list(table["Team"]))
+    fa_lead = _lead(hash_w, _col_width("Player", list(table["Player"])),
+                    _col_width("Pos", list(table["Pos"])), team_w)
+
+    styles: dict[str, StyleFn] = {
+        labels[d]: (lambda v: "bold green" if v == "•" else "")
+        for d in ctx.actionable_periods}
+    styles.update({labels[d]: (lambda _: "dim") for d in look})
+    styles["Inj"] = lambda v: "red" if v in ("OUT", "IR") else (
+        "yellow" if v else "")
+    print_df(table, f"Free agent candidates — top {len(table)} by open days "
+             "filled (• = fills an open seat, · = plays)"
+             + (" — streamers dropped" if streamers else ""),
+             styles=styles,
+             widths={"Team": team_w + max(0, align - fa_lead)},
+             header_styles={labels[d]: "dim" for d in look})
 
 # (menu label, callable) — extend here for new tools
 TOOLS = [

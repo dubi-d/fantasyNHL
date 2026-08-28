@@ -10,13 +10,17 @@ python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 ```
 
+The `[dev]` extra adds the development dependencies (pytest) so the test
+suite runs out of the box; for just using the CLI, `pip install -e .`
+is enough.
+
 ## Configuration
 
 Leagues and their scoring categories live in [config.yaml](config.yaml)
 (committed). ESPN credentials (SWID / espn_s2 cookies) live in `secrets.yaml`
 (gitignored), keyed by league name — copy
 [secrets.example.yaml](secrets.example.yaml) to `secrets.yaml` and fill in
-your cookies. Add more leagues as entries under `leagues:` plus a matching
+your cookies. Add or replace leagues as entries under `leagues:` plus a matching
 entry in `secrets.yaml`.
 
 ## Usage
@@ -53,14 +57,13 @@ League data is fetched once per session and reused.
   are structural strengths, values near 0 are weaknesses. An
   `Overall` column averages across categories and sorts the table; a
   `(contested)` footer row shows how up-for-grabs each category is
-  league-wide (`1 − std/0.5` of the column: 1 = full parity, so small roster
-  moves can swing it; 0 = structurally locked by a few teams).
+  league-wide (see below).
 - **Show matchup preview** — Predicted category scores for every head-to-head
   pairing of a selected matchup. Elapsed days use real data (live scores and
-  games actually played), remaining days use per-game-rate predictions
-  (current-season stats blended with preseason projections) with the current
-  roster filling all active lineup slots against the NHL schedule. Shows
-  games played/playable, per-category winners, and a projected result.
+  games actually played), remaining days use blended per-game rates (see
+  below) with the current roster filling all active lineup slots against the
+  NHL schedule. Shows games played/playable, per-category winners, and a
+  projected result.
 - **Plan streaming week** — Helps plan streamer pickups for a selected
   matchup: a per-day roster grid with game markers and open active seats
   (optionally with your designated streamers dropped), a per-lineup-slot
@@ -68,7 +71,10 @@ League data is fetched once per session and reused.
   days their schedule covers. Shows your used/allowed weekly adds. The first
   two days of the next matchup appear as informational columns. Elapsed
   days are excluded (dimmed); for finished weeks the tool offers to simulate
-  the week as ongoing.
+  the week as ongoing. Optionally ranks skater free agents by how many of
+  the open days they would actually fill a lineup seat, with blended
+  per-game category rates (see below) alongside (injured players are flagged
+  DTD/OUT/IR).
 
 ### Luck
 
@@ -87,6 +93,41 @@ matchups; dividing the latter by `teams − 1` gives `xPts`, the points an
 average schedule would have produced. Positive luck means the team got easier
 opponents than average (its record flatters its strength), negative means
 it ran into a tough schedule. Luck sums to zero across the league each week.
+
+### Stat blending
+
+Predictions build on per-game rates. For each player and category, the
+current-season rate is blended linearly with ESPN's preseason projection,
+weighted by how much of the season has elapsed:
+
+```
+rate = w · season per-game rate + (1 − w) · projected per-game rate
+w    = elapsed scoring periods / season length
+```
+
+Early in the season the projection dominates (little evidence yet); as the
+season progresses, the actual production takes over — at `w = 1` the
+projection is ignored entirely. If one side is missing (e.g. a player with no
+games yet, or no preseason projection), the other is used alone. Games played
+come from `GP` for skaters and `GS` for goalies. Ratio categories (GAA, SV%)
+are blended the same way but as ratios rather than per-game counts, and when
+aggregated over a week they are averaged weighted by goalie games instead of
+summed.
+
+### Contestedness
+
+The `(contested)` footer row of the category strength profile measures how
+up-for-grabs a category is league-wide:
+
+```
+contested = 1 − std(win rates) / 0.5
+```
+
+Each category's win-rate column averages 0.5 by construction, so its standard
+deviation says how spread out the teams are: everyone near 0.5 (std ≈ 0,
+contested ≈ 1) means full parity — small roster moves can swing the category;
+a wide spread (std → 0.5, contested → 0) means a few teams structurally own
+it and chasing it is expensive.
 
 ## Tests
 
