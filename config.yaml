@@ -1,0 +1,41 @@
+# Fantasy NHL configuration
+# Each league entry lists the scoring categories in display order. Mark
+# inverted categories (lower is better) with `inverted: true`.
+# ESPN credentials live in secrets.yaml (gitignored), keyed by league name.
+leagues:
+  - name: maythebestteamwin 2021
+    league_id: 66082163
+    year: 2021
+    categories:
+      - name: G
+      - name: A
+      - name: PIM
+      - name: PPP
+      - name: SHP
+      - name: HAT
+      - name: SOG
+      - name: HIT
+      - name: BLK
+      - name: SO
+      - name: SV%
+      - name: GAA
+        inverted: true
+
+  - name: maythebestteamwin 2022/23
+    league_id: 576726473
+    year: 2023
+    categories:
+      - name: G
+      - name: A
+      - name: STP
+      - name: DEF
+      - name: SOG
+      - name: HIT
+      - name: BLK
+      - name: GA
+        inverted: true
+      - name: GAA
+        inverted: true
+      - name: SA
+      - name: SV
+      - name: "MIN ?"  # goalie minutes (espn_api's label for stat id 8)
