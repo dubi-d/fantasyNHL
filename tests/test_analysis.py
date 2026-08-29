@@ -11,14 +11,17 @@ from fantasy_nhl.analysis import (
     luck,
     matchup_result,
     max_lineup_seats,
+    off_night_periods,
     open_seat_counts,
     position_open_seats,
     preview_week,
     rank_streaming_candidates,
     rank_timeline,
     round_robin,
+    schedule_summary,
     seat_counts,
     team_gap_coverage,
+    team_week_schedule,
     trailing_points,
     weekly_points_timeline,
 )
@@ -539,6 +542,77 @@ class TestTeamGapCoverage:
     def test_no_periods_gives_empty_table(self):
         table = team_gap_coverage(self.PLAYING, set(), [])
         assert table.empty
+
+
+class TestOffNightPeriods:
+    def test_threshold_is_inclusive(self):
+        playing = {1: {"A", "B"}, 2: {"A", "B", "C"}, 3: {"A"}}
+        assert off_night_periods(playing, max_teams=2) == {1, 3}
+
+    def test_empty_night_is_not_an_off_night(self):
+        assert off_night_periods({1: set()}, max_teams=2) == set()
+
+
+class TestTeamWeekSchedule:
+    PLAYING = {
+        1: {"Boston Bruins", "Dallas Stars"},
+        2: {"Boston Bruins"},
+        3: {"Dallas Stars", "Ottawa Senators"},
+        4: {"Ottawa Senators"},
+    }
+    WEEKS = {1: [1, 2], 2: [3, 4]}
+
+    def test_games_per_week(self):
+        games, _ = team_week_schedule(self.PLAYING, self.WEEKS, set())
+        assert list(games.columns) == [1, 2]
+        assert games.loc["Boston Bruins", 1] == 2
+        assert games.loc["Boston Bruins", 2] == 0
+        assert games.loc["Ottawa Senators", 2] == 2
+
+    def test_off_nights_restricted_to_off_periods(self):
+        _, off = team_week_schedule(self.PLAYING, self.WEEKS, {2, 4})
+        assert off.loc["Boston Bruins", 1] == 1
+        assert off.loc["Dallas Stars", 1] == 0
+        assert off.loc["Ottawa Senators", 2] == 1
+
+    def test_teams_sorted_and_periods_outside_weeks_ignored(self):
+        games, _ = team_week_schedule(self.PLAYING, {1: [1]}, set())
+        assert list(games.index) == ["Boston Bruins", "Dallas Stars"]
+
+
+class TestScheduleSummary:
+    GAMES = pd.DataFrame({1: [3, 2], 2: [1, 4]}, index=["A", "B"])
+    OFF = pd.DataFrame({1: [2, 0], 2: [0, 1]}, index=["A", "B"])
+
+    def test_totals_and_averages(self):
+        table = schedule_summary(self.GAMES, self.OFF, set())
+        row = table.set_index("Team").loc["A"]
+        assert row["Games"] == 4
+        assert row["G/M"] == pytest.approx(2.0)
+        assert row["Off"] == 2
+        assert row["Off/M"] == pytest.approx(1.0)
+
+    def test_no_playoff_weeks_omits_po_columns_and_sorts_by_off_rate(self):
+        table = schedule_summary(self.GAMES, self.OFF, set())
+        assert "PO G" not in table.columns
+        assert list(table["Team"]) == ["A", "B"]
+
+    def test_playoff_columns_present_but_sort_stays_off_rate(self):
+        table = schedule_summary(self.GAMES, self.OFF, {2})
+        by_team = table.set_index("Team")
+        assert by_team.loc["B", "PO G"] == 4
+        assert by_team.loc["B", "PO Off"] == 1
+        # A leads on Off/M (1.0 vs 0.5) regardless of playoff numbers
+        assert list(table["Team"]) == ["A", "B"]
+
+    def test_near_weeks_column_leads_sort(self):
+        table = schedule_summary(self.GAMES, self.OFF, set(), near_weeks=[2])
+        by_team = table.set_index("Team")
+        assert by_team.loc["B", "G/M next 1"] == pytest.approx(4.0)
+        assert by_team.loc["B", "Off/M next 1"] == pytest.approx(1.0)
+        assert by_team.loc["A", "Off/M next 1"] == pytest.approx(0.0)
+        # B leads near-term despite fewer total off-nights
+        assert list(table["Team"]) == ["B", "A"]
 
 
 class TestRankStreamingCandidates:

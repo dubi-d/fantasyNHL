@@ -7,6 +7,7 @@ import questionary
 
 from .analysis import (
     GOALIE_CATEGORIES,
+    OFF_NIGHT_MAX_TEAMS,
     RATIO_CATEGORIES,
     PreviewPlayer,
     StreamingContext,
@@ -16,13 +17,16 @@ from .analysis import (
     category_win_rates,
     luck,
     matchup_result,
+    off_night_periods,
     open_seat_counts,
     position_open_seats,
     preview_week,
     rank_streaming_candidates,
     rank_timeline,
     round_robin,
+    schedule_summary,
     team_gap_coverage,
+    team_week_schedule,
     trailing_points,
     weekly_points_timeline,
 )
@@ -40,6 +44,7 @@ from .espn_data import (
     fetch_adds_used,
     fetch_free_agents,
     fetch_preview_data,
+    fetch_schedule_data,
     fetch_week_dates,
 )
 
@@ -179,10 +184,7 @@ def power_rankings(data: LeagueData) -> None:
              styles=styles)
 
     from . import plots  # deferred: matplotlib import is slow
-    plots_dir = Path("plots")
-    plots_dir.mkdir(exist_ok=True)
-    slug = re.sub(r"[^a-z0-9]+", "_", data.config.name.lower()).strip("_")
-    path = plots_dir / f"power_rankings_{slug}.png"
+    path = _plot_path(data, "power_rankings")
     title = f"{data.config.name} — Power Rankings (through matchup {completed})"
     with console.status("Rendering figure..."):
         plots.power_rankings_figure(form_ranks, averages, window, title, path)
@@ -645,6 +647,104 @@ def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
                                    default=True).ask():
             break
 
+def _plot_path(data: LeagueData, prefix: str) -> Path:
+    plots_dir = Path("plots")
+    plots_dir.mkdir(exist_ok=True)
+    slug = re.sub(r"[^a-z0-9]+", "_", data.config.name.lower()).strip("_")
+    return plots_dir / f"{prefix}_{slug}.png"
+
+
+def schedule_outlook(data: LeagueData) -> None:
+    """Per-NHL-team games and off-night games per fantasy matchup: summary
+    table in the terminal, full teams-x-matchups heatmap as a PNG."""
+    with console.status("Fetching NHL schedule..."):
+        schedule = fetch_schedule_data(data)
+
+    playoff_weeks = {w for w in schedule.week_periods
+                     if 0 < data.regular_weeks < w}
+    scope = questionary.select(
+        "Scope:", choices=[
+            questionary.Choice("Full season", value="full"),
+            questionary.Choice(
+                f"Remaining matchups (from matchup {data.current_week})",
+                value="remaining"),
+            questionary.Choice("Playoffs only", value="playoffs"),
+        ]).ask()
+    if scope is None:  # Ctrl-C
+        return
+
+    selected = sorted(schedule.week_periods)
+    if scope == "remaining":
+        selected = [w for w in selected if w >= data.current_week]
+    elif scope == "playoffs":
+        selected = [w for w in selected if w in playoff_weeks]
+    week_periods = {w: schedule.week_periods[w] for w in selected
+                    if schedule.week_periods[w]}
+    if not week_periods:
+        console.print("No matchups in the selected scope.", style="yellow")
+        return
+
+    off_periods = off_night_periods(schedule.playing_by_period)
+    games_df, off_df = team_week_schedule(schedule.playing_by_period,
+                                          week_periods, off_periods)
+    # playoffs-only scope: PO columns would just duplicate the totals
+    near_weeks = selected[:4] if scope == "remaining" else None
+    summary = schedule_summary(games_df, off_df,
+                               set() if scope == "playoffs" else playoff_weeks,
+                               near_weeks=near_weeks)
+
+    def norm(col: str) -> StyleFn:
+        # stretch each column's actual value range over the full gradient
+        lo, hi = float(summary[col].min()), float(summary[col].max())
+        if hi <= lo:
+            return lambda v: ""
+        return lambda v: heatmap_style((v - lo) / (hi - lo))
+
+    styles = {col: norm(col) for col in summary.columns if col != "Team"}
+    summary.index = range(1, len(summary) + 1)  # already sorted by analysis
+    order = list(summary["Team"])  # same sorting as the terminal table
+    off_label = f"off-night = ≤{OFF_NIGHT_MAX_TEAMS} teams playing"
+    scope_label = {"full": "full season", "remaining": "remaining matchups",
+                   "playoffs": "playoffs"}[scope]
+
+    if scope == "playoffs":
+        # few columns: append the week-by-week grid as games (off-nights)
+        def off_style(week: int) -> StyleFn:
+            lo = float(off_df[week].min())
+            hi = float(off_df[week].max())
+            if hi <= lo:
+                return lambda v: ""
+            # color by the off-night count inside the parentheses
+            return lambda v: heatmap_style(
+                (int(v.split("(")[1].rstrip(")")) - lo) / (hi - lo))
+
+        for w in games_df.columns:
+            summary[f"M{w}"] = [f"{games_df.loc[t, w]} ({off_df.loc[t, w]})"
+                                for t in order]
+            styles[f"M{w}"] = off_style(w)
+
+    print_df(summary,
+             f"NHL Schedule Outlook ({scope_label}, "
+             f"matchups {selected[0]}–{selected[-1]}, {off_label})",
+             styles=styles)
+
+    from . import plots  # deferred: matplotlib import is slow
+    path = _plot_path(data, f"schedule_{scope}")
+    title = (f"{data.config.name} — NHL Schedule ({scope_label}, "
+             f"{data.config.year})")
+    with console.status("Rendering figure..."):
+        if scope == "playoffs":
+            plots.schedule_combined_figure(games_df.loc[order],
+                                           off_df.loc[order],
+                                           off_label, title, path)
+        else:
+            plots.schedule_heatmap_figure(games_df.loc[order],
+                                          off_df.loc[order],
+                                          playoff_weeks, off_label, title,
+                                          path)
+    console.print(f"Saved [bold]{path}[/]")
+
+
 # (menu label, callable) — extend here for new tools
 TOOLS = [
     ("Show weekly scores", weekly_scores),
@@ -654,4 +754,5 @@ TOOLS = [
     ("Show category strength profile", category_profile),
     ("Show matchup preview", matchup_preview),
     ("Plan streaming week", streaming_planner),
+    ("Show NHL schedule outlook", schedule_outlook),
 ]

@@ -35,6 +35,16 @@ class LeagueData:
     # lazy cache: week -> (first day, last day), filled by fetch_week_dates
     week_dates: dict[int, tuple[date, date]] | None = field(default=None,
                                                             repr=False)
+    # lazy cache filled by fetch_schedule_data
+    schedule: "ScheduleData | None" = field(default=None, repr=False)
+
+
+@dataclass
+class ScheduleData:
+    """Season-wide NHL schedule mapped onto the fantasy calendar."""
+    playing_by_period: dict[int, set[str]]  # period -> NHL teams with a game
+    period_dates: dict[int, date]  # period -> calendar day
+    week_periods: dict[int, list[int]]  # matchup week -> scoring periods
 
 
 @dataclass
@@ -205,18 +215,48 @@ def _fetch_roster_settings(league: League) -> tuple[dict[str, int], int | None]:
     return slot_counts, add_limit
 
 
-def fetch_week_dates(data: LeagueData) -> dict[int, tuple[date, date]]:
-    """First and last calendar day of every matchup week (cached)."""
-    if data.week_dates is None:
+def _playing_by_period(pro_schedule: dict) -> dict[int, set[str]]:
+    """NHL team names with a game per scoring period."""
+    playing: dict[int, set[str]] = {}
+    for team_id, games_by_period in pro_schedule.items():
+        name = PRO_TEAM_MAP.get(team_id)
+        if name is None:
+            continue
+        for period_str, games in games_by_period.items():
+            if games:
+                playing.setdefault(int(period_str), set()).add(name)
+    return playing
+
+
+def fetch_schedule_data(data: LeagueData) -> ScheduleData:
+    """Season-wide NHL schedule and matchup-week mapping (cached; one
+    pro-schedule request)."""
+    if data.schedule is None:
         league = data.espn_league
         if league is None:
             raise ValueError("LeagueData has no live ESPN session.")
-        period_dates = _period_dates(league._get_all_pro_schedule(),
-                                     league.firstScoringPeriod,
+        pro_schedule = league._get_all_pro_schedule()
+        period_dates = _period_dates(pro_schedule, league.firstScoringPeriod,
                                      league.finalScoringPeriod)
         week_periods = _week_scoring_periods(league, period_dates)
-        data.week_dates = {w: (period_dates[min(ps)], period_dates[max(ps)])
-                           for w, ps in week_periods.items() if ps}
+        # NHL calendar weeks past the last fantasy matchup are phantom weeks
+        total = len(league.settings.matchup_periods)
+        week_periods = {w: ps for w, ps in week_periods.items() if w <= total}
+        data.schedule = ScheduleData(
+            playing_by_period=_playing_by_period(pro_schedule),
+            period_dates=period_dates,
+            week_periods=week_periods,
+        )
+    return data.schedule
+
+
+def fetch_week_dates(data: LeagueData) -> dict[int, tuple[date, date]]:
+    """First and last calendar day of every matchup week (cached)."""
+    if data.week_dates is None:
+        schedule = fetch_schedule_data(data)
+        data.week_dates = {w: (schedule.period_dates[min(ps)],
+                               schedule.period_dates[max(ps)])
+                           for w, ps in schedule.week_periods.items() if ps}
     return data.week_dates
 
 
@@ -336,10 +376,9 @@ def fetch_preview_data(data: LeagueData, week: int) -> PreviewData:
     if league is None:
         raise ValueError("LeagueData has no live ESPN session.")
 
-    pro_schedule = league._get_all_pro_schedule()
-    period_dates = _period_dates(pro_schedule, league.firstScoringPeriod,
-                                 league.finalScoringPeriod)
-    week_periods = _week_scoring_periods(league, period_dates)
+    schedule = fetch_schedule_data(data)
+    period_dates = schedule.period_dates
+    week_periods = schedule.week_periods
     if week not in week_periods:
         raise ValueError(f"No scoring periods known for week {week}.")
     periods = week_periods[week]
@@ -347,14 +386,7 @@ def fetch_preview_data(data: LeagueData, week: int) -> PreviewData:
     # live totals already cover today; predict only the days after it
     remaining_periods = [p for p in periods if p > league.scoringPeriodId]
 
-    playing_by_period: dict[int, set[str]] = {}
-    for team_id, games_by_period in pro_schedule.items():
-        name = PRO_TEAM_MAP.get(team_id)
-        if name is None:
-            continue
-        for period_str, games in games_by_period.items():
-            if games:
-                playing_by_period.setdefault(int(period_str), set()).add(name)
+    playing_by_period = schedule.playing_by_period
 
     row_by_team_id = {team.team_id: row for row, team in enumerate(league.teams)}
     pairings = []

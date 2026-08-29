@@ -101,3 +101,98 @@ def power_rankings_figure(form_ranks: pd.DataFrame, avg_points: pd.DataFrame,
 
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
+
+
+def _setup_grid_axes(ax: plt.Axes, table: pd.DataFrame, subtitle: str) -> None:
+    ax.set_title(subtitle, loc="left", fontsize=11)
+    ax.set_xticks(range(len(table.columns)),
+                  [f"M{w}" for w in table.columns], fontsize=8)
+    ax.set_yticks(range(len(table.index)), table.index, fontsize=8)
+    ax.tick_params(length=0)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+
+def _mark_playoffs(ax: plt.Axes, table: pd.DataFrame,
+                   playoff_weeks: set[int]) -> None:
+    po_idx = [j for j, w in enumerate(table.columns) if w in playoff_weeks]
+    if not po_idx:
+        return
+    first = min(po_idx)
+    ax.axvline(first - 0.5, color="crimson", linewidth=2)
+    for j in po_idx:
+        ax.get_xticklabels()[j].set_color("crimson")
+        ax.get_xticklabels()[j].set_fontweight("bold")
+    ax.text(first - 0.4, -0.9, "playoffs", color="crimson",
+            fontsize=8, style="italic", ha="left")
+
+
+def _schedule_panel(ax: plt.Axes, table: pd.DataFrame, subtitle: str,
+                    cmap: str, playoff_weeks: set[int],
+                    labels: pd.DataFrame | None = None) -> None:
+    """Annotated teams-x-matchups heatmap with playoff columns marked."""
+    values = table.to_numpy()
+    ax.imshow(values, cmap=cmap, aspect="auto")
+    _setup_grid_axes(ax, table, subtitle)
+    mid = (values.min() + values.max()) / 2
+    text = values if labels is None else labels.to_numpy()
+    for i in range(values.shape[0]):
+        for j in range(values.shape[1]):
+            ax.text(j, i, str(text[i, j]), ha="center", va="center",
+                    fontsize=7,
+                    color="white" if values[i, j] > mid else "black")
+    _mark_playoffs(ax, table, playoff_weeks)
+
+
+# off-night text gradient endpoints, dark enough to read on the light blues
+_OFF_TEXT_LOW = (0.60, 0.13, 0.13)
+_OFF_TEXT_HIGH = (0.05, 0.47, 0.05)
+
+
+def schedule_heatmap_figure(games: pd.DataFrame, off: pd.DataFrame,
+                            playoff_weeks: set[int], off_label: str,
+                            title: str, path: Path) -> None:
+    """Save a single-panel PNG showing games (off-night games) per matchup:
+    background shades by games, the parenthesized number colors red-to-green
+    by off-night count. Rows are NHL teams, columns matchup numbers."""
+    width = max(9.0, 0.9 * len(games.columns) + 3)
+    height = max(8.0, 0.42 * len(games.index) + 2)
+    fig, ax = plt.subplots(figsize=(width, height), layout="constrained")
+    fig.suptitle(title, fontsize=14, fontweight="bold")
+    g = games.to_numpy()
+    o = off.to_numpy()
+    # widen vmax so the background stays light enough for the colored text
+    g_span = max(int(g.max()) - int(g.min()), 1)
+    ax.imshow(g, cmap="Greys", aspect="auto",
+              vmin=g.min(), vmax=g.min() + 2.8 * g_span)
+    _setup_grid_axes(ax, games,
+                     f"Games (off-night games) per matchup ({off_label})")
+    o_span = max(int(o.max()) - int(o.min()), 1)
+    for i in range(g.shape[0]):
+        for j in range(g.shape[1]):
+            ax.text(j - 0.03, i, str(g[i, j]), ha="right", va="center",
+                    fontsize=7, fontweight="bold", color="black")
+            t = (o[i, j] - o.min()) / o_span
+            color = tuple(lo + (hi - lo) * t for lo, hi
+                          in zip(_OFF_TEXT_LOW, _OFF_TEXT_HIGH))
+            ax.text(j + 0.03, i, f"({o[i, j]})", ha="left", va="center",
+                    fontsize=7, fontweight="bold", color=color)
+    _mark_playoffs(ax, games, playoff_weeks)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def schedule_combined_figure(games: pd.DataFrame, off: pd.DataFrame,
+                             off_label: str, title: str, path: Path) -> None:
+    """Save a single-panel PNG: cells show games (off-night games), colored
+    by off-night count. Rows are NHL teams, columns matchup numbers."""
+    labels = games.astype(str) + " (" + off.astype(str) + ")"
+    width = max(9.0, 0.9 * len(games.columns) + 3)
+    height = max(8.0, 0.42 * len(games.index) + 2)
+    fig, ax = plt.subplots(figsize=(width, height), layout="constrained")
+    fig.suptitle(title, fontsize=14, fontweight="bold")
+    _schedule_panel(ax, off,
+                    f"Games (off-night games) per matchup ({off_label})",
+                    "Greens", set(), labels=labels)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)

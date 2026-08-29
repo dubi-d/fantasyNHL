@@ -416,6 +416,85 @@ def team_gap_coverage(playing_by_period: dict[int, set[str]],
                              ignore_index=True)
 
 
+# a night with at most this many NHL teams playing counts as an off-night
+OFF_NIGHT_MAX_TEAMS = 16
+
+
+def off_night_periods(playing_by_period: dict[int, set[str]],
+                      max_teams: int = OFF_NIGHT_MAX_TEAMS) -> set[int]:
+    """Scoring periods where few enough teams play to count as an off-night."""
+    return {p for p, teams in playing_by_period.items()
+            if 0 < len(teams) <= max_teams}
+
+
+def team_week_schedule(playing_by_period: dict[int, set[str]],
+                       week_periods: dict[int, list[int]],
+                       off_periods: set[int],
+                       ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Games and off-night games per NHL team and matchup week.
+
+    :param playing_by_period: scoring period -> NHL teams with a game that day
+    :param week_periods: matchup week -> its scoring periods
+    :param off_periods: periods classified as off-nights
+    :return: (games, off_nights) DataFrames, index = team names sorted,
+        one int column per matchup week
+    """
+    considered = {p for ps in week_periods.values() for p in ps}
+    teams = sorted(set().union(*(playing_by_period.get(p, set())
+                                 for p in considered), set()))
+    weeks = sorted(week_periods)
+    games = pd.DataFrame(0, index=teams, columns=weeks)
+    off = pd.DataFrame(0, index=teams, columns=weeks)
+    for week in weeks:
+        for p in week_periods[week]:
+            for team in playing_by_period.get(p, set()):
+                games.loc[team, week] += 1
+                if p in off_periods:
+                    off.loc[team, week] += 1
+    return games, off
+
+
+def schedule_summary(games: pd.DataFrame, off: pd.DataFrame,
+                     playoff_weeks: set[int],
+                     near_weeks: list[int] | None = None) -> pd.DataFrame:
+    """
+    Per-team schedule totals, best off-night rate first.
+
+    :param games: games per team (rows) and matchup week (columns)
+    :param off: off-night games, same shape
+    :param playoff_weeks: fantasy playoff matchup weeks
+    :param near_weeks: near-term matchup weeks; adds games- and
+        off-nights-per-matchup columns over just those weeks, the latter
+        leading the sort
+    :return: DataFrame with Team, Games, G/M, Off, Off/M and (when in scope)
+        the near-term G/M, Off/M and PO G, PO Off
+    """
+    po_cols = [w for w in games.columns if w in playoff_weeks]
+    weeks = len(games.columns)
+    table = pd.DataFrame({
+        "Team": games.index,
+        "Games": games.sum(axis=1).to_numpy(),
+        "G/M": (games.sum(axis=1) / weeks).round(2).to_numpy(),
+        "Off": off.sum(axis=1).to_numpy(),
+        "Off/M": (off.sum(axis=1) / weeks).round(2).to_numpy(),
+    })
+    near_col = None
+    near_cols = [w for w in games.columns if w in set(near_weeks or [])]
+    if near_cols:
+        n = len(near_cols)
+        table[f"G/M next {n}"] = (games[near_cols].sum(axis=1)
+                                  / n).round(2).to_numpy()
+        near_col = f"Off/M next {n}"
+        table[near_col] = (off[near_cols].sum(axis=1) / n).round(2).to_numpy()
+    if po_cols:
+        table["PO G"] = games[po_cols].sum(axis=1).to_numpy()
+        table["PO Off"] = off[po_cols].sum(axis=1).to_numpy()
+    sort_cols = ([near_col] if near_col else []) + ["Off/M", "Off", "Games"]
+    return table.sort_values(sort_cols, ascending=False, kind="stable",
+                             ignore_index=True)
+
+
 def _blend(season: float | None, projected: float | None,
            weight: float) -> float | None:
     """Linear blend, falling back to whichever value exists."""
