@@ -51,6 +51,13 @@ League data is fetched once per session and reused.
 - **Show luck ranking** — Ranks teams by accumulated schedule luck over all
   completed weeks, luckiest first, alongside their actual record, actual
   points and expected points.
+- **Show power rankings over time** — Round-robin points per completed
+  matchup as a terminal heatmap, plus a shareable two-panel PNG saved to
+  `plots/`: a "who's hot" bump chart ranking teams by their round-robin
+  points over a trailing window of matchups (window prompted, default 4),
+  and a "season strength" line chart of expected points per matchup
+  (accumulated `xPts` divided by matchups played, so 2 = would beat
+  everyone, 1 = league average).
 - **Show category strength profile** — For each team, the win rate per
   category across all completed weeks' round-robin comparisons (ties count as
   half a win, so each column averages 0.5 across the league). Values near 1

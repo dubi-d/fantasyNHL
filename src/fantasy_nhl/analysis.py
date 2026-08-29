@@ -91,6 +91,40 @@ def round_robin(scores: np.ndarray, categories: list[Category],
     return rr_summary
 
 
+def weekly_points_timeline(weekly_scores: np.ndarray, categories: list[Category],
+                           team_names: list[str]) -> pd.DataFrame:
+    """
+    Round-robin Pts per team for every given week.
+
+    :param weekly_scores: scores of the weeks to cover (teams x categories x weeks)
+    :param categories: category definitions (order matching the score columns)
+    :param team_names: team names by row index
+    :return: Pts table (index=team names, columns=week numbers 1..n)
+    """
+    num_weeks = weekly_scores.shape[2]
+    pts = {week: round_robin(weekly_scores[:, :, week - 1],
+                             categories, team_names)["Pts"].to_numpy()
+           for week in range(1, num_weeks + 1)}
+    return pd.DataFrame(pts, index=team_names[:weekly_scores.shape[0]])
+
+
+def rank_timeline(cumulative: pd.DataFrame) -> pd.DataFrame:
+    """Per-week rank from cumulative points (1 = most points;
+    ties share the better rank)."""
+    return cumulative.rank(axis=0, ascending=False, method="min").astype(int)
+
+
+def trailing_points(timeline: pd.DataFrame, window: int) -> pd.DataFrame:
+    """Sum of each team's Pts over the last `window` week columns
+    (partial windows at the season start)."""
+    return timeline.T.rolling(window, min_periods=1).sum().T.astype(int)
+
+
+def average_points(timeline: pd.DataFrame) -> pd.DataFrame:
+    """Average weekly Pts up to and including each week."""
+    return timeline.cumsum(axis=1) / np.arange(1, timeline.shape[1] + 1)
+
+
 def category_win_rates(weekly_scores: np.ndarray, categories: list[Category],
                        team_names: list[str]) -> pd.DataFrame:
     """

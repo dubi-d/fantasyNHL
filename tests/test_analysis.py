@@ -4,6 +4,7 @@ import pytest
 
 from fantasy_nhl.analysis import (
     PreviewPlayer,
+    average_points,
     blended_per_game,
     category_contestedness,
     category_win_rates,
@@ -14,9 +15,12 @@ from fantasy_nhl.analysis import (
     position_open_seats,
     preview_week,
     rank_streaming_candidates,
+    rank_timeline,
     round_robin,
     seat_counts,
     team_gap_coverage,
+    trailing_points,
+    weekly_points_timeline,
 )
 from fantasy_nhl.config import Category
 
@@ -78,6 +82,78 @@ class TestRoundRobin:
     def test_points_are_two_wins_plus_ties(self, scores, team_names):
         result = round_robin(scores, CATEGORIES, team_names)
         assert (result["Pts"] == 2 * result["W"] + result["T"]).all()
+
+
+class TestWeeklyPointsTimeline:
+    TEAMS = ["AAA", "BBB", "CCC"]
+
+    @pytest.fixture
+    def cube(self):
+        # week 1: AAA dominates; week 2: CCC dominates; week 3: all tied
+        week1 = np.array([
+            [10, 10, 1.0],
+            [5, 5, 2.0],
+            [1, 1, 3.0],
+        ])
+        week2 = week1[::-1]
+        week3 = np.array([[5, 5, 2.0]] * 3)
+        return np.stack([week1, week2, week3], axis=2)
+
+    def test_weekly_points(self, cube):
+        timeline = weekly_points_timeline(cube, CATEGORIES, self.TEAMS)
+        assert list(timeline.index) == self.TEAMS
+        assert list(timeline.columns) == [1, 2, 3]
+        assert timeline.loc["AAA"].tolist() == [4, 0, 2]
+        assert timeline.loc["BBB"].tolist() == [2, 2, 2]
+        assert timeline.loc["CCC"].tolist() == [0, 4, 2]
+
+    def test_week_columns_sum_to_full_pot(self, cube):
+        # every pairing awards 2 pts total
+        timeline = weekly_points_timeline(cube, CATEGORIES, self.TEAMS)
+        teams = len(self.TEAMS)
+        assert (timeline.sum(axis=0) == teams * (teams - 1)).all()
+
+
+class TestRankTimeline:
+    def test_ranks_by_cumulative_points(self):
+        cumulative = pd.DataFrame({1: [4, 2, 0], 2: [4, 4, 4]},
+                                  index=["AAA", "BBB", "CCC"])
+        ranks = rank_timeline(cumulative)
+        assert ranks[1].tolist() == [1, 2, 3]
+        assert ranks[2].tolist() == [1, 1, 1]
+
+    def test_ties_share_better_rank(self):
+        cumulative = pd.DataFrame({1: [4, 4, 0]}, index=["AAA", "BBB", "CCC"])
+        assert rank_timeline(cumulative)[1].tolist() == [1, 1, 3]
+
+
+class TestTrailingPoints:
+    def test_partial_then_sliding_window(self):
+        timeline = pd.DataFrame({1: [4, 0], 2: [2, 2], 3: [0, 4]},
+                                index=["AAA", "BBB"])
+        result = trailing_points(timeline, 2)
+        assert result.loc["AAA"].tolist() == [4, 6, 2]
+        assert result.loc["BBB"].tolist() == [0, 2, 6]
+
+    def test_window_covering_all_weeks_equals_cumsum(self):
+        timeline = pd.DataFrame({1: [4, 0], 2: [2, 2]}, index=["AAA", "BBB"])
+        result = trailing_points(timeline, 5)
+        assert (result == timeline.cumsum(axis=1)).all().all()
+
+
+class TestAveragePoints:
+    def test_average_up_to_each_week(self):
+        timeline = pd.DataFrame({1: [4, 0], 2: [0, 4]}, index=["AAA", "BBB"])
+        result = average_points(timeline)
+        assert result.loc["AAA"].tolist() == [4.0, 2.0]
+        assert result.loc["BBB"].tolist() == [0.0, 2.0]
+
+    def test_league_mean_is_teams_minus_one(self):
+        # each week column awards teams*(teams-1) pts in total
+        timeline = pd.DataFrame({1: [4, 2, 0], 2: [2, 2, 2]},
+                                index=["AAA", "BBB", "CCC"])
+        result = average_points(timeline)
+        assert result.mean(axis=0).tolist() == pytest.approx([2.0, 2.0])
 
 
 class TestCategoryWinRates:

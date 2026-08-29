@@ -1,4 +1,7 @@
 """CLI tools. Register new tools in the TOOLS list."""
+import re
+from pathlib import Path
+
 import pandas as pd
 import questionary
 
@@ -7,6 +10,7 @@ from .analysis import (
     RATIO_CATEGORIES,
     PreviewPlayer,
     StreamingContext,
+    average_points,
     blended_per_game,
     category_contestedness,
     category_win_rates,
@@ -16,8 +20,11 @@ from .analysis import (
     position_open_seats,
     preview_week,
     rank_streaming_candidates,
+    rank_timeline,
     round_robin,
     team_gap_coverage,
+    trailing_points,
+    weekly_points_timeline,
 )
 from .config import Category
 from .display import (
@@ -43,6 +50,15 @@ RESULT_PTS = {"W": 2, "T": 1, "L": 0}
 def _round_robin_week(data: LeagueData, week: int) -> pd.DataFrame:
     return round_robin(data.weekly_cat_scores[:, :, week - 1],
                        data.config.categories, data.team_names)
+
+
+def _completed_matchups(data: LeagueData) -> int:
+    """Number of completed matchups; the current one counts once it has a
+    decided result (season over)."""
+    if any(results[data.current_week - 1] != "NA"
+           for results in data.weekly_results):
+        return data.current_week
+    return data.current_week - 1
 
 
 def _ranked(table: pd.DataFrame, by: str = "Pts") -> pd.DataFrame:
@@ -89,7 +105,7 @@ def accumulated_scores(data: LeagueData) -> None:
 def _accumulated_table(data: LeagueData) -> pd.DataFrame | None:
     """Accumulated round-robin stats, actual record and luck over completed
     weeks, or None if no week is completed yet."""
-    completed_weeks = data.current_week - 1
+    completed_weeks = _completed_matchups(data)
     if completed_weeks == 0:
         return None
 
@@ -127,10 +143,56 @@ def luck_ranking(data: LeagueData) -> None:
              styles={"Luck": lambda v: diverging_style(v, luck_scale)})
 
 
+def power_rankings(data: LeagueData) -> None:
+    """Print a teams-x-matchups heatmap of round-robin points and save
+    a shareable timeline PNG (hot-streak rank bump chart + average points)."""
+    completed = _completed_matchups(data)
+    if completed < 2:
+        console.print("Need at least 2 completed matchups.", style="yellow")
+        return
+
+    default = str(min(4, completed))
+    answer = questionary.text(
+        f"Hot-streak window in matchups (2-{completed})?", default=default,
+        validate=lambda v: (v.isdigit() and 2 <= int(v) <= completed)
+        or f"Enter a number between 2 and {completed}").ask()
+    if answer is None:
+        return
+    window = int(answer)
+
+    timeline = weekly_points_timeline(
+        data.weekly_cat_scores[:, :, :completed],
+        data.config.categories, data.team_names)
+    form_ranks = rank_timeline(trailing_points(timeline, window))
+    averages = average_points(timeline)
+
+    matchup_cols = [f"M{w}" for w in timeline.columns]
+    table = timeline.set_axis(matchup_cols, axis=1)
+    table.insert(0, "Player", timeline.index)
+    table["Total"] = timeline.sum(axis=1)
+    table = _ranked(table.reset_index(drop=True), by="Total")
+    max_pts = 2 * (len(data.team_names) - 1)  # neutral color at max_pts/2
+    styles: dict[str, StyleFn] = {
+        col: lambda v: heatmap_style(v / max_pts) for col in matchup_cols}
+    styles["Total"] = lambda v: heatmap_style(v / (max_pts * completed))
+    print_df(table, "Power Rankings (round-robin points per completed matchup)",
+             styles=styles)
+
+    from . import plots  # deferred: matplotlib import is slow
+    plots_dir = Path("plots")
+    plots_dir.mkdir(exist_ok=True)
+    slug = re.sub(r"[^a-z0-9]+", "_", data.config.name.lower()).strip("_")
+    path = plots_dir / f"power_rankings_{slug}.png"
+    title = f"{data.config.name} — Power Rankings (through matchup {completed})"
+    with console.status("Rendering figure..."):
+        plots.power_rankings_figure(form_ranks, averages, window, title, path)
+    console.print(f"Saved [bold]{path}[/]")
+
+
 def category_profile(data: LeagueData) -> None:
     """Print each team's per-category round-robin win% over completed weeks,
     plus how contested each category is league-wide."""
-    completed_weeks = data.current_week - 1
+    completed_weeks = _completed_matchups(data)
     if completed_weeks == 0:
         console.print("No completed weeks yet.", style="yellow")
         return
@@ -588,6 +650,7 @@ TOOLS = [
     ("Show weekly scores", weekly_scores),
     ("Show accumulated scores", accumulated_scores),
     ("Show luck ranking", luck_ranking),
+    ("Show power rankings over time", power_rankings),
     ("Show category strength profile", category_profile),
     ("Show matchup preview", matchup_preview),
     ("Plan streaming week", streaming_planner),
