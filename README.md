@@ -21,7 +21,9 @@ Leagues and their scoring categories live in [config.yaml](config.yaml)
 (gitignored), keyed by league name — copy
 [secrets.example.yaml](secrets.example.yaml) to `secrets.yaml` and fill in
 your cookies. Add or replace leagues as entries under `leagues:` plus a matching
-entry in `secrets.yaml`.
+entry in `secrets.yaml`. Schedule-scoring calibrations are stored in
+`calibration.yaml`, written by the calibrate option of the schedule outlook
+tool — don't edit it by hand.
 
 ## Usage
 
@@ -82,6 +84,20 @@ League data is fetched once per session and reused.
   the open days they would actually fill a lineup seat, with blended
   per-game category rates (see below) alongside (injured players are flagged
   DTD/OUT/IR).
+- **Show NHL schedule outlook** — Per-NHL-team games and off-night games
+  (≤16 teams playing) per fantasy matchup, for the full season, the
+  remaining matchups, or the playoffs only. The terminal summary shows
+  totals, per-matchup rates and effective-games scores (see below); the
+  remaining scope adds near-term columns over the next 4 matchups plus a
+  rest-of-season score, and the remaining/playoffs scopes optionally add a
+  `Fit` score weighted by a chosen fantasy roster's actual open lineup
+  seats. A shareable PNG saved to `plots/` shows the full
+  teams × matchups grid as `games (off-nights)` cells with the score
+  columns alongside; playoff matchups are marked in the full-season and
+  remaining views. The scope menu also offers **Calibrate scoring**, which
+  fits the night-value curve behind the scores from a chosen (past) league
+  season and stores it in `calibration.yaml`; until then a linear proxy
+  is used.
 
 ### Luck
 
@@ -136,6 +152,60 @@ contested ≈ 1) means full parity — small roster moves can swing the category
 a wide spread (std → 0.5, contested → 0) means a few teams structurally own
 it and chasing it is expensive.
 
+### Schedule scoring
+
+The schedule outlook ranks NHL teams by *effective games per matchup*: not
+every game is worth the same to a fantasy roster. A game on a quiet night is
+extra valuable — you likely have an open active seat, so a player from that
+team gets you production you'd otherwise not have. A game on a busy night is
+just a game: your lineup is full either way. Each game therefore counts
+
+```
+value = 1 + α · min(seats, 3) / 3        (α = 1)
+```
+
+where `seats` is the number of open lineup seats a fantasy roster has on that
+night. A game on a night with 3+ open seats is worth two regular games; a
+game on a night with a full lineup is worth one. Seats are capped at 3
+because weekly add limits make more open seats unusable anyway. The values
+are summed per NHL team over the scope's nights and divided by its number of
+matchups, so scores read as "games per matchup, adjusted for streamability".
+
+The two flavors differ only in where `seats` comes from:
+
+- **`Score` (general)** — how league-average rosters experience each night.
+  For an NHL team playing on nights `d` of a scope with `M` matchups:
+
+  ```
+  Score = (1/M) · Σ_d [ 1 + min(ŵ(n_d), 3) / 3 ]
+  ```
+
+  where `n_d` is the number of NHL teams playing on night `d` and `ŵ(n)` is
+  the night-value curve: the *expected* open skater seats of a roster on a
+  night with `n` teams playing. The curve is calibrated on demand (scope
+  menu → **Calibrate scoring**) from a real season: for every roster in the
+  source league and every night, the actual open skater seats are computed
+  against that season's NHL schedule, capped at 3, and averaged per
+  teams-playing count `n` (interpolated between observed `n`). Uncalibrated,
+  the linear proxy `ŵ(n) = 3 · (1 − n/32)` is used. Use `Score` for
+  roster-independent questions: draft prep, comparing schedules in a
+  vacuum, or advising trades.
+- **`Fit` (team-specific)** — how *your* roster experiences each night:
+
+  ```
+  Fit = (1/M) · Σ_d [ 1 + min(s_d, 3) / 3 ]
+  ```
+
+  where `s_d` is your roster's *actual* open skater seats on night `d`,
+  computed from your current roster against the NHL schedule (maximum
+  lineup matching, goalie slots excluded). Two NHL teams with an identical
+  `Score` can have very different `Fit`: the one playing on the nights your
+  lineup happens to have holes fills them; the one playing when you're full
+  adds bench-warmers. Use `Fit` for pickup decisions with your real roster —
+  but note it reflects today's roster, so it shifts as you make moves.
+
+When `Fit` is shown it leads the sorting, otherwise `Score` does.
+
 ## Tests
 
 ```bash
@@ -147,6 +217,7 @@ it and chasing it is expensive.
 ```
 config.yaml                  # leagues and scoring categories (committed)
 secrets.example.yaml         # template for secrets.yaml (ESPN cookies, gitignored)
+calibration.yaml             # stored schedule-scoring calibrations (auto-managed)
 pyproject.toml               # package metadata, dependencies, CLI entrypoint
 src/fantasy_nhl/
   cli.py                     # interactive session: league picker + tool menu
@@ -154,6 +225,7 @@ src/fantasy_nhl/
   espn_data.py               # ESPN API access: scores, rosters, NHL schedule, settings
   analysis.py                # pure logic: round-robin tables, predictions, lineup seats
   display.py                 # rich rendering: tables, color gradients
+  plots.py                   # matplotlib PNG figures (power rankings, schedule grids)
   tools.py                   # CLI tools and the TOOLS registry
 tests/                       # pytest suite for the pure analysis logic
 ```

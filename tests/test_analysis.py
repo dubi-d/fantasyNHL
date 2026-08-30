@@ -3,14 +3,18 @@ import pandas as pd
 import pytest
 
 from fantasy_nhl.analysis import (
+    SEAT_CAP,
     PreviewPlayer,
     average_points,
     blended_per_game,
+    calibrate_night_value,
     category_contestedness,
     category_win_rates,
+    effective_games,
     luck,
     matchup_result,
     max_lineup_seats,
+    night_seat_curve,
     off_night_periods,
     open_seat_counts,
     position_open_seats,
@@ -613,6 +617,81 @@ class TestScheduleSummary:
         assert by_team.loc["A", "Off/M next 1"] == pytest.approx(0.0)
         # B leads near-term despite fewer total off-nights
         assert list(table["Team"]) == ["B", "A"]
+
+    def test_score_columns_follow_team_and_lead_sort(self):
+        scores = {"Fit": pd.Series({"A": 1.0, "B": 2.0}),
+                  "Score": pd.Series({"A": 3.0, "B": 1.0})}
+        table = schedule_summary(self.GAMES, self.OFF, set(), scores=scores)
+        assert list(table.columns[:3]) == ["Team", "Fit", "Score"]
+        # Fit leads the sort: B (2.0) over A (1.0) despite A's Off/M lead
+        assert list(table["Team"]) == ["B", "A"]
+
+
+class TestCalibrateNightValue:
+    SLOTS = {"Center": 1}
+
+    def test_mean_capped_seats_by_teams_playing(self):
+        rosters = [[PreviewPlayer("A", "Boston Bruins", ["Center"])],
+                   [PreviewPlayer("B", "Utah HC", ["Center"])]]
+        playing = {1: {"Boston Bruins"}, 2: {"Dallas Stars",
+                                             "Ottawa Senators"}}
+        curve = calibrate_night_value(rosters, self.SLOTS, playing)
+        # night 1: A plays (0 seats), B idle (1 seat) -> mean 0.5
+        assert curve[1] == pytest.approx(0.5)
+        # night 2: neither roster plays -> 1 open seat each
+        assert curve[2] == pytest.approx(1.0)
+
+    def test_seats_capped(self):
+        rosters = [[PreviewPlayer("A", "Boston Bruins", ["Center"])]]
+        slots = {"Center": 10}
+        playing = {1: {"Dallas Stars"}}
+        curve = calibrate_night_value(rosters, slots, playing)
+        assert curve[1] == pytest.approx(SEAT_CAP)
+
+    def test_empty_nights_ignored(self):
+        rosters = [[PreviewPlayer("A", "Boston Bruins", ["Center"])]]
+        curve = calibrate_night_value(rosters, self.SLOTS,
+                                      {1: set(), 2: {"Boston Bruins"}})
+        assert set(curve) == {1}
+
+
+class TestNightSeatCurve:
+    def test_interpolates_between_observed_points(self):
+        fn = night_seat_curve({2: 2.0, 4: 1.0})
+        assert fn(3) == pytest.approx(1.5)
+
+    def test_clips_at_curve_ends(self):
+        fn = night_seat_curve({2: 2.0, 4: 1.0})
+        assert fn(1) == pytest.approx(2.0)
+        assert fn(10) == pytest.approx(1.0)
+
+    def test_linear_fallback_when_uncalibrated(self):
+        fn = night_seat_curve(None)
+        assert fn(16) == pytest.approx(1.5)
+        assert fn(4) == pytest.approx(2.625)
+        assert fn(32) == pytest.approx(0.0)
+
+
+class TestEffectiveGames:
+    def test_streamable_night_counts_more(self):
+        playing = {1: {"A"}, 2: {"A", "B"}}
+        weeks = {1: [1, 2]}
+        seats = {1: 3.0, 2: 0.0}
+        eff = effective_games(playing, weeks, seats)
+        # A: full-bonus night (2.0) + plain night (1.0); B: plain night
+        assert eff["A"] == pytest.approx(3.0)
+        assert eff["B"] == pytest.approx(1.0)
+
+    def test_averaged_per_matchup(self):
+        playing = {1: {"A"}, 2: {"A"}}
+        weeks = {1: [1], 2: [2]}
+        eff = effective_games(playing, weeks, {1: 0.0, 2: 0.0})
+        assert eff["A"] == pytest.approx(1.0)
+
+    def test_seat_bonus_capped(self):
+        playing = {1: {"A"}}
+        eff = effective_games(playing, {1: [1]}, {1: 99.0})
+        assert eff["A"] == pytest.approx(2.0)
 
 
 class TestRankStreamingCandidates:

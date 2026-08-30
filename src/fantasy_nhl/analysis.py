@@ -1,5 +1,5 @@
 """Pure analysis logic for round-robin category scoring."""
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -455,20 +455,91 @@ def team_week_schedule(playing_by_period: dict[int, set[str]],
     return games, off
 
 
+# open seats beyond this add no streaming value (weekly add limits)
+SEAT_CAP = 3
+# score bonus of a game on a fully streamable night vs a normal game
+SCHEDULE_ALPHA = 1.0
+
+
+def calibrate_night_value(rosters: list[list[PreviewPlayer]],
+                          slot_counts: dict[str, int],
+                          playing_by_period: dict[int, set[str]],
+                          ) -> dict[int, float]:
+    """
+    Empirical night-value curve: mean open skater seats (capped at SEAT_CAP)
+    per count of NHL teams playing, over all rosters and nights of a season.
+
+    :param rosters: fantasy rosters of the calibration season
+    :param slot_counts: active lineup slots of that league
+    :param playing_by_period: scoring period -> NHL teams with a game that day
+    :return: teams playing -> mean capped open skater seats
+    """
+    periods = [p for p, teams in playing_by_period.items() if teams]
+    samples: dict[int, list[int]] = {}
+    for roster in rosters:
+        seats = open_seat_counts(roster, slot_counts, playing_by_period,
+                                 periods)
+        for p in periods:
+            n = len(playing_by_period[p])
+            samples.setdefault(n, []).append(min(seats[p][0], SEAT_CAP))
+    return {n: float(np.mean(vals)) for n, vals in sorted(samples.items())}
+
+
+def night_seat_curve(curve: dict[int, float] | None,
+                     ) -> Callable[[int], float]:
+    """Expected capped open seats for a night with n teams playing:
+    interpolated calibration curve, or a linear proxy when uncalibrated."""
+    if not curve:
+        return lambda n: SEAT_CAP * max(1.0 - n / 32, 0.0)
+    xs = sorted(curve)
+    ys = [curve[n] for n in xs]
+    return lambda n: float(np.interp(n, xs, ys))
+
+
+def effective_games(playing_by_period: dict[int, set[str]],
+                    week_periods: dict[int, list[int]],
+                    seats_by_period: dict[int, float],
+                    alpha: float = SCHEDULE_ALPHA) -> pd.Series:
+    """
+    Effective games per matchup per NHL team: a game counts
+    1 + alpha * min(seats, SEAT_CAP) / SEAT_CAP, so games on streamable
+    nights are worth up to (1 + alpha) regular games.
+
+    :param playing_by_period: scoring period -> NHL teams with a game that day
+    :param week_periods: matchup week -> its scoring periods (the scope)
+    :param seats_by_period: period -> (expected) open seats that night
+    :return: Series indexed by team name, sorted index
+    """
+    considered = {p for ps in week_periods.values() for p in ps}
+    teams = sorted(set().union(*(playing_by_period.get(p, set())
+                                 for p in considered), set()))
+    value = dict.fromkeys(teams, 0.0)
+    for p in considered:
+        bonus = alpha * min(seats_by_period.get(p, 0.0), SEAT_CAP) / SEAT_CAP
+        for team in playing_by_period.get(p, set()):
+            if team in value:
+                value[team] += 1.0 + bonus
+    matchups = max(len(week_periods), 1)
+    return pd.Series(value).sort_index() / matchups
+
+
 def schedule_summary(games: pd.DataFrame, off: pd.DataFrame,
                      playoff_weeks: set[int],
-                     near_weeks: list[int] | None = None) -> pd.DataFrame:
+                     near_weeks: list[int] | None = None,
+                     scores: dict[str, pd.Series] | None = None,
+                     ) -> pd.DataFrame:
     """
-    Per-team schedule totals, best off-night rate first.
+    Per-team schedule totals, best score (or off-night rate) first.
 
     :param games: games per team (rows) and matchup week (columns)
     :param off: off-night games, same shape
     :param playoff_weeks: fantasy playoff matchup weeks
     :param near_weeks: near-term matchup weeks; adds games- and
-        off-nights-per-matchup columns over just those weeks, the latter
-        leading the sort
-    :return: DataFrame with Team, Games, G/M, Off, Off/M and (when in scope)
-        the near-term G/M, Off/M and PO G, PO Off
+        off-nights-per-matchup columns over just those weeks
+    :param scores: score columns (name -> Series by team), shown after Team;
+        the first one leads the sort
+    :return: DataFrame with Team, scores, Games, G/M, Off, Off/M and (when in
+        scope) the near-term G/M, Off/M and PO G, PO Off
     """
     po_cols = [w for w in games.columns if w in playoff_weeks]
     weeks = len(games.columns)
@@ -479,6 +550,9 @@ def schedule_summary(games: pd.DataFrame, off: pd.DataFrame,
         "Off": off.sum(axis=1).to_numpy(),
         "Off/M": (off.sum(axis=1) / weeks).round(2).to_numpy(),
     })
+    for i, (name, series) in enumerate((scores or {}).items()):
+        table.insert(1 + i, name,
+                     series.reindex(games.index).round(2).to_numpy())
     near_col = None
     near_cols = [w for w in games.columns if w in set(near_weeks or [])]
     if near_cols:
@@ -490,7 +564,8 @@ def schedule_summary(games: pd.DataFrame, off: pd.DataFrame,
     if po_cols:
         table["PO G"] = games[po_cols].sum(axis=1).to_numpy()
         table["PO Off"] = off[po_cols].sum(axis=1).to_numpy()
-    sort_cols = ([near_col] if near_col else []) + ["Off/M", "Off", "Games"]
+    sort_cols = (list(scores or []) + ([near_col] if near_col else [])
+                 + ["Off/M", "Off", "Games"])
     return table.sort_values(sort_cols, ascending=False, kind="stable",
                              ignore_index=True)
 

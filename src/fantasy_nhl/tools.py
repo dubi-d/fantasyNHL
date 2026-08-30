@@ -1,5 +1,6 @@
 """CLI tools. Register new tools in the TOOLS list."""
 import re
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -13,10 +14,13 @@ from .analysis import (
     StreamingContext,
     average_points,
     blended_per_game,
+    calibrate_night_value,
     category_contestedness,
     category_win_rates,
+    effective_games,
     luck,
     matchup_result,
+    night_seat_curve,
     off_night_periods,
     open_seat_counts,
     position_open_seats,
@@ -30,7 +34,7 @@ from .analysis import (
     trailing_points,
     weekly_points_timeline,
 )
-from .config import Category
+from .config import Category, ScheduleCalibration, load_config, save_calibration
 from .display import (
     StyleFn,
     console,
@@ -42,8 +46,10 @@ from .display import (
 from .espn_data import (
     LeagueData,
     fetch_adds_used,
+    fetch_calibration_data,
     fetch_free_agents,
     fetch_preview_data,
+    fetch_rosters_and_slots,
     fetch_schedule_data,
     fetch_week_dates,
 )
@@ -662,16 +668,21 @@ def schedule_outlook(data: LeagueData) -> None:
 
     playoff_weeks = {w for w in schedule.week_periods
                      if 0 < data.regular_weeks < w}
-    scope = questionary.select(
-        "Scope:", choices=[
-            questionary.Choice("Full season", value="full"),
-            questionary.Choice(
-                f"Remaining matchups (from matchup {data.current_week})",
-                value="remaining"),
-            questionary.Choice("Playoffs only", value="playoffs"),
-        ]).ask()
-    if scope is None:  # Ctrl-C
-        return
+    while True:
+        scope = questionary.select(
+            "Scope:", choices=[
+                questionary.Choice("Full season", value="full"),
+                questionary.Choice(
+                    f"Remaining matchups (from matchup {data.current_week})",
+                    value="remaining"),
+                questionary.Choice("Playoffs only", value="playoffs"),
+                questionary.Choice("Calibrate scoring", value="calibrate"),
+            ]).ask()
+        if scope is None:  # Ctrl-C
+            return
+        if scope != "calibrate":
+            break
+        _calibrate_schedule_scoring(data)
 
     selected = sorted(schedule.week_periods)
     if scope == "remaining":
@@ -689,9 +700,29 @@ def schedule_outlook(data: LeagueData) -> None:
                                           week_periods, off_periods)
     # playoffs-only scope: PO columns would just duplicate the totals
     near_weeks = selected[:4] if scope == "remaining" else None
+
+    # effective-games score: near-term for remaining, whole scope otherwise
+    score_weeks = near_weeks or selected
+    score_wp = {w: week_periods[w] for w in score_weeks if w in week_periods}
+    calibration = data.config.calibration
+    curve_fn = night_seat_curve(calibration.curve if calibration else None)
+    seats_generic = {p: curve_fn(len(teams))
+                     for p, teams in schedule.playing_by_period.items()
+                     if teams}
+    suffix = f" next {len(score_wp)}" if scope == "remaining" else ""
+    scores = {f"Score{suffix}": effective_games(schedule.playing_by_period,
+                                                score_wp, seats_generic)}
+    if scope == "remaining" and len(week_periods) > len(score_wp):
+        scores["Score rest"] = effective_games(schedule.playing_by_period,
+                                               week_periods, seats_generic)
+    fit = _roster_fit(data, schedule.playing_by_period, score_wp) \
+        if scope != "full" else None
+    if fit is not None:
+        scores = {f"Fit{suffix}": fit, **scores}
+
     summary = schedule_summary(games_df, off_df,
                                set() if scope == "playoffs" else playoff_weeks,
-                               near_weeks=near_weeks)
+                               near_weeks=near_weeks, scores=scores)
 
     def norm(col: str) -> StyleFn:
         # stretch each column's actual value range over the full gradient
@@ -727,22 +758,98 @@ def schedule_outlook(data: LeagueData) -> None:
              f"NHL Schedule Outlook ({scope_label}, "
              f"matchups {selected[0]}–{selected[-1]}, {off_label})",
              styles=styles)
+    calib_note = (f"calibrated on {calibration.source} "
+                  f"({calibration.calibrated})" if calibration else
+                  "uncalibrated (linear proxy) — "
+                  "pick 'Calibrate scoring' in the scope menu")
+    fit_note = (" Fit uses your roster's actual open seats."
+                if fit is not None else "")
+    console.print("Score = effective games per matchup, games on streamable "
+                  f"nights count up to double; {calib_note}.{fit_note}",
+                  style="dim")
 
     from . import plots  # deferred: matplotlib import is slow
     path = _plot_path(data, f"schedule_{scope}")
     title = (f"{data.config.name} — NHL Schedule ({scope_label}, "
              f"{data.config.year})")
+    png_scores = {name: s.reindex(order) for name, s in scores.items()}
     with console.status("Rendering figure..."):
         if scope == "playoffs":
             plots.schedule_combined_figure(games_df.loc[order],
                                            off_df.loc[order],
-                                           off_label, title, path)
+                                           off_label, title, path,
+                                           scores=png_scores)
         else:
             plots.schedule_heatmap_figure(games_df.loc[order],
                                           off_df.loc[order],
                                           playoff_weeks, off_label, title,
-                                          path)
+                                          path, scores=png_scores)
     console.print(f"Saved [bold]{path}[/]")
+
+
+_SKIP = object()  # distinguishable from questionary's Ctrl-C None
+
+
+def _roster_fit(data: LeagueData, playing_by_period: dict[int, set[str]],
+                week_periods: dict[int, list[int]]) -> pd.Series | None:
+    """Effective games weighted by the user's actual open lineup seats,
+    or None if the user skips the team prompt."""
+    row = questionary.select(
+        "Weight the score by a fantasy roster's open seats (Fit)?",
+        choices=[questionary.Choice("Skip", value=_SKIP)]
+        + [questionary.Choice(name, value=i)
+           for i, name in enumerate(data.team_names)]).ask()
+    if row is None or row is _SKIP:
+        return None
+    with console.status("Fetching rosters..."):
+        slot_counts, rosters = fetch_rosters_and_slots(data)
+    periods = sorted({p for ps in week_periods.values() for p in ps})
+    seats = {p: skater for p, (skater, _) in
+             open_seat_counts(rosters[row], slot_counts, playing_by_period,
+                              periods).items()}
+    return effective_games(playing_by_period, week_periods, seats)
+
+
+def _calibrate_schedule_scoring(data: LeagueData) -> None:
+    """Calibrate the schedule-scoring night-value curve from a chosen
+    league season and store it in calibration.yaml."""
+    leagues = load_config()
+    source = questionary.select(
+        "Calibrate from which league season?",
+        choices=[questionary.Choice(f"{cfg.name} ({cfg.year})", value=cfg)
+                 for cfg in leagues]).ask()
+    if source is None:  # Ctrl-C
+        return
+
+    with console.status(f"Fetching {source.name} data..."):
+        cal_data = fetch_calibration_data(source)
+    curve = calibrate_night_value(cal_data.rosters, cal_data.slot_counts,
+                                  cal_data.playing_by_period)
+    nights = {n: 0 for n in curve}
+    for teams in cal_data.playing_by_period.values():
+        if teams:
+            nights[len(teams)] += 1
+    table = pd.DataFrame({
+        "Teams playing": list(curve),
+        "Avg open seats": [round(v, 2) for v in curve.values()],
+        "Nights": [nights[n] for n in curve],
+    })
+    table.index = range(1, len(table) + 1)
+    print_df(table,
+             f"Night value curve from {source.name} "
+             f"({len(cal_data.rosters)} rosters)",
+             styles={"Avg open seats": lambda v: heatmap_style(v / 3)})
+
+    if not questionary.confirm(
+            f"Save as calibration for {data.config.name}?",
+            default=True).ask():
+        return
+    calibration = ScheduleCalibration(source=source.name,
+                                      calibrated=date.today().isoformat(),
+                                      curve=curve)
+    save_calibration(data.config.name, calibration)
+    data.config.calibration = calibration  # take effect immediately
+    console.print("Saved to [bold]calibration.yaml[/]")
 
 
 # (menu label, callable) — extend here for new tools

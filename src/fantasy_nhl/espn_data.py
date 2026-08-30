@@ -260,6 +260,43 @@ def fetch_week_dates(data: LeagueData) -> dict[int, tuple[date, date]]:
     return data.week_dates
 
 
+@dataclass
+class CalibrationData:
+    """A past season's rosters and NHL schedule for scoring calibration."""
+    rosters: list[list[PreviewPlayer]]
+    slot_counts: dict[str, int]
+    playing_by_period: dict[int, set[str]]
+
+
+def fetch_calibration_data(source: LeagueConfig) -> CalibrationData:
+    """Fetch a (finished) season's final rosters, lineup slots and NHL
+    schedule to calibrate the schedule-scoring night-value curve."""
+    league = League(
+        league_id=source.league_id,
+        year=source.year,
+        espn_s2=source.espn_s2,
+        swid=source.swid,
+    )
+    slot_counts, _ = _fetch_roster_settings(league)
+    return CalibrationData(
+        rosters=_preview_rosters(league, source.year, slot_counts),
+        slot_counts=slot_counts,
+        playing_by_period=_playing_by_period(league._get_all_pro_schedule()),
+    )
+
+
+def fetch_rosters_and_slots(data: LeagueData,
+                            ) -> tuple[dict[str, int],
+                                       list[list[PreviewPlayer]]]:
+    """Current lineup slots and rosters by team row (one settings request;
+    rosters are already on the league session)."""
+    league = data.espn_league
+    if league is None:
+        raise ValueError("LeagueData has no live ESPN session.")
+    slot_counts, _ = _fetch_roster_settings(league)
+    return slot_counts, _preview_rosters(league, data.config.year, slot_counts)
+
+
 def fetch_adds_used(data: LeagueData, week: int) -> list[int | None]:
     """Adds already used in the given matchup week per team (by row), from
     the raw transaction counters (not exposed by the espn_api wrapper).
