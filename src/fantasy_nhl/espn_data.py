@@ -113,13 +113,21 @@ def fetch_league_data(config: LeagueConfig) -> LeagueData:
                 for i, cat in enumerate(config.categories):
                     scores[row, i, week - 1] = cats[cat.name]["score"]
 
+    total_weeks = len(league.settings.matchup_periods)
+    season_over = (current_week == total_weeks
+                   and any(r[current_week - 1] != "NA" for r in results))
+    if season_over:  # mark the playoff champion in every display
+        for row, team in enumerate(league.teams):
+            if team.final_standing == 1:
+                team_names[row] += " *"
+
     return LeagueData(
         config=config,
         team_names=team_names,
         current_week=current_week,
         weekly_cat_scores=scores,
         weekly_results=results,
-        total_weeks=len(league.settings.matchup_periods),
+        total_weeks=total_weeks,
         regular_weeks=league.settings.reg_season_count,
         espn_league=league,
     )
