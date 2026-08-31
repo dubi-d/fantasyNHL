@@ -740,9 +740,8 @@ def schedule_outlook(data: LeagueData) -> None:
 
     if scope == "playoffs":
         # few columns: append the week-by-week grid as games (off-nights)
-        def off_style(week: int) -> StyleFn:
-            lo = float(off_df[week].min())
-            hi = float(off_df[week].max())
+        def paren_style(series: pd.Series) -> StyleFn:
+            lo, hi = float(series.min()), float(series.max())
             if hi <= lo:
                 return lambda v: ""
             # color by the off-night count inside the parentheses
@@ -752,7 +751,11 @@ def schedule_outlook(data: LeagueData) -> None:
         for w in games_df.columns:
             summary[f"M{w}"] = [f"{games_df.loc[t, w]} ({off_df.loc[t, w]})"
                                 for t in order]
-            styles[f"M{w}"] = off_style(w)
+            styles[f"M{w}"] = paren_style(off_df[w])
+        totals_g = games_df.sum(axis=1)
+        totals_o = off_df.sum(axis=1)
+        summary["Total"] = [f"{totals_g[t]} ({totals_o[t]})" for t in order]
+        styles["Total"] = paren_style(totals_o)
 
     print_df(summary,
              f"NHL Schedule Outlook ({scope_label}, "
