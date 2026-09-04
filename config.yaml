@@ -40,6 +40,21 @@ leagues:
       - name: SV
       - name: "MIN ?"  # goalie minutes (espn_api's label for stat id 8)
 
+  - name: Caliene Pantalones 2024-2025
+    league_id: 740719465
+    year: 2025
+    categories:
+      - name: G
+      - name: A
+      - name: STP
+      - name: SOG
+      - name: HIT
+      - name: BLK
+      - name: DEF
+      - name: SV
+      - name: GAA
+        inverted: true
+
   - name: Caliene Pantalones 2025-2026
     league_id: 430507290
     year: 2026
