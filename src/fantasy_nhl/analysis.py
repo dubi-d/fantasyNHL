@@ -184,6 +184,28 @@ def luck(actual_pts, rr_pts, num_opponents: int):
     return actual_pts - rr_pts / num_opponents
 
 
+def pick_weekly_awards(table: pd.DataFrame) -> dict[str, pd.Series]:
+    """
+    Pick award rows for one matchup week.
+
+    :param table: one row per team with columns Player, Pts (round-robin
+        points), Luck and Result ('W'/'L'/'T'/'NA'), index = team row
+    :return: award name -> table row; 'best'/'worst' by round-robin points,
+        'luckiest_win' = winner with the highest luck (weakest winner),
+        'biggest_choke' = loser with the lowest luck (strongest loser);
+        win/loss awards omitted when nobody won/lost
+    """
+    awards = {"best": table.loc[table["Pts"].idxmax()],
+              "worst": table.loc[table["Pts"].idxmin()]}
+    winners = table[table["Result"] == "W"]
+    if not winners.empty:
+        awards["luckiest_win"] = winners.loc[winners["Luck"].idxmax()]
+    losers = table[table["Result"] == "L"]
+    if not losers.empty:
+        awards["biggest_choke"] = losers.loc[losers["Luck"].idxmin()]
+    return awards
+
+
 def max_lineup_seats(eligible_slots: list[list[str]],
                      slot_counts: dict[str, int]) -> list[int]:
     """

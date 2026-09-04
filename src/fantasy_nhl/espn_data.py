@@ -414,6 +414,17 @@ def _actual_games(league: League, week: int,
     return games, goalie_games
 
 
+def fetch_week_pairings(data: LeagueData, week: int) -> list[tuple[int, int]]:
+    """(home row, away row) pairs of a matchup week (one scoreboard request)."""
+    league = data.espn_league
+    if league is None:
+        raise ValueError("LeagueData has no live ESPN session.")
+    row_by_team_id = {team.team_id: row for row, team in enumerate(league.teams)}
+    return [(row_by_team_id[matchup.home_team.team_id],
+             row_by_team_id[matchup.away_team.team_id])
+            for matchup in league.scoreboard(week)]
+
+
 def fetch_preview_data(data: LeagueData, week: int) -> PreviewData:
     """Fetch everything needed to preview the given matchup week: pairings,
     accumulated real scores, current rosters, lineup slots and NHL schedule."""

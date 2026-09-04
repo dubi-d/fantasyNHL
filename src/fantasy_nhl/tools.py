@@ -23,6 +23,7 @@ from .analysis import (
     night_seat_curve,
     off_night_periods,
     open_seat_counts,
+    pick_weekly_awards,
     position_open_seats,
     preview_week,
     rank_streaming_candidates,
@@ -52,6 +53,7 @@ from .espn_data import (
     fetch_rosters_and_slots,
     fetch_schedule_data,
     fetch_week_dates,
+    fetch_week_pairings,
 )
 
 # points awarded for a real matchup result ("NA" -> no luck value yet)
@@ -79,21 +81,32 @@ def _ranked(table: pd.DataFrame, by: str = "Pts") -> pd.DataFrame:
     return table
 
 
+def _week_table(data: LeagueData, week: int) -> pd.DataFrame:
+    """Round-robin table for one week with actual Result and Luck columns;
+    index = team row."""
+    table = _round_robin_week(data, week)
+    table["Result"] = [row_results[week - 1] for row_results in data.weekly_results]
+    actual_pts = table["Result"].map(RESULT_PTS)
+    table["Luck"] = luck(actual_pts, table["Pts"], len(data.team_names) - 1)
+    return table
+
+
+def _print_week_table(table: pd.DataFrame, title: str) -> None:
+    table = table.rename(columns={"W": "rrW", "L": "rrL", "T": "rrT"})
+    table["Luck"] = table["Luck"].round(2)
+    table = _ranked(
+        table[["Player", "Result", "rrW", "rrL", "rrT", "CatsWon", "Pts", "Luck"]])
+    # weekly luck is bounded by +-2
+    print_df(table, title,
+             styles={"Result": result_style,
+                     "Luck": lambda v: diverging_style(v, 2)})
+
+
 def weekly_scores(data: LeagueData) -> None:
     """Print the round-robin table for every week, including the ongoing one."""
     for week in range(1, data.current_week + 1):
-        table = _round_robin_week(data, week)
-        table["Result"] = [row_results[week - 1] for row_results in data.weekly_results]
-        table = table.rename(columns={"W": "rrW", "L": "rrL", "T": "rrT"})
-        actual_pts = table["Result"].map(RESULT_PTS)
-        table["Luck"] = luck(actual_pts, table["Pts"], len(data.team_names) - 1).round(2)
-        table = _ranked(
-            table[["Player", "Result", "rrW", "rrL", "rrT", "CatsWon", "Pts", "Luck"]])
         ongoing = " (ongoing)" if week == data.current_week else ""
-        # weekly luck is bounded by +-2
-        print_df(table, f"Week {week}{ongoing}",
-                 styles={"Result": result_style,
-                         "Luck": lambda v: diverging_style(v, 2)})
+        _print_week_table(_week_table(data, week), f"Week {week}{ongoing}")
 
 
 def accumulated_scores(data: LeagueData) -> None:
@@ -152,6 +165,79 @@ def luck_ranking(data: LeagueData) -> None:
     luck_scale = table["Luck"].abs().max()
     print_df(table, "Luck Ranking (positive = favorable schedule)",
              styles={"Luck": lambda v: diverging_style(v, luck_scale)})
+
+
+def _ordinal(n: int) -> str:
+    if 10 <= n % 100 <= 20:
+        return f"{n}th"
+    suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def _award_line(emoji: str, label: str, team: str, *clauses: str) -> str:
+    return f"{emoji} {label}: {team} — {', '.join(c for c in clauses if c)}"
+
+
+def weekly_awards(data: LeagueData) -> None:
+    """Print weekly awards (best/worst team, luckiest win, biggest choke)
+    with a plain-text summary ready to paste into the league chat."""
+    completed = _completed_matchups(data)
+    if completed == 0:
+        console.print("No completed matchups yet.", style="yellow")
+        return
+    week = _ask_week(data, last_week=completed, default_week=completed)
+    if week is None:
+        return
+
+    table = _week_table(data, week)
+    with console.status("Fetching matchups..."):
+        pairings = fetch_week_pairings(data, week)
+    opponents = {row: opp for pair in pairings for row, opp in (pair, pair[::-1])}
+    _print_week_table(table, f"Matchup {week} scores")
+
+    names = data.team_names
+    categories = data.config.categories
+    scores = data.weekly_cat_scores[:, :, week - 1]
+    ranks = table["Pts"].rank(ascending=False, method="min").astype(int)
+
+    def scoreline(row: int, opp: int) -> str:
+        won = int(matchup_result(scores[row], scores[opp], categories)[3])
+        lost = int(matchup_result(scores[opp], scores[row], categories)[3])
+        return f"{won}-{lost}-{len(categories) - won - lost}"
+
+    def versus(row: pd.Series) -> str:
+        """'beat <opponent> 6-2-1' clause, empty without a decided matchup."""
+        opp = opponents.get(row.name)
+        verb = {"W": "beat", "L": "lost to", "T": "tied"}.get(row["Result"])
+        if opp is None or verb is None:
+            return ""
+        return f"{verb} {names[opp]} {scoreline(row.name, opp)}"
+
+    def field_record(row: pd.Series) -> str:
+        return f"{int(row['W'])}-{int(row['L'])}-{int(row['T'])} vs the field"
+
+    awards = pick_weekly_awards(table)
+    best, worst = awards["best"], awards["worst"]
+    dates = (data.week_dates or {}).get(week)
+    when = f" ({dates[0]:%b %-d} – {dates[1]:%b %-d})" if dates else ""
+    lines = [f"🏒 Matchup {week} Awards{when}",
+             _award_line("🏆", "Team of the matchup", best["Player"],
+                         f"best stats ({field_record(best)})", versus(best)),
+             _award_line("🥶", "Dud of the matchup", worst["Player"],
+                         f"worst stats ({field_record(worst)})", versus(worst))]
+    lucky = awards.get("luckiest_win")
+    if lucky is not None and lucky["Player"] != best["Player"]:
+        lines.append(_award_line(
+            "🍀", "Luckiest win", lucky["Player"], versus(lucky),
+            f"with only the {_ordinal(ranks[lucky.name])}-best stats"))
+    choke = awards.get("biggest_choke")
+    if choke is not None and choke["Player"] != worst["Player"]:
+        lines.append(_award_line(
+            "💀", "Biggest choke", choke["Player"], versus(choke),
+            f"despite the {_ordinal(ranks[choke.name])}-best stats"))
+
+    console.print("Copy-paste for the league chat:", style="bold")
+    console.print("\n".join(lines), markup=False, highlight=False)
 
 
 def power_rankings(data: LeagueData) -> None:
@@ -232,9 +318,11 @@ def _pair_style(home_raw: float, away_raw: float, inverted: bool,
     return lambda value: "bold green" if value == winner else "bold red"
 
 
-def _ask_week(data: LeagueData) -> int | None:
+def _ask_week(data: LeagueData, last_week: int | None = None,
+              default_week: int | None = None) -> int | None:
     """Prompt for a matchup week (None on Ctrl-C)."""
-    weeks = data.total_weeks or data.current_week
+    weeks = last_week or data.total_weeks or data.current_week
+    default_week = default_week or data.current_week
     with console.status("Fetching matchup dates..."):
         week_dates = fetch_week_dates(data)
 
@@ -251,7 +339,7 @@ def _ask_week(data: LeagueData) -> int | None:
         value=week) for week in range(1, weeks + 1)]
     return questionary.select(
         "Select matchup:", choices=choices,
-        default=choices[min(data.current_week, weeks) - 1]).ask()
+        default=choices[min(default_week, weeks) - 1]).ask()
 
 
 def matchup_preview(data: LeagueData) -> None:
@@ -858,6 +946,7 @@ def _calibrate_schedule_scoring(data: LeagueData) -> None:
 # (menu label, callable) — extend here for new tools
 TOOLS = [
     ("Show weekly scores", weekly_scores),
+    ("Generate weekly awards", weekly_awards),
     ("Show accumulated scores", accumulated_scores),
     ("Show luck ranking", luck_ranking),
     ("Show power rankings over time", power_rankings),

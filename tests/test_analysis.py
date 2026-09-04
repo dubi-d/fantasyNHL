@@ -17,6 +17,7 @@ from fantasy_nhl.analysis import (
     night_seat_curve,
     off_night_periods,
     open_seat_counts,
+    pick_weekly_awards,
     position_open_seats,
     preview_week,
     rank_streaming_candidates,
@@ -253,6 +254,44 @@ class TestLuck:
         actual = pd.Series([2, 2, 0, 0])
         rr_pts = pd.Series([6, 4, 2, 0])
         assert luck(actual, rr_pts, 3).sum() == pytest.approx(0)
+
+
+class TestPickWeeklyAwards:
+    def test_core_four(self):
+        # 4 teams: C won despite weak stats, B lost despite strong stats
+        table = pd.DataFrame({
+            "Player": ["A", "B", "C", "D"],
+            "Pts": [6, 4, 2, 0],
+            "Luck": [0.0, -4 / 3, 4 / 3, 0.0],
+            "Result": ["W", "L", "W", "L"],
+        })
+        awards = pick_weekly_awards(table)
+        assert awards["best"]["Player"] == "A"
+        assert awards["worst"]["Player"] == "D"
+        assert awards["luckiest_win"]["Player"] == "C"
+        assert awards["biggest_choke"]["Player"] == "B"
+
+    def test_row_index_preserved(self):
+        table = pd.DataFrame({
+            "Player": ["A", "B"],
+            "Pts": [2, 0],
+            "Luck": [0.0, 0.0],
+            "Result": ["W", "L"],
+        }, index=[7, 3])
+        awards = pick_weekly_awards(table)
+        assert awards["best"].name == 7
+        assert awards["biggest_choke"].name == 3
+
+    def test_no_decided_results(self):
+        # e.g. a playoff week before any result: only best/worst awarded
+        table = pd.DataFrame({
+            "Player": ["A", "B"],
+            "Pts": [2, 0],
+            "Luck": [float("nan")] * 2,
+            "Result": ["NA", "NA"],
+        })
+        awards = pick_weekly_awards(table)
+        assert set(awards) == {"best", "worst"}
 
 
 class TestMaxLineupSeats:
