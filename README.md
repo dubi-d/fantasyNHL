@@ -67,6 +67,13 @@ answer re-run.
   ESPN matchup outcome that week (`NA` while undecided), and a `Luck` column
   quantifies that week's schedule luck (see below; empty while the matchup is
   undecided). Sorted by points, indexed by rank.
+- **Generate weekly awards** — Picks a completed matchup (default: the
+  latest) and prints its round-robin table plus a plain-text awards block
+  ready to paste into the league chat: team and dud of the matchup (best and
+  worst round-robin points, with their head-to-head scoreline), the luckiest
+  win (the winner with the weakest stats) and the biggest choke (the loser
+  with the strongest stats); the last two are omitted when they coincide
+  with the best/worst team.
 - **Show accumulated scores** — Sums the weekly round-robin results over all
   completed weeks into overall standings, sorted by round-robin strength and
   indexed by rank. The actual matchup record (W/L/T) and points (`Pts`) are
@@ -115,9 +122,10 @@ answer re-run.
   season and remaining scopes split the score into a regular-season-only
   `Reg Score`, a playoff-only `PO Score`, and a `Combined` blend of the two
   (weight prompted, default 0.4 on `PO Score`) whenever playoff weeks are in
-  view; the remaining scope also shows near-term `Reg Score next 4` columns
-  (informational) and lets you pick which of `Fit next 4`, `Combined rest of
-  season` or `Reg Score next 4` leads the sort. The remaining/playoffs
+  view; the remaining scope also shows near-term `Reg Score next 4` and
+  `Reg Score rest` columns (informational) and lets you pick which of
+  `Fit next 4`, `Combined rest of season` or `Reg Score next 4` leads the
+  sort. The remaining/playoffs
   scopes optionally add a `Fit` score weighted by a chosen fantasy roster's
   actual open lineup seats. A shareable PNG saved to `plots/` shows the full
   teams × matchups grid as `games (off-nights)` cells with the score
@@ -200,7 +208,8 @@ because weekly add limits make more open seats unusable anyway. The values
 are summed per NHL team over the scope's nights and divided by its number of
 matchups, so scores read as "games per matchup, adjusted for streamability".
 
-The two flavors differ only in where `seats` comes from:
+The general and team-specific flavors differ only in where `seats` comes
+from; `Combined` blends the two general scores:
 
 - **`Reg Score`/`PO Score` (general)** — how league-average rosters
   experience each night. For an NHL team playing on nights `d` of a scope
@@ -266,27 +275,41 @@ secrets.example.yaml         # template for secrets.yaml (ESPN cookies, gitignor
 calibration.yaml             # stored schedule-scoring calibrations (auto-managed)
 pyproject.toml               # package metadata, dependencies, CLI entrypoint
 src/fantasy_nhl/
-  cli.py                     # interactive session: league picker + tool menu
+  cli.py                     # interactive session: league picker, menu tree, wizard runner
+  prompts.py                 # prompt primitives: Ask/Do steps, ESC = back, Ctrl-C = quit
   config.py                  # YAML loading into LeagueConfig/Category dataclasses
   espn_data.py               # ESPN API access: scores, rosters, NHL schedule, settings
   analysis.py                # pure logic: round-robin tables, predictions, lineup seats
   display.py                 # rich rendering: tables, color gradients
   plots.py                   # matplotlib PNG figures (power rankings, schedule grids)
-  tools.py                   # CLI tools and the TOOLS registry
-tests/                       # pytest suite for the pure analysis logic
+  tools.py                   # CLI tools and the TOOLS menu tree
+tests/                       # pytest suite: analysis logic + wizard runner/menu
 ```
 
 ## Contributing
 
 - Install with dev dependencies: `pip install -e ".[dev]"` (see Setup).
 - **Adding a tool:** write a function in `tools.py` taking a `LeagueData`
-  argument and register it in the `TOOLS` list — it appears in the CLI menu
-  automatically. Keep computation in `analysis.py` (pure functions, no API
-  calls), data fetching in `espn_data.py`, and render tables via
-  `display.print_df` (per-cell styling through the `styles` mapping).
+  argument and register it in the `TOOLS` tree (a nested list of
+  `(label, tool)` or `(label, [children])` pairs — nest a list to add a
+  submenu). A tool that only prints is a plain function. A tool with prompts
+  is a generator: `answer = yield Ask(lambda: ask(questionary.select(...)))`
+  for each prompt and `result = yield Do(thunk)` for every side effect
+  (fetch, render, save). The runner in `cli.py` memoizes `Do` results and
+  replays answers when the user steps back with ESC, so keep the code
+  between yields free of side effects and never call `.ask()` directly —
+  `prompts.ask` is what makes ESC/Ctrl-C work. Keep computation in
+  `analysis.py` (pure functions, no API calls), data fetching in
+  `espn_data.py`, and render tables via `display.print_df` (per-cell
+  styling through the `styles` mapping).
 - **Adding a league:** append an entry under `leagues:` in `config.yaml` and
   a matching credentials entry in `secrets.yaml`.
   The category list must match what the league actually scores on ESPN;
   mark lower-is-better categories with `inverted: true`.
-- Run `pytest` before committing. New analysis logic should come with tests;
-  the ESPN layer is currently untested (requires live credentials).
+- Run `pytest` before committing. New analysis logic should come with tests
+  (`tests/test_analysis.py`); the wizard runner and menu are covered by
+  `tests/test_cli.py` with scripted fake prompts, the ESC/Ctrl-C prompt
+  behavior by `tests/test_prompts.py` (real questionary prompts driven
+  through a pipe), and config/calibration persistence by
+  `tests/test_config.py`. The ESPN layer is untested (requires live
+  credentials), as are the tool bodies themselves.
