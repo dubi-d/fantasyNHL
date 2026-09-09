@@ -87,17 +87,22 @@ League data is fetched once per session and reused.
 - **Show NHL schedule outlook** — Per-NHL-team games and off-night games
   (≤16 teams playing) per fantasy matchup, for the full season, the
   remaining matchups, or the playoffs only. The terminal summary shows
-  totals, per-matchup rates and effective-games scores (see below); the
-  remaining scope adds near-term columns over the next 4 matchups plus a
-  rest-of-season score, and the remaining/playoffs scopes optionally add a
-  `Fit` score weighted by a chosen fantasy roster's actual open lineup
-  seats. A shareable PNG saved to `plots/` shows the full
+  totals, per-matchup rates and effective-games scores (see below). Full
+  season and remaining scopes split the score into a regular-season-only
+  `Reg Score`, a playoff-only `PO Score`, and a `Combined` blend of the two
+  (weight prompted, default 0.4 on `PO Score`) whenever playoff weeks are in
+  view; the remaining scope also shows near-term `Reg Score next 4` columns
+  (informational) and lets you pick which of `Fit next 4`, `Combined rest of
+  season` or `Reg Score next 4` leads the sort. The remaining/playoffs
+  scopes optionally add a `Fit` score weighted by a chosen fantasy roster's
+  actual open lineup seats. A shareable PNG saved to `plots/` shows the full
   teams × matchups grid as `games (off-nights)` cells with the score
   columns alongside; playoff matchups are marked in the full-season and
   remaining views. The scope menu also offers **Calibrate scoring**, which
   fits the night-value curve behind the scores from a chosen (past) league
   season and stores it in `calibration.yaml`; until then a linear proxy
   is used.
+
 
 ### Luck
 
@@ -173,8 +178,9 @@ matchups, so scores read as "games per matchup, adjusted for streamability".
 
 The two flavors differ only in where `seats` comes from:
 
-- **`Score` (general)** — how league-average rosters experience each night.
-  For an NHL team playing on nights `d` of a scope with `M` matchups:
+- **`Reg Score`/`PO Score` (general)** — how league-average rosters
+  experience each night. For an NHL team playing on nights `d` of a scope
+  with `M` matchups:
 
   ```
   Score = (1/M) · Σ_d [ 1 + min(ŵ(n_d), 3) / 3 ]
@@ -187,9 +193,12 @@ The two flavors differ only in where `seats` comes from:
   source league and every night, the actual open skater seats are computed
   against that season's NHL schedule, capped at 3, and averaged per
   teams-playing count `n` (interpolated between observed `n`). Uncalibrated,
-  the linear proxy `ŵ(n) = 3 · (1 − n/32)` is used. Use `Score` for
-  roster-independent questions: draft prep, comparing schedules in a
-  vacuum, or advising trades.
+  the linear proxy `ŵ(n) = 3 · (1 − n/32)` is used. `Reg Score` covers only
+  regular-season weeks and `PO Score` only playoff weeks (shown side by side
+  in the full-season and remaining scopes whenever playoff weeks are in
+  scope; the playoffs-only scope just calls its single column `Score`, since
+  it's already playoff-only). Use these for roster-independent questions:
+  draft prep, comparing schedules in a vacuum, or advising trades.
 - **`Fit` (team-specific)** — how *your* roster experiences each night:
 
   ```
@@ -199,12 +208,25 @@ The two flavors differ only in where `seats` comes from:
   where `s_d` is your roster's *actual* open skater seats on night `d`,
   computed from your current roster against the NHL schedule (maximum
   lineup matching, goalie slots excluded). Two NHL teams with an identical
-  `Score` can have very different `Fit`: the one playing on the nights your
-  lineup happens to have holes fills them; the one playing when you're full
-  adds bench-warmers. Use `Fit` for pickup decisions with your real roster —
-  but note it reflects today's roster, so it shifts as you make moves.
+  `Reg Score` can have very different `Fit`: the one playing on the nights
+  your lineup happens to have holes fills them; the one playing when you're
+  full adds bench-warmers. Use `Fit` for pickup decisions with your real
+  roster — but note it reflects today's roster, so it shifts as you make
+  moves.
+- **`Combined`** — a blend of `Reg Score` and `PO Score`,
+  `Combined = (1 − p) · Reg Score + p · PO Score`, for drafting with an eye
+  on both making the playoffs and performing once there; `p` (the playoff
+  weight, default 0.4) is prompted whenever playoff weeks are in scope. In
+  the full-season scope `Reg Score` covers every regular-season matchup; in
+  the remaining scope (shown as `Combined rest of season`) it covers the
+  entire remaining regular season, not just the portion excluded from the
+  near-term `Reg Score next 4` columns (which are informational only).
 
-When `Fit` is shown it leads the sorting, otherwise `Score` does.
+The full-season scope sorts by `Combined` when playoffs are in scope,
+otherwise by `Reg Score`. The remaining scope prompts you to choose which of
+`Fit next N`, `Combined rest of season` or `Reg Score next N` leads the sort
+(skipped when only one applies). The playoffs-only scope sorts by `Fit` when
+chosen, otherwise `Score`.
 
 ## Tests
 

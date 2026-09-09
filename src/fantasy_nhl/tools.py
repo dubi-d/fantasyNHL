@@ -7,6 +7,7 @@ import pandas as pd
 import questionary
 
 from .analysis import (
+    COMBINED_PLAYOFF_WEIGHT,
     GOALIE_CATEGORIES,
     OFF_NIGHT_MAX_TEAMS,
     RATIO_CATEGORIES,
@@ -748,6 +749,13 @@ def _plot_path(data: LeagueData, prefix: str) -> Path:
     return plots_dir / f"{prefix}_{slug}.png"
 
 
+def _valid_weight(value: str) -> bool | str:
+    try:
+        return 0 <= float(value) <= 1 or "Enter a number between 0 and 1"
+    except ValueError:
+        return "Enter a number between 0 and 1"
+
+
 def schedule_outlook(data: LeagueData) -> None:
     """Per-NHL-team games and off-night games per fantasy matchup: summary
     table in the terminal, full teams-x-matchups heatmap as a PNG."""
@@ -797,16 +805,75 @@ def schedule_outlook(data: LeagueData) -> None:
     seats_generic = {p: curve_fn(len(teams))
                      for p, teams in schedule.playing_by_period.items()
                      if teams}
-    suffix = f" next {len(score_wp)}" if scope == "remaining" else ""
-    scores = {f"Score{suffix}": effective_games(schedule.playing_by_period,
-                                                score_wp, seats_generic)}
-    if scope == "remaining" and len(week_periods) > len(score_wp):
-        scores["Score rest"] = effective_games(schedule.playing_by_period,
-                                               week_periods, seats_generic)
-    fit = _roster_fit(data, schedule.playing_by_period, score_wp) \
-        if scope != "full" else None
-    if fit is not None:
-        scores = {f"Fit{suffix}": fit, **scores}
+
+    playoff_weight = COMBINED_PLAYOFF_WEIGHT
+    if scope != "playoffs" and any(w in week_periods for w in playoff_weeks):
+        answer = questionary.text(
+            "Playoff weight in Combined score (0-1)?",
+            default=str(COMBINED_PLAYOFF_WEIGHT),
+            validate=lambda v: _valid_weight(v)).ask()
+        if answer is None:  # Ctrl-C
+            return
+        playoff_weight = float(answer)
+
+    def blend(a: pd.Series, b: pd.Series) -> pd.Series:
+        return (1 - playoff_weight) * a + playoff_weight * b
+
+    fit = None
+    if scope == "playoffs":
+        # already playoff-only: no Reg Score/PO Score/Combined split needed
+        scores = {"Score": effective_games(schedule.playing_by_period,
+                                           score_wp, seats_generic)}
+        fit = _roster_fit(data, schedule.playing_by_period, score_wp)
+        if fit is not None:
+            scores = {"Fit": fit, **scores}
+    elif scope == "full":
+        reg_wp = {w: p for w, p in score_wp.items() if w not in playoff_weeks}
+        scores = {"Reg Score": effective_games(schedule.playing_by_period,
+                                               reg_wp, seats_generic)}
+        po_wp = {w: week_periods[w] for w in playoff_weeks
+                if w in week_periods}
+        if po_wp:
+            scores["PO Score"] = effective_games(schedule.playing_by_period,
+                                                 po_wp, seats_generic)
+            scores = {"Combined": blend(scores["Reg Score"],
+                                        scores["PO Score"]), **scores}
+    else:  # remaining
+        near_n = len(score_wp)
+        reg_wp = {w: p for w, p in score_wp.items() if w not in playoff_weeks}
+        scores = {f"Reg Score next {near_n}": effective_games(
+            schedule.playing_by_period, reg_wp, seats_generic)}
+        rest_wp = {w: p for w, p in week_periods.items()
+                  if w not in playoff_weeks and w not in score_wp}
+        if rest_wp:
+            scores["Reg Score rest"] = effective_games(
+                schedule.playing_by_period, rest_wp, seats_generic)
+        po_wp = {w: week_periods[w] for w in playoff_weeks
+                if w in week_periods}
+        if po_wp:
+            scores["PO Score"] = effective_games(schedule.playing_by_period,
+                                                 po_wp, seats_generic)
+            # Combined uses the WHOLE remaining regular season, not just
+            # the "rest" portion (near-term N is informational only)
+            all_reg_wp = {w: p for w, p in week_periods.items()
+                         if w not in playoff_weeks}
+            reg_score_all = effective_games(schedule.playing_by_period,
+                                            all_reg_wp, seats_generic)
+            scores["Combined rest of season"] = blend(reg_score_all,
+                                                       scores["PO Score"])
+        fit = _roster_fit(data, schedule.playing_by_period, score_wp)
+        fit_key = f"Fit next {near_n}"
+        if fit is not None:
+            scores = {fit_key: fit, **scores}
+        combined_key = "Combined rest of season"
+        reg_key = f"Reg Score next {near_n}"
+        available = [k for k in (fit_key, combined_key, reg_key)
+                    if k in scores]
+        lead = (questionary.select("Sort by:", choices=available).ask()
+                if len(available) > 1 else
+                (available[0] if available else None))
+        if lead and next(iter(scores)) != lead:
+            scores = {lead: scores.pop(lead), **scores}
 
     summary = schedule_summary(games_df, off_df,
                                set() if scope == "playoffs" else playoff_weeks,
@@ -855,9 +922,14 @@ def schedule_outlook(data: LeagueData) -> None:
                   "pick 'Calibrate scoring' in the scope menu")
     fit_note = (" Fit uses your roster's actual open seats."
                 if fit is not None else "")
-    console.print("Score = effective games per matchup, games on streamable "
-                  f"nights count up to double; {calib_note}.{fit_note}",
-                  style="dim")
+    po_note = (f" PO Score/Combined isolate playoff-week schedule strength "
+               f"({round((1 - playoff_weight) * 100)}/"
+               f"{round(playoff_weight * 100)} blend)."
+               if "PO Score" in scores else "")
+    score_label = "Score" if scope == "playoffs" else "Reg Score"
+    console.print(f"{score_label} = effective games per matchup, games on "
+                  f"streamable nights count up to double; {calib_note}."
+                  f"{po_note}{fit_note}", style="dim")
 
     from . import plots  # deferred: matplotlib import is slow
     path = _plot_path(data, f"schedule_{scope}")

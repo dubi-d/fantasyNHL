@@ -481,6 +481,8 @@ def team_week_schedule(playing_by_period: dict[int, set[str]],
 SEAT_CAP = 3
 # score bonus of a game on a fully streamable night vs a normal game
 SCHEDULE_ALPHA = 1.0
+# default weight given to the playoff-only score in the Combined blend
+COMBINED_PLAYOFF_WEIGHT = 0.4
 
 
 def calibrate_night_value(rosters: list[list[PreviewPlayer]],
@@ -568,8 +570,8 @@ def schedule_summary(games: pd.DataFrame, off: pd.DataFrame,
     table = pd.DataFrame({
         "Team": games.index,
         "Games": games.sum(axis=1).to_numpy(),
-        "G/M": (games.sum(axis=1) / weeks).round(2).to_numpy(),
         "Off": off.sum(axis=1).to_numpy(),
+        "G/M": (games.sum(axis=1) / weeks).round(2).to_numpy(),
         "Off/M": (off.sum(axis=1) / weeks).round(2).to_numpy(),
     })
     for i, (name, series) in enumerate((scores or {}).items()):
