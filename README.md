@@ -34,6 +34,30 @@ tool — don't edit it by hand.
 Starts an interactive session: pick a league and tools from arrow-key menus.
 League data is fetched once per session and reused.
 
+```
+Select tool
+├── Weekly
+│   ├── Show weekly scores
+│   └── Generate weekly awards
+├── Season standings
+│   ├── Show accumulated scores
+│   ├── Show luck ranking
+│   ├── Show power rankings over time
+│   └── Show category strength profile
+├── Roster planning
+│   ├── Show matchup preview
+│   ├── Plan streaming week
+│   └── Show NHL schedule outlook
+└── Quit
+```
+
+After a tool finishes it returns to its own first prompt, so you can re-run
+it with different inputs right away. **ESC** goes back one step — the
+previous prompt within a tool, or up one menu level (ESC at the top menu
+quits); **Ctrl-C** quits immediately from anywhere. Stepping back doesn't
+repeat fetches or tables already shown; only the steps after the changed
+answer re-run.
+
 ## Tools
 
 - **Show weekly scores** — For each matchup week (including the ongoing one),

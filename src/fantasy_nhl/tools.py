@@ -1,4 +1,11 @@
-"""CLI tools. Register new tools in the TOOLS list."""
+"""CLI tools. Register new tools in the TOOLS tree.
+
+A tool is a plain function (prints and returns) or a generator function
+yielding wizard steps from ``prompts``: ``answer = yield Ask(thunk)`` for a
+prompt (ESC goes back one step) and ``result = yield Do(thunk)`` for any
+side effect (fetch, render) so it is not repeated when the user steps back
+and forth. Keep everything between yields free of side effects.
+"""
 import re
 from datetime import date
 from pathlib import Path
@@ -56,6 +63,7 @@ from .espn_data import (
     fetch_week_dates,
     fetch_week_pairings,
 )
+from .prompts import Ask, Do, ask
 
 # points awarded for a real matchup result ("NA" -> no luck value yet)
 RESULT_PTS = {"W": 2, "T": 1, "L": 0}
@@ -179,17 +187,18 @@ def _award_line(emoji: str, label: str, team: str, *clauses: str) -> str:
     return f"{emoji} {label}: {team} — {', '.join(c for c in clauses if c)}"
 
 
-def weekly_awards(data: LeagueData) -> None:
+def weekly_awards(data: LeagueData):
     """Print weekly awards (best/worst team, luckiest win, biggest choke)
     with a plain-text summary ready to paste into the league chat."""
     completed = _completed_matchups(data)
     if completed == 0:
         console.print("No completed matchups yet.", style="yellow")
         return
-    week = _ask_week(data, last_week=completed, default_week=completed)
-    if week is None:
-        return
+    week = yield _ask_week(data, last_week=completed, default_week=completed)
+    yield Do(lambda: _print_weekly_awards(data, week))
 
+
+def _print_weekly_awards(data: LeagueData, week: int) -> None:
     table = _week_table(data, week)
     with console.status("Fetching matchups..."):
         pairings = fetch_week_pairings(data, week)
@@ -241,7 +250,7 @@ def weekly_awards(data: LeagueData) -> None:
     console.print("\n".join(lines), markup=False, highlight=False)
 
 
-def power_rankings(data: LeagueData) -> None:
+def power_rankings(data: LeagueData):
     """Print a teams-x-matchups heatmap of round-robin points and save
     a shareable timeline PNG (hot-streak rank bump chart + average points)."""
     completed = _completed_matchups(data)
@@ -250,14 +259,15 @@ def power_rankings(data: LeagueData) -> None:
         return
 
     default = str(min(4, completed))
-    answer = questionary.text(
+    answer = yield Ask(lambda: ask(questionary.text(
         f"Hot-streak window in matchups (2-{completed})?", default=default,
         validate=lambda v: (v.isdigit() and 2 <= int(v) <= completed)
-        or f"Enter a number between 2 and {completed}").ask()
-    if answer is None:
-        return
-    window = int(answer)
+        or f"Enter a number between 2 and {completed}")))
+    yield Do(lambda: _print_power_rankings(data, completed, int(answer)))
 
+
+def _print_power_rankings(data: LeagueData, completed: int,
+                          window: int) -> None:
     timeline = weekly_points_timeline(
         data.weekly_cat_scores[:, :, :completed],
         data.config.categories, data.team_names)
@@ -320,8 +330,8 @@ def _pair_style(home_raw: float, away_raw: float, inverted: bool,
 
 
 def _ask_week(data: LeagueData, last_week: int | None = None,
-              default_week: int | None = None) -> int | None:
-    """Prompt for a matchup week (None on Ctrl-C)."""
+              default_week: int | None = None) -> Ask:
+    """Wizard step prompting for a matchup week."""
     weeks = last_week or data.total_weeks or data.current_week
     default_week = default_week or data.current_week
     with console.status("Fetching matchup dates..."):
@@ -338,22 +348,27 @@ def _ask_week(data: LeagueData, last_week: int | None = None,
         + (" (playoffs)" if 0 < data.regular_weeks < week else "")
         + (" (current)" if week == data.current_week else ""),
         value=week) for week in range(1, weeks + 1)]
-    return questionary.select(
+    return Ask(lambda: ask(questionary.select(
         "Select matchup:", choices=choices,
-        default=choices[min(default_week, weeks) - 1]).ask()
+        default=choices[min(default_week, weeks) - 1])))
 
 
-def matchup_preview(data: LeagueData) -> None:
+def matchup_preview(data: LeagueData):
     """Preview a matchup week: player games and predicted category scores per
     head-to-head pairing. Elapsed days use real data (scores and games actually
     played), remaining days per-game-rate predictions with the current roster
     filling all active slots."""
-    week = _ask_week(data)
-    if week is None:  # Ctrl-C
-        return
+    week = yield _ask_week(data)
+    yield Do(lambda: _print_matchup_preview(data, week))
 
+
+def _fetch_preview(data: LeagueData, week: int):
     with console.status(f"Fetching preview data for week {week}..."):
-        preview = fetch_preview_data(data, week)
+        return fetch_preview_data(data, week)
+
+
+def _print_matchup_preview(data: LeagueData, week: int) -> None:
+    preview = _fetch_preview(data, week)
     if not preview.pairings:
         console.print("No matchups scheduled for this week yet (playoff "
                       "pairings appear once the bracket is seeded).",
@@ -431,24 +446,21 @@ def _day_labels(periods: list[int],
                 else f"Day {p}") for p in periods}
 
 
-def streaming_planner(data: LeagueData) -> None:
+def streaming_planner(data: LeagueData):
     """Plan streamer moves for a matchup week: per-day roster grid with open
     active seats (with and without the designated streamers) and NHL teams
     ranked by how well their schedule covers the open days."""
-    week = _ask_week(data)
-    if week is None:  # Ctrl-C
-        return
+    week = yield _ask_week(data)
 
-    with console.status(f"Fetching streaming data for week {week}..."):
-        preview = fetch_preview_data(data, week)
-        adds_used = fetch_adds_used(data, week)
+    def fetch():
+        with console.status(f"Fetching streaming data for week {week}..."):
+            return fetch_preview_data(data, week), fetch_adds_used(data, week)
+    preview, adds_used = yield Do(fetch)
 
-    my_row = questionary.select(
+    my_row = yield Ask(lambda: ask(questionary.select(
         "Select your team:",
         choices=[questionary.Choice(name, value=row)
-                 for row, name in enumerate(data.team_names)]).ask()
-    if my_row is None:  # Ctrl-C
-        return
+                 for row, name in enumerate(data.team_names)])))
     roster = sorted(preview.rosters[my_row],
                     key=lambda p: min(_SLOT_ORDER.get(s, len(_SLOT_ORDER))
                                       for s in p.eligible_slots))
@@ -458,21 +470,21 @@ def streaming_planner(data: LeagueData) -> None:
     if not actionable and preview.periods:
         labels = _day_labels(preview.periods, preview.period_dates)
         # 0 = no simulation (questionary swallows None values)
-        sim = questionary.select(
+        sim = yield Ask(lambda: ask(questionary.select(
             "Week is over — simulate it as ongoing to preview the planner?",
             choices=[questionary.Choice("No, just show the roster grid",
                                         value=0)]
             + [questionary.Choice(f"Plan as if today were {labels[p]}",
-                                  value=p) for p in preview.periods]).ask()
+                                  value=p) for p in preview.periods])))
         if sim:
             actionable = [p for p in preview.periods if p >= sim]
             simulated_from = labels[sim]
 
     streamers: list[str] = []
     if actionable:
-        streamers = questionary.checkbox(
+        streamers = yield Ask(lambda: ask(questionary.checkbox(
             "Mark your streamers (droppable roster spots):",
-            choices=[p.name for p in roster]).ask() or []
+            choices=[p.name for p in roster])))
 
     context = StreamingContext(
         roster=roster,
@@ -485,22 +497,25 @@ def streaming_planner(data: LeagueData) -> None:
         adds_limit=preview.add_limit,
         lookahead_periods=preview.next_periods[:2],
     )
-    align = _render_streaming_plan(context, week, data.team_names[my_row],
-                                   streamers, simulated_from)
+    align = yield Do(lambda: _render_streaming_plan(
+        context, week, data.team_names[my_row], streamers, simulated_from))
 
     if align is None:  # no open days to stream for
         return
-    show_fa = questionary.confirm(
-        "Show free agent candidates for the open days?", default=True).ask()
+    show_fa = yield Ask(lambda: ask(questionary.confirm(
+        "Show free agent candidates for the open days?", default=True)))
     if not show_fa:
         return
-    with console.status("Fetching free agents..."):
-        candidates = fetch_free_agents(data, preview.slot_counts)
-    if simulated_from:
-        console.print("FA pool and stats are today's, not those of the "
-                      "simulated week.", style="dim")
-    _render_candidates(context, candidates, data.config.categories,
-                       preview.blend_weight, streamers, align)
+
+    def show_candidates() -> None:
+        with console.status("Fetching free agents..."):
+            candidates = fetch_free_agents(data, preview.slot_counts)
+        if simulated_from:
+            console.print("FA pool and stats are today's, not those of the "
+                          "simulated week.", style="dim")
+        _render_candidates(context, candidates, data.config.categories,
+                           preview.blend_weight, streamers, align)
+    yield Do(show_candidates)
 
 
 def _col_width(header: str, values: list) -> int:
@@ -738,8 +753,8 @@ def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
                  header_styles={labels[d]: "dim" for d in look})
         if start + page_size >= len(table):
             break
-        if not questionary.confirm("Show more candidates?",
-                                   default=True).ask():
+        if ask(questionary.confirm("Show more candidates?",
+                                   default=True)) is not True:
             break
 
 def _plot_path(data: LeagueData, prefix: str) -> Path:
@@ -756,16 +771,18 @@ def _valid_weight(value: str) -> bool | str:
         return "Enter a number between 0 and 1"
 
 
-def schedule_outlook(data: LeagueData) -> None:
+def schedule_outlook(data: LeagueData):
     """Per-NHL-team games and off-night games per fantasy matchup: summary
     table in the terminal, full teams-x-matchups heatmap as a PNG."""
-    with console.status("Fetching NHL schedule..."):
-        schedule = fetch_schedule_data(data)
+    def fetch():
+        with console.status("Fetching NHL schedule..."):
+            return fetch_schedule_data(data)
+    schedule = yield Do(fetch)
 
     playoff_weeks = {w for w in schedule.week_periods
                      if 0 < data.regular_weeks < w}
     while True:
-        scope = questionary.select(
+        scope = yield Ask(lambda: ask(questionary.select(
             "Scope:", choices=[
                 questionary.Choice("Full season", value="full"),
                 questionary.Choice(
@@ -773,12 +790,10 @@ def schedule_outlook(data: LeagueData) -> None:
                     value="remaining"),
                 questionary.Choice("Playoffs only", value="playoffs"),
                 questionary.Choice("Calibrate scoring", value="calibrate"),
-            ]).ask()
-        if scope is None:  # Ctrl-C
-            return
+            ])))
         if scope != "calibrate":
             break
-        _calibrate_schedule_scoring(data)
+        yield from _calibrate_schedule_scoring(data)
 
     selected = sorted(schedule.week_periods)
     if scope == "remaining":
@@ -808,12 +823,10 @@ def schedule_outlook(data: LeagueData) -> None:
 
     playoff_weight = COMBINED_PLAYOFF_WEIGHT
     if scope != "playoffs" and any(w in week_periods for w in playoff_weeks):
-        answer = questionary.text(
+        answer = yield Ask(lambda: ask(questionary.text(
             "Playoff weight in Combined score (0-1)?",
             default=str(COMBINED_PLAYOFF_WEIGHT),
-            validate=lambda v: _valid_weight(v)).ask()
-        if answer is None:  # Ctrl-C
-            return
+            validate=_valid_weight)))
         playoff_weight = float(answer)
 
     def blend(a: pd.Series, b: pd.Series) -> pd.Series:
@@ -824,7 +837,8 @@ def schedule_outlook(data: LeagueData) -> None:
         # already playoff-only: no Reg Score/PO Score/Combined split needed
         scores = {"Score": effective_games(schedule.playing_by_period,
                                            score_wp, seats_generic)}
-        fit = _roster_fit(data, schedule.playing_by_period, score_wp)
+        fit = yield from _roster_fit(data, schedule.playing_by_period,
+                                     score_wp)
         if fit is not None:
             scores = {"Fit": fit, **scores}
     elif scope == "full":
@@ -861,7 +875,8 @@ def schedule_outlook(data: LeagueData) -> None:
                                             all_reg_wp, seats_generic)
             scores["Combined rest of season"] = blend(reg_score_all,
                                                        scores["PO Score"])
-        fit = _roster_fit(data, schedule.playing_by_period, score_wp)
+        fit = yield from _roster_fit(data, schedule.playing_by_period,
+                                     score_wp)
         fit_key = f"Fit next {near_n}"
         if fit is not None:
             scores = {fit_key: fit, **scores}
@@ -869,161 +884,181 @@ def schedule_outlook(data: LeagueData) -> None:
         reg_key = f"Reg Score next {near_n}"
         available = [k for k in (fit_key, combined_key, reg_key)
                     if k in scores]
-        lead = (questionary.select("Sort by:", choices=available).ask()
-                if len(available) > 1 else
-                (available[0] if available else None))
+        lead = available[0] if available else None
+        if len(available) > 1:
+            lead = yield Ask(lambda: ask(questionary.select(
+                "Sort by:", choices=available)))
         if lead and next(iter(scores)) != lead:
             scores = {lead: scores.pop(lead), **scores}
 
-    summary = schedule_summary(games_df, off_df,
-                               set() if scope == "playoffs" else playoff_weeks,
-                               near_weeks=near_weeks, scores=scores)
+    def render() -> None:
+        summary = schedule_summary(
+            games_df, off_df, set() if scope == "playoffs" else playoff_weeks,
+            near_weeks=near_weeks, scores=scores)
 
-    def norm(col: str) -> StyleFn:
-        # stretch each column's actual value range over the full gradient
-        lo, hi = float(summary[col].min()), float(summary[col].max())
-        if hi <= lo:
-            return lambda v: ""
-        return lambda v: heatmap_style((v - lo) / (hi - lo))
-
-    styles = {col: norm(col) for col in summary.columns if col != "Team"}
-    summary.index = range(1, len(summary) + 1)  # already sorted by analysis
-    order = list(summary["Team"])  # same sorting as the terminal table
-    off_label = f"off-night = ≤{OFF_NIGHT_MAX_TEAMS} teams playing"
-    scope_label = {"full": "full season", "remaining": "remaining matchups",
-                   "playoffs": "playoffs"}[scope]
-
-    if scope == "playoffs":
-        # few columns: append the week-by-week grid as games (off-nights)
-        def paren_style(series: pd.Series) -> StyleFn:
-            lo, hi = float(series.min()), float(series.max())
+        def norm(col: str) -> StyleFn:
+            # stretch each column's actual value range over the full gradient
+            lo, hi = float(summary[col].min()), float(summary[col].max())
             if hi <= lo:
                 return lambda v: ""
-            # color by the off-night count inside the parentheses
-            return lambda v: heatmap_style(
-                (int(v.split("(")[1].rstrip(")")) - lo) / (hi - lo))
+            return lambda v: heatmap_style((v - lo) / (hi - lo))
 
-        for w in games_df.columns:
-            summary[f"M{w}"] = [f"{games_df.loc[t, w]} ({off_df.loc[t, w]})"
-                                for t in order]
-            styles[f"M{w}"] = paren_style(off_df[w])
-        totals_g = games_df.sum(axis=1)
-        totals_o = off_df.sum(axis=1)
-        summary["Total"] = [f"{totals_g[t]} ({totals_o[t]})" for t in order]
-        styles["Total"] = paren_style(totals_o)
+        styles = {col: norm(col) for col in summary.columns if col != "Team"}
+        summary.index = range(1, len(summary) + 1)  # sorted by analysis
+        order = list(summary["Team"])  # same sorting as the terminal table
+        off_label = f"off-night = ≤{OFF_NIGHT_MAX_TEAMS} teams playing"
+        scope_label = {"full": "full season",
+                       "remaining": "remaining matchups",
+                       "playoffs": "playoffs"}[scope]
 
-    print_df(summary,
-             f"NHL Schedule Outlook ({scope_label}, "
-             f"matchups {selected[0]}–{selected[-1]}, {off_label})",
-             styles=styles)
-    calib_note = (f"calibrated on {calibration.source} "
-                  f"({calibration.calibrated})" if calibration else
-                  "uncalibrated (linear proxy) — "
-                  "pick 'Calibrate scoring' in the scope menu")
-    fit_note = (" Fit uses your roster's actual open seats."
-                if fit is not None else "")
-    po_note = (f" PO Score/Combined isolate playoff-week schedule strength "
-               f"({round((1 - playoff_weight) * 100)}/"
-               f"{round(playoff_weight * 100)} blend)."
-               if "PO Score" in scores else "")
-    score_label = "Score" if scope == "playoffs" else "Reg Score"
-    console.print(f"{score_label} = effective games per matchup, games on "
-                  f"streamable nights count up to double; {calib_note}."
-                  f"{po_note}{fit_note}", style="dim")
-
-    from . import plots  # deferred: matplotlib import is slow
-    path = _plot_path(data, f"schedule_{scope}")
-    title = (f"{data.config.name} — NHL Schedule ({scope_label}, "
-             f"{data.config.year})")
-    png_scores = {name: s.reindex(order) for name, s in scores.items()}
-    with console.status("Rendering figure..."):
         if scope == "playoffs":
-            plots.schedule_combined_figure(games_df.loc[order],
-                                           off_df.loc[order],
-                                           off_label, title, path,
-                                           scores=png_scores)
-        else:
-            plots.schedule_heatmap_figure(games_df.loc[order],
-                                          off_df.loc[order],
-                                          playoff_weeks, off_label, title,
-                                          path, scores=png_scores)
-    console.print(f"Saved [bold]{path}[/]")
+            # few columns: append the week-by-week grid as games (off-nights)
+            def paren_style(series: pd.Series) -> StyleFn:
+                lo, hi = float(series.min()), float(series.max())
+                if hi <= lo:
+                    return lambda v: ""
+                # color by the off-night count inside the parentheses
+                return lambda v: heatmap_style(
+                    (int(v.split("(")[1].rstrip(")")) - lo) / (hi - lo))
+
+            for w in games_df.columns:
+                summary[f"M{w}"] = [
+                    f"{games_df.loc[t, w]} ({off_df.loc[t, w]})"
+                    for t in order]
+                styles[f"M{w}"] = paren_style(off_df[w])
+            totals_g = games_df.sum(axis=1)
+            totals_o = off_df.sum(axis=1)
+            summary["Total"] = [f"{totals_g[t]} ({totals_o[t]})"
+                                for t in order]
+            styles["Total"] = paren_style(totals_o)
+
+        print_df(summary,
+                 f"NHL Schedule Outlook ({scope_label}, "
+                 f"matchups {selected[0]}–{selected[-1]}, {off_label})",
+                 styles=styles)
+        calib_note = (f"calibrated on {calibration.source} "
+                      f"({calibration.calibrated})" if calibration else
+                      "uncalibrated (linear proxy) — "
+                      "pick 'Calibrate scoring' in the scope menu")
+        fit_note = (" Fit uses your roster's actual open seats."
+                    if fit is not None else "")
+        po_note = (f" PO Score/Combined isolate playoff-week schedule "
+                   f"strength ({round((1 - playoff_weight) * 100)}/"
+                   f"{round(playoff_weight * 100)} blend)."
+                   if "PO Score" in scores else "")
+        score_label = "Score" if scope == "playoffs" else "Reg Score"
+        console.print(f"{score_label} = effective games per matchup, games "
+                      f"on streamable nights count up to double; "
+                      f"{calib_note}.{po_note}{fit_note}", style="dim")
+
+        from . import plots  # deferred: matplotlib import is slow
+        path = _plot_path(data, f"schedule_{scope}")
+        title = (f"{data.config.name} — NHL Schedule ({scope_label}, "
+                 f"{data.config.year})")
+        png_scores = {name: s.reindex(order) for name, s in scores.items()}
+        with console.status("Rendering figure..."):
+            if scope == "playoffs":
+                plots.schedule_combined_figure(games_df.loc[order],
+                                               off_df.loc[order],
+                                               off_label, title, path,
+                                               scores=png_scores)
+            else:
+                plots.schedule_heatmap_figure(games_df.loc[order],
+                                              off_df.loc[order],
+                                              playoff_weeks, off_label,
+                                              title, path, scores=png_scores)
+        console.print(f"Saved [bold]{path}[/]")
+
+    yield Do(render)
 
 
-_SKIP = object()  # distinguishable from questionary's Ctrl-C None
+_SKIP = object()  # "no roster" choice; never None (questionary quirk)
 
 
 def _roster_fit(data: LeagueData, playing_by_period: dict[int, set[str]],
-                week_periods: dict[int, list[int]]) -> pd.Series | None:
-    """Effective games weighted by the user's actual open lineup seats,
-    or None if the user skips the team prompt."""
-    row = questionary.select(
+                week_periods: dict[int, list[int]]):
+    """Wizard steps for the Fit score: effective games weighted by a
+    roster's actual open lineup seats; returns None if skipped."""
+    row = yield Ask(lambda: ask(questionary.select(
         "Weight the score by a fantasy roster's open seats (Fit)?",
         choices=[questionary.Choice("Skip", value=_SKIP)]
         + [questionary.Choice(name, value=i)
-           for i, name in enumerate(data.team_names)]).ask()
-    if row is None or row is _SKIP:
+           for i, name in enumerate(data.team_names)])))
+    if row is _SKIP:
         return None
-    with console.status("Fetching rosters..."):
-        slot_counts, rosters = fetch_rosters_and_slots(data)
-    periods = sorted({p for ps in week_periods.values() for p in ps})
-    seats = {p: skater for p, (skater, _) in
-             open_seat_counts(rosters[row], slot_counts, playing_by_period,
-                              periods).items()}
-    return effective_games(playing_by_period, week_periods, seats)
+
+    def compute() -> pd.Series:
+        with console.status("Fetching rosters..."):
+            slot_counts, rosters = fetch_rosters_and_slots(data)
+        periods = sorted({p for ps in week_periods.values() for p in ps})
+        seats = {p: skater for p, (skater, _) in
+                 open_seat_counts(rosters[row], slot_counts,
+                                  playing_by_period, periods).items()}
+        return effective_games(playing_by_period, week_periods, seats)
+    return (yield Do(compute))
 
 
-def _calibrate_schedule_scoring(data: LeagueData) -> None:
-    """Calibrate the schedule-scoring night-value curve from a chosen
-    league season and store it in calibration.yaml."""
+def _calibrate_schedule_scoring(data: LeagueData):
+    """Wizard steps calibrating the schedule-scoring night-value curve from
+    a chosen league season and storing it in calibration.yaml."""
     leagues = load_config()
-    source = questionary.select(
+    source = yield Ask(lambda: ask(questionary.select(
         "Calibrate from which league season?",
         choices=[questionary.Choice(f"{cfg.name} ({cfg.year})", value=cfg)
-                 for cfg in leagues]).ask()
-    if source is None:  # Ctrl-C
+                 for cfg in leagues])))
+
+    def fit_curve() -> dict[int, float]:
+        with console.status(f"Fetching {source.name} data..."):
+            cal_data = fetch_calibration_data(source)
+        curve = calibrate_night_value(cal_data.rosters, cal_data.slot_counts,
+                                      cal_data.playing_by_period)
+        nights = {n: 0 for n in curve}
+        for teams in cal_data.playing_by_period.values():
+            if teams:
+                nights[len(teams)] += 1
+        table = pd.DataFrame({
+            "Teams playing": list(curve),
+            "Avg open seats": [round(v, 2) for v in curve.values()],
+            "Nights": [nights[n] for n in curve],
+        })
+        table.index = range(1, len(table) + 1)
+        print_df(table,
+                 f"Night value curve from {source.name} "
+                 f"({len(cal_data.rosters)} rosters)",
+                 styles={"Avg open seats": lambda v: heatmap_style(v / 3)})
+        return curve
+    curve = yield Do(fit_curve)
+
+    save = yield Ask(lambda: ask(questionary.confirm(
+        f"Save as calibration for {data.config.name}?", default=True)))
+    if not save:
         return
 
-    with console.status(f"Fetching {source.name} data..."):
-        cal_data = fetch_calibration_data(source)
-    curve = calibrate_night_value(cal_data.rosters, cal_data.slot_counts,
-                                  cal_data.playing_by_period)
-    nights = {n: 0 for n in curve}
-    for teams in cal_data.playing_by_period.values():
-        if teams:
-            nights[len(teams)] += 1
-    table = pd.DataFrame({
-        "Teams playing": list(curve),
-        "Avg open seats": [round(v, 2) for v in curve.values()],
-        "Nights": [nights[n] for n in curve],
-    })
-    table.index = range(1, len(table) + 1)
-    print_df(table,
-             f"Night value curve from {source.name} "
-             f"({len(cal_data.rosters)} rosters)",
-             styles={"Avg open seats": lambda v: heatmap_style(v / 3)})
-
-    if not questionary.confirm(
-            f"Save as calibration for {data.config.name}?",
-            default=True).ask():
-        return
-    calibration = ScheduleCalibration(source=source.name,
-                                      calibrated=date.today().isoformat(),
-                                      curve=curve)
-    save_calibration(data.config.name, calibration)
-    data.config.calibration = calibration  # take effect immediately
-    console.print("Saved to [bold]calibration.yaml[/]")
+    def persist() -> None:
+        calibration = ScheduleCalibration(source=source.name,
+                                          calibrated=date.today().isoformat(),
+                                          curve=curve)
+        save_calibration(data.config.name, calibration)
+        data.config.calibration = calibration  # take effect immediately
+        console.print("Saved to [bold]calibration.yaml[/]")
+    yield Do(persist)
 
 
-# (menu label, callable) — extend here for new tools
+# (menu label, tool or submenu list) — nest lists to group tools
 TOOLS = [
-    ("Show weekly scores", weekly_scores),
-    ("Generate weekly awards", weekly_awards),
-    ("Show accumulated scores", accumulated_scores),
-    ("Show luck ranking", luck_ranking),
-    ("Show power rankings over time", power_rankings),
-    ("Show category strength profile", category_profile),
-    ("Show matchup preview", matchup_preview),
-    ("Plan streaming week", streaming_planner),
-    ("Show NHL schedule outlook", schedule_outlook),
+    ("Weekly", [
+        ("Show weekly scores", weekly_scores),
+        ("Generate weekly awards", weekly_awards),
+    ]),
+    ("Season standings", [
+        ("Show accumulated scores", accumulated_scores),
+        ("Show luck ranking", luck_ranking),
+        ("Show power rankings over time", power_rankings),
+        ("Show category strength profile", category_profile),
+    ]),
+    ("Roster planning", [
+        ("Show matchup preview", matchup_preview),
+        ("Plan streaming week", streaming_planner),
+        ("Show NHL schedule outlook", schedule_outlook),
+    ]),
 ]
