@@ -48,9 +48,7 @@ Select tool
 │   ├── Show matchup preview
 │   ├── Plan streaming week
 │   └── Show NHL schedule outlook
-├── Roster review
-│   ├── Show draft recap
-│   └── Show projected category balance
+├── Review rosters & draft
 └── Quit
 ```
 
@@ -120,43 +118,56 @@ answer re-run.
   DTD/OUT/IR).
 - **Show NHL schedule outlook** — Per-NHL-team games and off-night games
   (≤16 teams playing) per fantasy matchup, for the full season, the
-  remaining matchups, or the playoffs only. The terminal summary shows
-  totals, per-matchup rates and effective-games scores (see below). Full
-  season and remaining scopes split the score into a regular-season-only
-  `Reg Score`, a playoff-only `PO Score`, and a `Combined` blend of the two
-  (weight prompted, default 0.4 on `PO Score`) whenever playoff weeks are in
-  view; the remaining scope also shows near-term `Reg Score next 4` and
-  `Reg Score rest` columns (informational) and lets you pick which of
-  `Fit next 4`, `Combined rest of season` or `Reg Score next 4` leads the
-  sort. The remaining/playoffs
-  scopes optionally add a `Fit` score weighted by a chosen fantasy roster's
-  actual open lineup seats. A shareable PNG saved to `plots/` shows the full
-  teams × matchups grid as `games (off-nights)` cells with the score
-  columns alongside; playoff matchups are marked in the full-season and
-  remaining views. The scope menu also offers **Calibrate scoring**, which
-  fits the night-value curve behind the scores from a chosen (past) league
-  season and stores it in `calibration.yaml`; until then a linear proxy
-  is used.
-- **Show draft recap** — Grades the league's draft against ESPN's average
-  draft position (ADP). Each pick's *value* is `ADP − overall pick`:
-  positive means the player went later than the ESPN crowd takes him (a
-  steal), negative a reach; players ESPN has no ADP for count as one pick
-  after the last one. Shows a per-team summary (average and total value,
-  best steal, biggest reach, goalies and defensemen drafted, round of the
-  first goalie, and how many own picks are still on the roster), a
-  teams × rounds value grid, the league-wide top-10 steals and reaches with
-  ESPN's current roster% and who owns the player now, then lets you drill
-  into any team's pick list (with ESPN's draft rank). ADP and roster% are
-  ESPN's values as of today; ESPN archives ADP to a placeholder once a
-  season is over, which the tool flags.
-- **Show projected category balance** — Sums ESPN's season projections over
-  each team's roster — as drafted or as of today — per scoring category, and
-  shows the z-score across the league (ratio categories such as GAA are
-  weighted by projected goalie starts; inverted categories are flipped so
-  positive is always good). An `Overall` column averages the z-scores and
-  sorts the table; a footer row shows the league-average raw totals. Useful
-  for spotting which categories a roster is built to win or has punted.
-
+  remaining matchups, or the playoffs only, with *effective-games* scores
+  that value games on quiet nights higher: `Reg Score` (regular season),
+  `PO Score` (playoffs), their `Combined` blend and a roster-specific `Fit`
+  (see *Schedule scoring* below for the definitions and which column leads
+  the sort). A shareable PNG saved to `plots/` shows the full teams ×
+  matchups grid as `games (off-nights)` cells with the score columns
+  alongside; playoff matchups are marked. The scope menu also offers
+  **Calibrate scoring**, which fits the night-value curve behind the scores
+  from a chosen (past) league season and stores it in `calibration.yaml`;
+  until then a linear proxy is used.
+- **Review rosters & draft** — One fetch (all rosters including Bench and
+  IR, the 200 most-owned free agents, the draft, ESPN ownership and the
+  transaction counters), then a menu of views you can switch between
+  freely. Every player is valued by a stat-based `Score` (see *Player
+  value* below); ESPN's roster% is shown alongside for context only — it
+  reflects ESPN's default settings, not this league's categories.
+  - *League* — **Roster origins**: per team, how many players were
+    drafted, added or traded in, how many sit on IR, average roster% and
+    Score, and the season's add/drop/trade counters. **Category outlook**:
+    each roster's projected full-season category totals — as drafted or
+    current — ranked by the round-robin points they would earn against the
+    rest of the league, with balance indicators (see *Category outlook*
+    below).
+  - *Draft* — **Draft grades vs ADP**: each pick's *value* is
+    `ADP − overall pick` — positive means the player went later than the
+    ESPN crowd takes him (a steal), negative a reach; players without an
+    ESPN ADP count as one pick after the last one. Per-team summary
+    (average and total value, best steal, biggest reach, goalies and
+    defensemen drafted, round of the first goalie, own picks still on the
+    roster), a teams × rounds value grid and the league-wide top-10 steals
+    and reaches. ESPN archives ADP to a placeholder once a season is over,
+    which the view flags. **Draft hits & busts**: every pick's `Return`
+    (see below), the league-wide top-15 hits and busts (games played,
+    roster%, Score, who owns the player now) and the average/total Return
+    per drafting team.
+  - *Transactions* — **Waiver pickups**: free-agent/waiver pickups still on
+    rosters, ranked by Score, with a per-team summary (count still
+    rostered, average roster%/Score, best pickup, season add counter).
+    **Trade haul**: the same for players acquired by trade.
+  - *One team* — **Team roster**: a chosen team's full roster, as drafted
+    (in draft order: round.pick, overall, ADP, value in picks and rounds,
+    ESPN rank, games, roster%, Score, Return, who owns the player now) or
+    current (sorted by Score: lineup slot, how acquired, overall draft
+    position if drafted by anyone, games, roster%, 7-day change, Score,
+    Gap, injury). **Drop candidates & free agents**: the team's ten
+    lowest-scoring players next to the ten highest-scoring free-agent
+    skaters and the five highest-scoring free-agent goalies (listed
+    separately, since Scores compare within a position group), each with
+    roster%, 7-day change, the crowd-vs-stats `Gap` (see below) and
+    injury status.
 
 ### Luck
 
@@ -254,7 +265,9 @@ from; `Combined` blends the two general scores:
   scope; the playoffs-only scope just calls its single column `Score`, since
   it's already playoff-only). Use these for roster-independent questions:
   draft prep, comparing schedules in a vacuum, or advising trades.
-- **`Fit` (team-specific)** — how *your* roster experiences each night:
+- **`Fit` (team-specific)** — how *your* roster experiences each night
+  (optional in the remaining and playoffs scopes, for a fantasy roster you
+  pick):
 
   ```
   Fit = (1/M) · Σ_d [ 1 + min(s_d, 3) / 3 ]
@@ -272,16 +285,97 @@ from; `Combined` blends the two general scores:
   `Combined = (1 − p) · Reg Score + p · PO Score`, for drafting with an eye
   on both making the playoffs and performing once there; `p` (the playoff
   weight, default 0.4) is prompted whenever playoff weeks are in scope. In
-  the full-season scope `Reg Score` covers every regular-season matchup; in
-  the remaining scope (shown as `Combined rest of season`) it covers the
-  entire remaining regular season, not just the portion excluded from the
-  near-term `Reg Score next 4` columns (which are informational only).
+  the remaining scope the column is called `Combined rest of season` and
+  its `Reg Score` part covers the whole remaining regular season; the
+  near-term `Reg Score next N` and `Reg Score rest` columns shown there
+  are informational splits of it.
 
 The full-season scope sorts by `Combined` when playoffs are in scope,
 otherwise by `Reg Score`. The remaining scope prompts you to choose which of
 `Fit next N`, `Combined rest of season` or `Reg Score next N` leads the sort
 (skipped when only one applies). The playoffs-only scope sorts by `Fit` when
 chosen, otherwise `Score`.
+
+### Player value (Review rosters & draft)
+
+The review pools every rostered player, the 200 most-owned free agents and
+every drafted player, and attaches these metrics to each of them:
+
+- **`Score`** — the player's stat-based value: for each category, his
+  blended per-game rate (see *Stat blending*) is ranked within the pool and
+  his position group, the percentile rank is mapped to a normal quantile
+  (median 0, 84th percentile +1, 98th +2), and `Score` is the mean over the
+  categories, with inverted categories flipped so higher is always better.
+  - *Rank-based, not z-scored:* a runaway leader in one category is
+    credited for his rank, not for the size of his lead — in a head-to-head
+    category league a category is won once, however large the margin.
+  - *Per position group:* forwards, defensemen and goalies are ranked
+    separately (skater categories for F and D, goalie categories for G), so
+    defense-only categories (DEF, BLK) don't hand every defenseman a bonus
+    over forwards. Scores compare strictly within a group; across groups
+    they are indicative (defensemen spread wider than forwards because
+    their categories move together).
+  - *Minimum games:* a player needs 20 season games over a full season,
+    scaled by the fraction of the season elapsed (none before the season
+    starts, 5 a quarter in, 20 at the end); below that his Score is blank —
+    a rate over a handful of games is noise, and falling back to the
+    projection would credit him for games he did not play. Rates otherwise
+    ignore availability; the `GP` column and the injury flag carry that.
+- **`Gap`** — the player's roster% percentile minus his Score percentile,
+  both within his position group in the pool, in percentage points.
+  Positive: the crowd rosters him more than his stats justify; negative: he
+  is under-owned for what he produces (a pickup candidate if he is a free
+  agent).
+- **`Return`** (draft hits & busts) — the player's Score percentile
+  (within his position group) minus the percentile of his draft slot
+  (pick 1 = 100), in percentage points. A late pick who is now productive
+  scores high; an early pick who has fallen off scores negative; a pick
+  with too few games for a Score counts as the 0th percentile — he
+  delivered nothing for the slot. Roster% is shown alongside for
+  information only; it does not enter the metric.
+
+ESPN's roster% and 7-day change are the values as of today, not as of the
+transaction.
+
+### Category outlook (Review rosters & draft)
+
+Each roster's full-season pace per category, its z-score across the league,
+and how that profile would turn into matchup results.
+
+**Pace.** The whole roster counts, Bench and IR included — with daily
+lineups the bench plays nearly every night, so lineup seats are not the
+constraint. *As drafted* sums ESPN's season projections for the draft-day
+rosters. *Current* uses each player's blended per-game rate (see *Stat
+blending*) times his projected games, so it reflects actual production on a
+full-season scale; players below the `Score` games threshold stay on
+projections so a fluke week cannot swing a team. Ratio categories (GAA,
+SV%) are goalie-start-weighted means; inverted categories are flipped so a
+positive z-score is always good.
+
+**Replacement fill.** Games a player is *not* projected to play — up to
+82 GP for skaters, 60 GS for goalies — are filled at replacement level: the
+median free agent of his position group in each category (a roster without
+a goalie counts one replacement goalie). A roster spot is never empty, it is
+filled from the waiver wire, so an injured or unprojected pick is worth a
+replacement player rather than nothing, and a team is not penalised for a
+low projected games count.
+
+**Ranking.** Teams are ranked by `RR Pts`, the round-robin points (2 per
+win, 1 per tie) they would take from one week against every other team at
+these totals — the same scale as the weekly scores table. Winning one
+category by a mile is still one win and conceding several is several
+losses — a plain average of the z-scores hides that.
+`Cats/M` is the categories won per matchup, `Spread` the standard deviation
+of the team's category z-scores (0 = evenly built) and `Punts` the number of
+categories at z ≤ −1. A footer row shows the league-average totals.
+
+**A snapshot, not a forecast.** In a league with heavy waiver activity the
+drafted roster has little bearing on the standings: in 2025-26 the
+draft-day outlook was uncorrelated with the final round-robin points, and
+even valuing the drafted players by how they actually played barely helped —
+most rosters were rebuilt on the wire. ESPN's projections also regress young
+players toward the mean, so a draft built on breakouts looks weak on paper.
+*Draft hits & busts* and *Waiver pickups* show what actually happened.
 
 ## Tests
 
@@ -300,8 +394,8 @@ src/fantasy_nhl/
   cli.py                     # interactive session: league picker, menu tree, wizard runner
   prompts.py                 # prompt primitives: Ask/Do steps, ESC = back, Ctrl-C = quit
   config.py                  # YAML loading into LeagueConfig/Category dataclasses
-  espn_data.py               # ESPN API access: scores, rosters, draft, NHL schedule, settings
-  analysis.py                # pure logic: round-robin tables, predictions, lineup seats, draft value
+  espn_data.py               # ESPN API access: scores, rosters, draft, ownership, NHL schedule, settings
+  analysis.py                # pure logic: round-robin tables, predictions, lineup seats, draft/roster value
   display.py                 # rich rendering: tables, color gradients
   plots.py                   # matplotlib PNG figures (power rankings, schedule grids)
   tools.py                   # CLI tools and the TOOLS menu tree

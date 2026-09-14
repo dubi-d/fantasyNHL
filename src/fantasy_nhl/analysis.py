@@ -1,7 +1,9 @@
 """Pure analysis logic for round-robin category scoring."""
+import math
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import date
+from statistics import NormalDist
 
 import numpy as np
 import pandas as pd
@@ -50,6 +52,29 @@ class DraftPick:
     espn_rank: int | None = None  # ESPN standard draft rank
     projected_stats: dict[str, float] = field(default_factory=dict)
     rostered_by: int | None = None  # fantasy team row today (None = free agent)
+
+
+@dataclass
+class RosterPlayer(PreviewPlayer):
+    """A rostered or free-agent player with ESPN's ownership and origin
+    info (all lineup slots, including Bench and IR)."""
+    player_id: int = 0
+    position: str = ""  # ESPN default position name
+    acquisition: str = ""  # DRAFT / ADD / TRADE ("" for free agents)
+    team_row: int | None = None  # fantasy team row (None = free agent)
+    lineup_slot: str = ""  # current slot name ("" for free agents)
+    pct_owned: float | None = None
+    pct_change: float | None = None  # 7-day roster% change
+    espn_rank: int | None = None
+    adp: float | None = None
+
+
+@dataclass
+class TransactionCounts:
+    """A fantasy team's season-to-date transaction counters."""
+    adds: int = 0
+    drops: int = 0
+    trades: int = 0
 
 
 def matchup_result(player_stats: np.ndarray, opponent_stats: np.ndarray,
@@ -645,9 +670,14 @@ def blended_per_game(player: PreviewPlayer, stat: str,
 
 def blended_ratio(player: PreviewPlayer, stat: str,
                   weight: float) -> float | None:
-    """Blend a ratio stat (e.g. GAA) directly; None if neither split has it."""
-    return _blend(player.season_stats.get(stat),
-                  player.projected_stats.get(stat), weight)
+    """Blend a ratio stat (e.g. GAA) directly, ignoring splits without
+    games (ESPN reports placeholder ratios for goalies with no starts);
+    None if neither split has games and the stat."""
+    def value(stats: dict[str, float]) -> float | None:
+        return stats.get(stat) if _stat_games(stats) else None
+
+    return _blend(value(player.season_stats), value(player.projected_stats),
+                  weight)
 
 
 def preview_week(players: list[PreviewPlayer], slot_counts: dict[str, int],
@@ -762,18 +792,20 @@ def draft_team_summary(table: pd.DataFrame) -> pd.DataFrame:
             "Total": group["Value"].sum(),
             "Best steal": f"{best['Player']} ({best['Value']:+.0f})",
             "Biggest reach": f"{worst['Player']} ({worst['Value']:+.0f})",
-            "G": int(len(goalies)),
+            "G": len(goalies),
             "1st G": int(goalies["Rd"].min()) if len(goalies) else None,
             "D": int((group["Pos"] == _DEFENSE_POSITION).sum()),
             "Kept": int((group["NowOn"] == group["Team"]).sum()),
-            "Picks": int(len(group)),
+            "Picks": len(group),
         })
     return pd.DataFrame(rows, index=pd.Index(index, name="TeamRow"))
 
 
 def draft_value_grid(table: pd.DataFrame) -> pd.DataFrame:
-    """Pick Value per team (rows, team-row order) and round (columns R1..Rn)."""
-    grid = table.pivot(index="TeamRow", columns="Rd", values="Value")
+    """Pick Value per team (rows, team-row order) and round (columns R1..Rn);
+    several picks in one round add up."""
+    grid = table.pivot_table(index="TeamRow", columns="Rd", values="Value",
+                             aggfunc="sum")
     names = table.drop_duplicates("TeamRow").set_index("TeamRow")["Team"]
     grid.index = pd.Index([names[row] for row in grid.index], name="Team")
     grid.columns = [f"R{r}" for r in grid.columns]
@@ -782,52 +814,162 @@ def draft_value_grid(table: pd.DataFrame) -> pd.DataFrame:
 
 def draft_extremes(table: pd.DataFrame,
                    n: int) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """League-wide top-n steals (largest Value) and reaches (smallest)."""
-    return (table.nlargest(n, "Value", keep="all").head(n),
-            table.nsmallest(n, "Value", keep="all").head(n))
+    """League-wide top-n steals (largest Value) and reaches (smallest);
+    ties at the cutoff keep draft order."""
+    return (table.nlargest(n, "Value", keep="first"),
+            table.nsmallest(n, "Value", keep="first"))
 
 
 def drafted_rosters(picks: list[DraftPick],
-                    n_teams: int) -> list[list[PreviewPlayer]]:
-    """Draft-day rosters as PreviewPlayers (projections only) by team row."""
-    rosters: list[list[PreviewPlayer]] = [[] for _ in range(n_teams)]
+                    n_teams: int) -> list[list[RosterPlayer]]:
+    """Draft-day rosters (projections only, drafted by the drafting team)
+    by team row."""
+    rosters: list[list[RosterPlayer]] = [[] for _ in range(n_teams)]
     for p in picks:
-        rosters[p.team_row].append(PreviewPlayer(
+        rosters[p.team_row].append(RosterPlayer(
             name=p.name, pro_team="", eligible_slots=list(p.eligible_slots),
-            projected_stats=dict(p.projected_stats)))
+            projected_stats=dict(p.projected_stats), player_id=p.player_id,
+            position=p.position, acquisition=ACQUIRED_DRAFT,
+            team_row=p.team_row, pct_owned=p.pct_owned,
+            pct_change=p.pct_change, espn_rank=p.espn_rank, adp=p.adp))
     return rosters
+
+
+# games a roster spot is filled for over a full season (the replacement-level
+# fill tops every player up to this); a starting goalie's workload for G
+FULL_SEASON_GP = 82
+FULL_SEASON_GS = 60
+
+# position group -> category -> per-game rate (ratio for GAA / SV%)
+ReplacementRates = dict[str, dict[str, float]]
+
+
+def _pace_weight(player: PreviewPlayer, blend_weight: float) -> float:
+    """blend_weight for a player with enough season games for a rate,
+    else 0 (projections only)."""
+    games = _stat_games(player.season_stats)
+    return blend_weight if games >= min_season_games(blend_weight) else 0.0
+
+
+def _player_rate(player: PreviewPlayer, stat: str,
+                 weight: float) -> float | None:
+    if stat in RATIO_CATEGORIES:
+        return blended_ratio(player, stat, weight)
+    return blended_per_game(player, stat, weight)
+
+
+def replacement_rates(players: list[PreviewPlayer],
+                      categories: list[Category],
+                      blend_weight: float) -> ReplacementRates:
+    """
+    What a roster spot produces when filled from the waiver wire: the
+    median blended per-game rate (see blended_per_game; ratio categories
+    blended directly) per position group and category over the given
+    players - typically the free agents. Skater categories for F and D,
+    goalie categories for G; players without a rate are skipped.
+    """
+    samples: dict[tuple[str, str], list[float]] = {}
+    for player in players:
+        group = position_group(player)
+        weight = _pace_weight(player, blend_weight)
+        for cat in categories:
+            if (cat.name in GOALIE_CATEGORIES) != (group == "G"):
+                continue
+            value = _player_rate(player, cat.name, weight)
+            if value is not None:
+                samples.setdefault((group, cat.name), []).append(value)
+    rates: ReplacementRates = {group: {} for group in POSITION_GROUPS}
+    for (group, name), values in samples.items():
+        rates[group][name] = float(np.median(values))
+    return rates
 
 
 def projected_category_balance(rosters: list[list[PreviewPlayer]],
                                categories: list[Category],
                                team_names: list[str],
+                               blend_weight: float = 0.0,
+                               replacement: ReplacementRates | None = None,
                                ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Projected season totals per team and category, and their z-scores across
-    the league. Ratio categories (GAA, SV%) are goalie-start-weighted means
-    of the goalies' projections. Inverted categories are flipped so a
-    positive z-score always means "good".
+    Full-season pace per team and category, and its z-score across the
+    league: every player's blended per-game rate (current-season rate
+    weighted by blend_weight, projected rate for the rest; see
+    blended_per_game) times his projected games - so with blend_weight 0
+    these are ESPN's projected totals. Players with fewer season games than
+    min_season_games(blend_weight) are rated on projections alone, so a
+    handful of games cannot swing a team. Ratio categories (GAA, SV%) are
+    goalie-start-weighted means. Inverted categories are flipped so a
+    positive z-score always means "good". The whole roster counts: with
+    daily lineups the bench plays nearly every night, so lineup seats are
+    not the binding constraint.
 
-    :return: (z-scores, raw totals), both teams x categories
+    With replacement rates (see replacement_rates), the games a player is
+    not projected to play - up to FULL_SEASON_GP / FULL_SEASON_GS - are
+    filled at his position group's replacement rate: a roster spot does
+    not sit empty, it is filled from the waiver wire, so an injured or
+    unprojected pick is worth a replacement-level player, not nothing. A
+    roster without a goalie counts one replacement goalie.
+
+    :return: (z-scores, pace totals), both teams x categories
     """
+    def games_basis(player: PreviewPlayer, w: float) -> float:
+        """Games the player's own rate is scaled to (full-season scale)."""
+        if w == 0.0:
+            return _stat_games(player.projected_stats)
+        return (_stat_games(player.projected_stats)
+                or _stat_games(player.season_stats))
+
+    def fill(player: PreviewPlayer, stat: str) -> tuple[float | None, float]:
+        """(replacement rate, games it covers) for this player and stat."""
+        if replacement is None:
+            return None, 0.0
+        group = position_group(player)
+        full = FULL_SEASON_GS if group == "G" else FULL_SEASON_GP
+        basis = games_basis(player, _pace_weight(player, blend_weight))
+        return replacement[group].get(stat), max(full - basis, 0.0)
+
+    def pace(player: PreviewPlayer, stat: str) -> float:
+        """Full-season total of an additive stat at the blended rate."""
+        w = _pace_weight(player, blend_weight)
+        if w == 0.0:  # projections only: ESPN's projected total as is
+            own = player.projected_stats.get(stat, 0) or 0
+        else:
+            rate = blended_per_game(player, stat, w)
+            own = (rate or 0.0) * games_basis(player, w)
+        rate, missing = fill(player, stat)
+        return own + (rate or 0.0) * missing
+
+    def ratio(player: PreviewPlayer, stat: str) -> tuple[float | None, float]:
+        """(blended ratio, goalie starts it is weighted by)."""
+        w = _pace_weight(player, blend_weight)
+        if w == 0.0:
+            return player.projected_stats.get(stat), games_basis(player, w)
+        return blended_ratio(player, stat, w), games_basis(player, w)
+
     names = [cat.name for cat in categories]
     totals = np.full((len(rosters), len(categories)), np.nan)
     for row, players in enumerate(rosters):
+        if replacement is not None and not any(
+                _GOALIE_SLOT in p.eligible_slots for p in players):
+            # the goalie slot does not stay empty: one replacement goalie
+            players = [*players, PreviewPlayer("", "", [_GOALIE_SLOT])]
         for i, cat in enumerate(categories):
             if cat.name in RATIO_CATEGORIES:
                 weighted = starts = 0.0
                 for p in players:
                     if _GOALIE_SLOT not in p.eligible_slots:
                         continue
-                    value = p.projected_stats.get(cat.name)
-                    gs = p.projected_stats.get("GS", 0) or 0
+                    value, gs = ratio(p, cat.name)
                     if value is not None and gs:
                         weighted += value * gs
                         starts += gs
+                    value, missing = fill(p, cat.name)
+                    if value is not None and missing:
+                        weighted += value * missing
+                        starts += missing
                 totals[row, i] = weighted / starts if starts else np.nan
             else:
-                totals[row, i] = sum(p.projected_stats.get(cat.name, 0) or 0
-                                     for p in players)
+                totals[row, i] = sum(pace(p, cat.name) for p in players)
     index = pd.Index(team_names, name="Team")
     totals_df = pd.DataFrame(totals, index=index, columns=names)
     std = totals_df.std(axis=0, ddof=0)
@@ -837,3 +979,312 @@ def projected_category_balance(rosters: list[list[PreviewPlayer]],
         if cat.inverted:
             z[cat.name] *= -1
     return z, totals_df
+
+
+# a category this far below the league mean is as good as conceded
+PUNT_Z = -1.0
+
+
+def category_outlook(z: pd.DataFrame, totals: pd.DataFrame,
+                     categories: list[Category]) -> pd.DataFrame:
+    """
+    How a team's category profile turns into matchup results: RR Pts = the
+    round-robin points (2 per win, 1 per tie) it would take from a week
+    against every other team at these totals, Cats/M = categories won per
+    matchup, Spread = std of its category z-scores (0 = evenly built) and
+    Punts = categories at or below PUNT_Z. Winning one category by a mile
+    is one win; conceding several is several losses.
+
+    :param z: z-scores from projected_category_balance (teams x categories)
+    :param totals: pace totals from projected_category_balance
+    :return: teams (in z order) x [RR Pts, Cats/M, Spread, Punts]
+    """
+    n = len(z)
+    rr = round_robin(totals.to_numpy(dtype=float), categories, list(z.index))
+    opponents = max(n - 1, 1)
+    return pd.DataFrame({
+        "RR Pts": rr["Pts"].to_numpy(),
+        "Cats/M": rr["CatsWon"].to_numpy() / opponents,
+        "Spread": z.std(axis=1, ddof=0).to_numpy(),
+        "Punts": (z <= PUNT_Z).sum(axis=1).to_numpy(),
+    }, index=z.index)
+
+
+_IR_SLOT = "IR"
+_DEFENSE_SLOT = "Defense"
+ACQUIRED_DRAFT = "DRAFT"
+ACQUIRED_ADD = "ADD"
+ACQUIRED_TRADE = "TRADE"
+POSITION_GROUPS = ("F", "D", "G")
+
+
+def position_group(player: PreviewPlayer) -> str:
+    """'F', 'D' or 'G' by lineup eligibility (goalie beats defense)."""
+    if _GOALIE_SLOT in player.eligible_slots:
+        return "G"
+    return "D" if _DEFENSE_SLOT in player.eligible_slots else "F"
+
+
+def _rank_z(table: pd.DataFrame) -> pd.DataFrame:
+    """Normal quantile of each column's percentile rank (ties averaged):
+    median 0, 84th percentile +1, 98th +2. Rank-based, so a runaway leader
+    in one category is not credited beyond his rank."""
+    normal = NormalDist()
+    n = table.notna().sum(axis=0)
+    pct = (table.rank(axis=0) - 0.5) / n
+    return pct.map(lambda p: np.nan if pd.isna(p) else normal.inv_cdf(p))
+
+
+# season games a player needs for a Score over a FULL season; scaled by the
+# elapsed fraction (2025-26 pool: per-game rates settle around 20 GP)
+MIN_SCORE_GAMES = 20
+
+
+def min_season_games(blend_weight: float) -> int:
+    """Season games required for a Score at this point of the season
+    (0 before the season starts, MIN_SCORE_GAMES once it is over)."""
+    return math.ceil(MIN_SCORE_GAMES * blend_weight)
+
+
+def player_value_scores(players: list[PreviewPlayer], categories: list[Category],
+                        blend_weight: float) -> list[float | None]:
+    """
+    Stat-based value of every player in a pool: the mean, over categories,
+    of the normal quantile of the player's percentile rank in the blended
+    per-game rate of that category, within the pool and within the
+    player's position group - forwards and defensemen separately over the
+    skater categories, goalies over the goalie categories - with inverted
+    categories flipped so higher is always better. Grouping by position
+    keeps defense-only categories (DEF, BLK) from inflating every
+    defenseman relative to forwards; ranking (rather than z-scoring the
+    raw rates) keeps one runaway category from dominating the score.
+    Players with fewer season games than min_season_games(blend_weight)
+    get no Score: too few games for a rate, and falling back to the
+    projection would credit them for games they did not play.
+
+    :return: one score per player (None without enough games)
+    """
+    required = min_season_games(blend_weight)
+    groups = np.array([position_group(p) for p in players])
+    rates = np.full((len(players), len(categories)), np.nan)
+    for i, player in enumerate(players):
+        if _stat_games(player.season_stats) < required:
+            continue
+        is_goalie = groups[i] == "G"
+        for j, cat in enumerate(categories):
+            if (cat.name in GOALIE_CATEGORIES) != is_goalie:
+                continue
+            if cat.name in RATIO_CATEGORIES:
+                value = blended_ratio(player, cat.name, blend_weight)
+            else:
+                value = blended_per_game(player, cat.name, blend_weight)
+            if value is not None:
+                rates[i, j] = value
+    scores = pd.Series(np.nan, index=range(len(players)))
+    for group in POSITION_GROUPS:
+        members = groups == group
+        if not members.any():
+            continue
+        z = _rank_z(pd.DataFrame(rates[members]))
+        for j, cat in enumerate(categories):
+            if cat.inverted:
+                z[j] *= -1
+        scores[np.flatnonzero(members)] = z.mean(axis=1).to_numpy()
+    return [None if pd.isna(s) else float(s) for s in scores]
+
+
+def percentile_ranks(values: Iterable[float | None]) -> list[float | None]:
+    """Percentile rank (0-100, ties averaged) of each value among the
+    non-missing ones; missing values stay None."""
+    series = pd.Series(list(values), dtype=float)
+    ranks = series.rank(pct=True) * 100
+    return [None if pd.isna(r) else float(r) for r in ranks]
+
+
+def player_values(pool: list[RosterPlayer], categories: list[Category],
+                  blend_weight: float) -> pd.DataFrame:
+    """
+    Value table of a player pool indexed by player id: position Group,
+    Score (see player_value_scores), percentile ranks of roster% (OwnPct)
+    and Score (ScorePct) within the pool's position group, and
+    Gap = OwnPct - ScorePct (positive: the crowd rosters the player more
+    than the stats justify).
+    """
+    scores = player_value_scores(pool, categories, blend_weight)
+    table = pd.DataFrame({
+        "Group": [position_group(p) for p in pool],
+        "Score": pd.array(scores, dtype=float),
+        "OwnPct": pd.array([p.pct_owned for p in pool], dtype=float),
+        "ScorePct": np.nan,
+    }, index=pd.Index([p.player_id for p in pool], name="player_id"))
+    for group in POSITION_GROUPS:
+        members = table["Group"] == group
+        if members.any():
+            table.loc[members, "ScorePct"] = pd.array(
+                percentile_ranks(table.loc[members, "Score"]), dtype=float)
+            table.loc[members, "OwnPct"] = pd.array(
+                percentile_ranks(table.loc[members, "OwnPct"]), dtype=float)
+    table["Gap"] = table["OwnPct"] - table["ScorePct"]
+    return table
+
+
+def _player_row(player: RosterPlayer, values: pd.DataFrame,
+                team_names: list[str]) -> dict:
+    value = (values.loc[player.player_id]
+             if player.player_id in values.index else None)
+    return {
+        "Player": player.name,
+        "Pos": player.position,
+        "TeamRow": player.team_row,
+        "Team": ("FA" if player.team_row is None
+                 else team_names[player.team_row]),
+        "Slot": player.lineup_slot,
+        "Acq": player.acquisition,
+        "GP": int(_stat_games(player.season_stats)),
+        "Own%": player.pct_owned,
+        "Chg": player.pct_change,
+        "Score": None if value is None else value["Score"],
+        "Gap": None if value is None else value["Gap"],
+        "Injury": player.injury,
+    }
+
+
+_PLAYER_COLUMNS = ["Player", "Pos", "TeamRow", "Team", "Slot", "Acq", "GP",
+                   "Own%", "Chg", "Score", "Gap", "Injury"]
+
+
+def player_table(players: Iterable[RosterPlayer], values: pd.DataFrame,
+                 team_names: list[str]) -> pd.DataFrame:
+    """One row per player with ownership, origin and value columns."""
+    rows = [_player_row(p, values, team_names) for p in players]
+    return pd.DataFrame(rows, columns=_PLAYER_COLUMNS).astype(
+        {"Own%": float, "Chg": float, "Score": float, "Gap": float})
+
+
+def roster_origins(rosters: list[list[RosterPlayer]], values: pd.DataFrame,
+                   team_names: list[str],
+                   counters: list[TransactionCounts]) -> pd.DataFrame:
+    """
+    Per team (index = team row): roster size and how it was assembled
+    (drafted, added, traded-in, on IR), the average roster% and Score of
+    its players, and the season's add/drop/trade counters.
+    """
+    rows = []
+    for row, players in enumerate(rosters):
+        table = player_table(players, values, team_names)
+        rows.append({
+            "Player": team_names[row],
+            "Size": len(players),
+            "Drafted": int((table["Acq"] == ACQUIRED_DRAFT).sum()),
+            "Added": int((table["Acq"] == ACQUIRED_ADD).sum()),
+            "Traded": int((table["Acq"] == ACQUIRED_TRADE).sum()),
+            "IR": sum(p.lineup_slot == _IR_SLOT for p in players),
+            "Avg Own%": table["Own%"].mean(),
+            "Avg Score": table["Score"].mean(),
+            "Adds": counters[row].adds,
+            "Drops": counters[row].drops,
+            "Trades": counters[row].trades,
+        })
+    return pd.DataFrame(rows, index=pd.Index(range(len(rosters)),
+                                            name="TeamRow"))
+
+
+def draft_return(picks: list[DraftPick], values: pd.DataFrame,
+                 team_names: list[str],
+                 players: dict[int, RosterPlayer] | None = None) -> pd.DataFrame:
+    """
+    How every draft pick has panned out: Return = the player's Score
+    percentile (within his position group in the pool) minus the percentile
+    of his draft slot among the picks (pick 1 = 100), in percentage points.
+    Positive: producing more than the slot he cost; negative: a bust. A
+    pick who is in the pool but has no Score (too few games) counts as the
+    0th percentile - he delivered nothing for the slot. Roster% is carried
+    along for information only - it reflects ESPN's default settings, not
+    this league's categories.
+
+    :param players: current player info by id, for the GP column
+    """
+    players = players or {}
+    slot_pct = percentile_ranks(-p.overall for p in picks)
+    rows = []
+    for pick, slot in zip(picks, slot_pct):
+        value = (values.loc[pick.player_id]
+                 if pick.player_id in values.index else None)
+        score_pct = None if value is None else value["ScorePct"]
+        if value is not None and pd.isna(score_pct):
+            score_pct = 0.0
+        player = players.get(pick.player_id)
+        rows.append({
+            "Player": pick.name,
+            "Pos": pick.position,
+            "TeamRow": pick.team_row,
+            "Team": team_names[pick.team_row],
+            "Rd": pick.round,
+            "Pick": pick.pick_in_round,
+            "Overall": pick.overall,
+            "GP": int(_stat_games(player.season_stats)) if player else None,
+            "Own%": pick.pct_owned,
+            "Score": None if value is None else value["Score"],
+            "Return": (None if score_pct is None or pd.isna(score_pct)
+                       else float(score_pct) - slot),
+            "NowOn": (None if pick.rostered_by is None
+                      else team_names[pick.rostered_by]),
+        })
+    return pd.DataFrame(rows, columns=[
+        "Player", "Pos", "TeamRow", "Team", "Rd", "Pick", "Overall", "GP",
+        "Own%", "Score", "Return", "NowOn"]).astype(
+            {"GP": "Int64", "Own%": float, "Score": float, "Return": float})
+
+
+def acquisition_summary(rosters: list[list[RosterPlayer]],
+                        values: pd.DataFrame, team_names: list[str],
+                        acquisition: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Players each team acquired a given way (ADD = free-agent/waiver pickups,
+    TRADE = traded in), ranked by Score, plus a per-team summary (index =
+    team row) with the count, average roster%/Score and the best player.
+    """
+    acquired = [p for players in rosters for p in players
+                if p.acquisition == acquisition]
+    table = player_table(acquired, values, team_names)
+    table = table.sort_values("Score", ascending=False, na_position="last",
+                              kind="stable").reset_index(drop=True)
+    rows = []
+    for row, name in enumerate(team_names):
+        own = table[table["TeamRow"] == row]
+        best = own.iloc[0]["Player"] if len(own) and not pd.isna(
+            own.iloc[0]["Score"]) else None
+        rows.append({
+            "Player": name,
+            "Count": len(own),
+            "Avg Own%": own["Own%"].mean() if len(own) else None,
+            "Avg Score": own["Score"].mean() if len(own) else None,
+            "Best": best,
+        })
+    summary = pd.DataFrame(rows, index=pd.Index(range(len(team_names)),
+                                                name="TeamRow"))
+    return summary.astype({"Avg Own%": float, "Avg Score": float}), table
+
+
+def market_gaps(roster: list[RosterPlayer], free_agents: list[RosterPlayer],
+                values: pd.DataFrame, team_names: list[str],
+                n: int, n_goalies: int) -> tuple[pd.DataFrame, pd.DataFrame,
+                                                 pd.DataFrame]:
+    """
+    Drop candidates (the roster's n lowest-scoring players, weakest first;
+    players without a Score come first) and free-agent targets - the n
+    highest-scoring skaters and the n_goalies highest-scoring goalies,
+    separately since Scores compare within a position group - each with
+    the crowd-vs-stats Gap.
+    """
+    drops = player_table(roster, values, team_names)
+    drops = drops.sort_values("Score", na_position="first",
+                              kind="stable").head(n).reset_index(drop=True)
+    skaters = [p for p in free_agents if position_group(p) != "G"]
+    goalies = [p for p in free_agents if position_group(p) == "G"]
+
+    def top(players: list[RosterPlayer], limit: int) -> pd.DataFrame:
+        table = player_table(players, values, team_names)
+        return table.sort_values("Score", ascending=False, na_position="last",
+                                 kind="stable").head(limit).reset_index(drop=True)
+    return drops, top(skaters, n), top(goalies, n_goalies)

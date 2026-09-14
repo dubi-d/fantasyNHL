@@ -9,7 +9,7 @@ description = "CLI tools for analyzing ESPN fantasy NHL leagues"
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
-    "pandas",
+    "pandas>=2.1",
     "espn_api",
     "pyyaml",
     "rich",

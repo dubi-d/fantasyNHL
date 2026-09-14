@@ -14,34 +14,49 @@ import pandas as pd
 import questionary
 
 from .analysis import (
+    ACQUIRED_ADD,
+    ACQUIRED_TRADE,
     COMBINED_PLAYOFF_WEIGHT,
+    FULL_SEASON_GP,
+    FULL_SEASON_GS,
     GOALIE_CATEGORIES,
     OFF_NIGHT_MAX_TEAMS,
+    PUNT_Z,
     RATIO_CATEGORIES,
     PreviewPlayer,
+    RosterPlayer,
     StreamingContext,
+    acquisition_summary,
     average_points,
     blended_per_game,
     calibrate_night_value,
     category_contestedness,
+    category_outlook,
     category_win_rates,
     draft_extremes,
     draft_pick_table,
+    draft_return,
     draft_team_summary,
     draft_value_grid,
     drafted_rosters,
     effective_games,
     luck,
+    market_gaps,
     matchup_result,
+    min_season_games,
     night_seat_curve,
     off_night_periods,
     open_seat_counts,
     pick_weekly_awards,
+    player_table,
+    player_values,
     position_open_seats,
     preview_week,
     projected_category_balance,
     rank_streaming_candidates,
     rank_timeline,
+    replacement_rates,
+    roster_origins,
     round_robin,
     schedule_summary,
     team_gap_coverage,
@@ -62,9 +77,9 @@ from .espn_data import (
     LeagueData,
     fetch_adds_used,
     fetch_calibration_data,
-    fetch_draft_data,
     fetch_free_agents,
     fetch_preview_data,
+    fetch_roster_review,
     fetch_rosters_and_slots,
     fetch_schedule_data,
     fetch_week_dates,
@@ -1006,147 +1021,378 @@ def _roster_fit(data: LeagueData, playing_by_period: dict[int, set[str]],
 
 
 _EXTREMES = 10  # league-wide steals/reaches listed
+_GAPS_N = 10  # drop candidates / FA skater targets listed
+_GAPS_GOALIES = 5  # FA goalie targets listed
+_RETURN_N = 15  # draft hits / busts listed
+_SLOT_SHORT = {**_SLOT_ABBREV, "Bench": "BN", "IR": "IR"}
 
 
-def _fetch_draft(data: LeagueData):
-    with console.status("Fetching draft and player info..."):
-        return fetch_draft_data(data)
+def _score_style(value: float) -> str:
+    return diverging_style(value, 1.5)
 
 
-def _fmt_value(value: float) -> str:
-    return f"{value:+.0f}"
+def _pct_style(value: float) -> str:
+    return diverging_style(value, 50)
 
 
-def _pick_view(table: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
-    """Display copy of pick rows: abbreviated position, rounded numbers,
-    free agents labelled."""
+def _player_view(table: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    """Display copy of player/pick rows: abbreviated position/slot/injury,
+    rounded numbers, rank index. Only transforms the columns present."""
     view = table.copy()
     view["Pos"] = view["Pos"].map(lambda p: _SLOT_ABBREV.get(p, p or "?"))
-    view["ADP"] = view["ADP"].round(1)
-    view["Value"] = view["Value"].round(0).astype(int)
-    view["Own%"] = view["Own%"].round(1)
-    view["Rank"] = view["Rank"].astype("Int64")
-    view["NowOn"] = view["NowOn"].fillna("FA")
-    return view[columns].reset_index(drop=True)
+    if "Slot" in view:
+        view["Slot"] = view["Slot"].map(lambda s: _SLOT_SHORT.get(s, s))
+    if "Injury" in view:
+        view["Inj"] = view["Injury"].map(
+            lambda s: _INJURY_ABBREV.get(s, (s or "")[:3]))
+    for col in ("Own%", "Chg", "ADP"):
+        if col in view:
+            view[col] = view[col].round(1)
+    if "Score" in view:
+        view["Score"] = view["Score"].round(2)
+    for col in ("Gap", "Return", "Value", "Rank", "Overall"):
+        if col in view:
+            view[col] = view[col].round(0).astype("Int64")
+    if "Rd" in view and "Pick" in view:
+        # "3.02" = round 3, 2nd pick of the round
+        view["Rd.Pk"] = [f"{rd}.{pick:02d}" for rd, pick in
+                         zip(view["Rd"], view["Pick"])]
+    if "ValueRd" in view:
+        view["Rounds"] = view["ValueRd"].round(1)
+    if "NowOn" in view:
+        view["NowOn"] = view["NowOn"].fillna("FA")
+    view = view[columns].reset_index(drop=True)
+    view.index = range(1, len(view) + 1)
+    return view
 
 
-def draft_recap(data: LeagueData):
-    """Grade the draft against ESPN's ADP: per-team summary, teams-x-rounds
-    value grid, league-wide steals and reaches, then per-team pick lists."""
-    draft = yield Do(lambda: _fetch_draft(data))
-    if not draft.picks:
-        yield Do(lambda: console.print("The league has not drafted yet.",
-                                       style="yellow"))
+_PLAYER_STYLES: dict[str, StyleFn] = {
+    "Score": _score_style, "Gap": _pct_style, "Return": _pct_style,
+    "Chg": lambda v: diverging_style(v, 10),
+    "Inj": lambda v: {"DTD": "yellow", "SUS": "yellow", "OUT": "bold red",
+                      "IR": "bold red"}.get(v, "")}
+
+
+def review_rosters(data: LeagueData):
+    """Roster and draft review: league-wide composition and projected
+    category outlook (ranked by round-robin points), draft grades vs ADP
+    and hits & busts, waiver pickups and trade hauls, and one team's
+    roster or drop candidates - all valued by a stat-based Score, with
+    ESPN roster% alongside."""
+    def fetch():
+        with console.status("Fetching rosters, free agents and draft..."):
+            review = fetch_roster_review(data)
+        if not any(review.rosters) and not review.picks:
+            console.print("Rosters are empty and the league has not drafted "
+                          "yet.", style="yellow")
+            return None
+        return review
+    review = yield Do(fetch)
+    if review is None:
         return
 
-    table = draft_pick_table(draft.picks, data.team_names, draft.n_teams)
+    cats = data.config.categories
+    n_teams = review.n_teams
+    pool: dict[int, RosterPlayer] = {}
+    for player in [p for r in review.rosters for p in r] + review.free_agents:
+        pool[player.player_id] = player
+    for pid, player in review.drafted_players.items():
+        pool.setdefault(pid, player)
+    values = player_values(list(pool.values()), cats, review.blend_weight)
+    pick_table = (draft_pick_table(review.picks, data.team_names, n_teams)
+                  if review.picks else None)
 
     def value_style(value: float) -> str:
-        # a full round of value is a strong signal; colour saturates there
-        return diverging_style(value, draft.n_teams)
+        # a full round of pick value is a strong signal; colour saturates there
+        return diverging_style(value, n_teams)
 
-    def render_overview() -> None:
-        if table["ADP"].nunique() <= 1:
+    def footer(gap: bool = False) -> None:
+        required = min_season_games(review.blend_weight)
+        console.print(
+            f"Score = mean over categories of the rank-based z of the "
+            f"per-game rate within the {len(pool)}-player pool and the "
+            f"player's position group (F / D / G; "
+            f"{review.blend_weight:.0%} season stats, rest projections"
+            + (f"; blank under {required} GP" if required else "") + ")"
+            + ("; Gap = roster% percentile - Score percentile within the "
+               "group (+ = crowd overrates)" if gap else "")
+            + ". ESPN values as of today.", style="dim")
+
+    def not_drafted() -> None:
+        console.print("The league has not drafted yet.", style="yellow")
+
+    def show_origins() -> None:
+        table = roster_origins(review.rosters, values, data.team_names,
+                               review.counters)
+        table["Avg Own%"] = table["Avg Own%"].round(1)
+        table["Avg Score"] = table["Avg Score"].round(2)
+        table = _ranked(table, by="Avg Score")
+        print_df(table, "Roster Origins (composition today; Adds/Drops/Trades "
+                 "= season counters)",
+                 styles={"Avg Score": _score_style,
+                         "Avg Own%": lambda v: heatmap_style(v / 100)})
+        footer()
+
+    def show_balance(source: str) -> None:
+        if source == "draft":
+            rosters = drafted_rosters(review.picks, n_teams)
+            weight = 0.0  # draft-day expectation: projections only
+        else:
+            rosters = review.rosters
+            weight = review.blend_weight
+        names = [cat.name for cat in cats]
+        replacement = replacement_rates(review.free_agents, cats, weight)
+        z, totals = projected_category_balance(rosters, cats, data.team_names,
+                                               weight, replacement)
+        outlook = category_outlook(z, totals, cats)
+        table = pd.concat([outlook, z], axis=1)
+        table["Cats/M"] = table["Cats/M"].round(1)
+        table["Spread"] = table["Spread"].round(2)
+        table[names] = table[names].round(2)
+        table.insert(0, "Player", table.index)
+        table = table.sort_values(["RR Pts", "Cats/M"], ascending=False)
+        table.index = range(1, len(table) + 1)
+        league_avg = pd.DataFrame([{"Player": "(league avg)", **{
+            name: (f"{avg:.3f}" if name in RATIO_CATEGORIES else f"{avg:.0f}")
+            for name, avg in totals.mean(axis=0).items()}}], index=[""])
+        if source == "draft":
+            label, basis = "draft-day rosters, projections", (
+                "ESPN season projections summed per roster")
+        else:
+            required = min_season_games(weight)
+            label = "current rosters, blended pace"
+            basis = (f"per-game rates blending {weight:.0%} season stats "
+                     f"with projections, times projected games"
+                     + (f"; players under {required} GP on projections only"
+                        if required else ""))
+        opponents = max(n_teams - 1, 1)
+        print_df(table, f"Category Outlook ({label}; sorted by projected "
+                 "round-robin points)",
+                 styles={"RR Pts": lambda v: heatmap_style(v / (2 * opponents)),
+                         "Cats/M": lambda v: heatmap_style(v / len(cats)),
+                         "Punts": lambda v: diverging_style(-v, 3),
+                         **{col: lambda v: diverging_style(v, 2)
+                            for col in names}},
+                 footer=league_avg)
+        console.print(
+            f"RR Pts = round-robin points (2 W / 1 T) from a week against every "
+            f"other team at these totals (max {2 * opponents}); Cats/M = "
+            f"categories won per matchup; Spread = std of the team's category "
+            f"z-scores (0 = evenly built); Punts = categories at z <= "
+            f"{PUNT_Z:g}. Whole roster counts; "
+            f"{basis}; games a player is not projected to play (up to "
+            f"{FULL_SEASON_GP} GP / {FULL_SEASON_GS} GS) filled at replacement "
+            f"level = median free agent of his position group (ratio "
+            f"categories weighted by goalie starts); inverted categories "
+            f"flipped; + = good.", style="dim")
+        if source == "draft":
+            console.print(
+                "A projection snapshot, not a forecast: in a league with heavy "
+                "waiver activity the drafted roster has little bearing on the "
+                "standings - see Draft hits & busts and Waiver pickups for "
+                "what actually happened.", style="dim")
+
+    def show_draft_grades() -> None:
+        if pick_table["ADP"].nunique() <= 1:
             # ESPN replaces ADP with a single placeholder once a season is over
             console.print("ESPN reports the same ADP for every player "
                           "(season archived?) - pick values are meaningless.",
                           style="yellow")
-        summary = draft_team_summary(table)
+        summary = draft_team_summary(pick_table)
         summary["Avg value"] = summary["Avg value"].round(1)
         summary["Total"] = summary["Total"].round(0).astype(int)
         summary["Kept"] = [f"{k}/{n}" for k, n in
                            zip(summary["Kept"], summary["Picks"])]
         summary = _ranked(summary.drop(columns="Picks"), by="Avg value")
-        print_df(summary, "Draft Recap (pick value = ESPN ADP − pick; "
+        n_rounds = int(pick_table["Rd"].max())
+        print_df(summary, "Draft Grades (pick value = ESPN ADP − pick; "
                  "positive = later than ADP)",
                  styles={"Avg value": value_style,
                          "Total": lambda v: diverging_style(
-                             v, draft.n_teams * draft.n_rounds / 4)})
+                             v, n_teams * n_rounds / 4)})
 
-        grid = draft_value_grid(table).round(0).astype("Int64")
+        grid = draft_value_grid(pick_table).round(0).astype("Int64")
         grid.insert(0, "Player", grid.index)
         grid.index = range(1, len(grid) + 1)
         print_df(grid, "Pick value by round",
                  styles={col: value_style for col in grid.columns
                          if col != "Player"})
 
-        steals, reaches = draft_extremes(table, _EXTREMES)
-        cols = ["Player", "Pos", "Team", "Rd", "Pick", "ADP", "Value", "Own%",
-                "NowOn"]
-        for label, rows in (("Steals", steals), ("Reaches", reaches)):
-            view = _pick_view(rows, cols)
-            view.index = range(1, len(view) + 1)
-            print_df(view, f"Biggest {label.lower()} (top {len(view)})",
+        steals, reaches = draft_extremes(pick_table, _EXTREMES)
+        cols = ["Player", "Pos", "Team", "Rd.Pk", "Overall", "ADP", "Value",
+                "Own%", "NowOn"]
+        for label, rows in (("steals", steals), ("reaches", reaches)):
+            print_df(_player_view(rows, cols),
+                     f"Biggest {label} (top {len(rows)})",
                      styles={"Value": value_style})
         console.print("ADP and roster% are ESPN's values as of today; "
                       "players ESPN has no ADP for count as pick "
-                      f"{int(table['Overall'].max()) + 1}.", style="dim")
+                      f"{int(pick_table['Overall'].max()) + 1}.", style="dim")
 
-    yield Do(render_overview)
+    def show_return() -> None:
+        table = draft_return(review.picks, values, data.team_names, pool)
+        cols = ["Player", "Pos", "Team", "Rd.Pk", "Overall", "GP", "Own%",
+                "Score", "Return", "NowOn"]
+        ranked = table.dropna(subset=["Return"])
+        hits = ranked.nlargest(_RETURN_N, "Return")
+        busts = ranked.nsmallest(_RETURN_N, "Return")
+        print_df(_player_view(hits, cols), f"Draft hits (top {len(hits)})",
+                 styles=_PLAYER_STYLES)
+        print_df(_player_view(busts, cols), f"Draft busts (top {len(busts)})",
+                 styles=_PLAYER_STYLES)
+        per_team = ranked.groupby("TeamRow")["Return"].agg(["mean", "sum"])
+        summary = pd.DataFrame({"Player": [data.team_names[r]
+                                           for r in per_team.index],
+                                "Avg Return": per_team["mean"].round(0)
+                                .astype(int).to_numpy(),
+                                "Total": per_team["sum"].round(0)
+                                .astype(int).to_numpy()})
+        summary = _ranked(summary, by="Avg Return")
+        print_df(summary, "Draft return by team",
+                 styles={"Avg Return": _pct_style,
+                         "Total": lambda v: diverging_style(v, 500)})
+        console.print("Return = Score percentile within the position group "
+                      "minus the draft-slot percentile (pick 1 = 100), in "
+                      "percentage points; roster% is informational only.",
+                      style="dim")
+        footer()
 
-    while True:  # ESC at the prompt leaves the tool
-        row = yield Ask(lambda: ask(questionary.select(
-            "Show a team's picks?",
-            choices=[questionary.Choice(name, value=i)
-                     for i, name in enumerate(data.team_names)])))
+    def show_acquired(acquisition: str, label: str) -> None:
+        summary, players = acquisition_summary(
+            review.rosters, values, data.team_names, acquisition)
+        summary["Avg Own%"] = summary["Avg Own%"].round(1)
+        summary["Avg Score"] = summary["Avg Score"].round(2)
+        # season-long counters include players since dropped or traded away
+        if acquisition == ACQUIRED_ADD:
+            summary["Season adds"] = [c.adds for c in review.counters]
+        else:
+            summary["Season trades"] = [c.trades for c in review.counters]
+        summary = _ranked(summary.fillna({"Best": ""}), by="Avg Score")
+        print_df(summary, f"{label} by team (Count = still on roster)",
+                 styles={"Avg Score": _score_style,
+                         "Avg Own%": lambda v: heatmap_style(v / 100)})
+        if players.empty:
+            console.print(f"No {label.lower()} on any roster.", style="yellow")
+        else:
+            print_df(_player_view(players, ["Player", "Pos", "Team", "Slot",
+                                            "GP", "Own%", "Score", "Gap",
+                                            "Inj"]),
+                     f"{label} (all, by Score)", styles=_PLAYER_STYLES)
+        footer(gap=not players.empty)
 
-        def render_team(row: int = row) -> None:
-            picks = table[table["TeamRow"] == row].sort_values("Overall")
-            view = _pick_view(picks, ["Rd", "Pick", "Player", "Pos", "ADP",
-                                      "Value", "Own%", "Rank", "NowOn"])
-            view.index = range(1, len(view) + 1)
-            print_df(view, f"{data.team_names[row]} — draft picks",
-                     styles={"Value": value_style})
-        yield Do(render_team)
+    def show_gaps(row: int) -> None:
+        if not review.rosters[row]:
+            console.print(f"{data.team_names[row]} has an empty roster.",
+                          style="yellow")
+            return
+        drops, skaters, goalies = market_gaps(
+            review.rosters[row], review.free_agents, values, data.team_names,
+            _GAPS_N, _GAPS_GOALIES)
+        cols = ["Player", "Pos", "Slot", "Acq", "GP", "Own%", "Chg", "Score",
+                "Gap", "Inj"]
+        print_df(_player_view(drops, cols),
+                 f"{data.team_names[row]} — lowest-scoring players (drop "
+                 "candidates)", styles=_PLAYER_STYLES)
+        fa_cols = [c for c in cols if c not in ("Slot", "Acq")]
+        pool_note = f"of the {len(review.free_agents)} most-owned free agents"
+        print_df(_player_view(skaters, fa_cols),
+                 f"Free-agent skaters by Score (top {len(skaters)} "
+                 f"{pool_note})", styles=_PLAYER_STYLES)
+        print_df(_player_view(goalies, fa_cols),
+                 f"Free-agent goalies by Score (top {len(goalies)} "
+                 f"{pool_note})", styles=_PLAYER_STYLES)
+        footer(gap=True)
 
-
-def category_balance(data: LeagueData):
-    """Projected category strength per team (z-scores across the league)
-    for the draft-day or the current rosters."""
-    source = yield Ask(lambda: ask(questionary.select(
-        "Rosters:", choices=[
-            questionary.Choice("As drafted", value="draft"),
-            questionary.Choice("Current", value="current"),
-        ])))
-
-    def fetch() -> list[list[PreviewPlayer]] | None:
+    def show_team(row: int, source: str) -> None:
+        name = data.team_names[row]
         if source == "draft":
-            draft = _fetch_draft(data)
-            if not draft.picks:
-                console.print("The league has not drafted yet.", style="yellow")
-                return None
-            return drafted_rosters(draft.picks, draft.n_teams)
-        with console.status("Fetching rosters..."):
-            rosters = fetch_rosters_and_slots(data)[1]
-        if not any(rosters):
-            console.print("Rosters are empty.", style="yellow")
-            return None
-        return rosters
-    rosters = yield Do(fetch)
-    if rosters is None:
-        return
+            picks = draft_return(review.picks, values, data.team_names, pool)
+            picks = picks[picks["TeamRow"] == row]
+            extra = pick_table.loc[pick_table["TeamRow"] == row,
+                                   ["Overall", "ADP", "Value", "ValueRd",
+                                    "Rank"]]
+            table = picks.merge(extra, on="Overall").sort_values("Overall")
+            print_df(_player_view(table, ["Rd.Pk", "Overall", "Player", "Pos",
+                                          "ADP", "Value", "Rounds", "Rank",
+                                          "GP", "Own%", "Score", "Return",
+                                          "NowOn"]),
+                     f"{name} — draft picks (Value = ADP − pick, Rounds = "
+                     f"Value / {n_teams})",
+                     styles={**_PLAYER_STYLES, "Value": value_style,
+                             "Rounds": lambda v: diverging_style(v, 1)})
+            footer()
+            return
+        roster = review.rosters[row]
+        if not roster:
+            console.print(f"{name} has an empty roster.", style="yellow")
+            return
+        table = player_table(roster, values, data.team_names)
+        # where the player was drafted (by anyone); blank for undrafted
+        drafted_at = {p.player_id: p.overall for p in review.picks}
+        table["Overall"] = pd.array([drafted_at.get(p.player_id)
+                                     for p in roster], dtype="Int64")
+        table = table.sort_values("Score", ascending=False, na_position="last",
+                                  kind="stable")
+        print_df(_player_view(table, ["Player", "Pos", "Slot", "Acq", "Overall",
+                                      "GP", "Own%", "Chg", "Score", "Gap",
+                                      "Inj"]),
+                 f"{name} — current roster (by Score; Overall = draft "
+                 "position)", styles=_PLAYER_STYLES)
+        footer(gap=True)
 
-    def render() -> None:
-        cats = data.config.categories
-        names = [cat.name for cat in cats]
-        z, totals = projected_category_balance(rosters, cats, data.team_names)
-        table = z.round(2)
-        table["Overall"] = z.mean(axis=1).round(2)
-        table.insert(0, "Player", table.index)
-        table = _ranked(table.reset_index(drop=True), by="Overall")
-        footer = pd.DataFrame([{"Player": "(league avg)", **{
-            name: (f"{avg:.3f}" if name in RATIO_CATEGORIES else f"{avg:.0f}")
-            for name, avg in totals.mean(axis=0).items()}}], index=[""])
-        label = "draft-day" if source == "draft" else "current"
-        print_df(table, f"Projected Category Balance ({label} rosters; "
-                 "z-score across teams, + = good)",
-                 styles={col: lambda v: diverging_style(v, 2)
-                         for col in names + ["Overall"]},
-                 footer=footer)
-        console.print("ESPN season projections summed per roster "
-                      "(ratio categories weighted by projected goalie "
-                      "starts); inverted categories flipped.", style="dim")
-    yield Do(render)
+    def ask_team():
+        return Ask(lambda: ask(questionary.select(
+            "Which team?",
+            choices=[questionary.Choice(team, value=i)
+                     for i, team in enumerate(data.team_names)])))
+
+    def ask_source():
+        return Ask(lambda: ask(questionary.select(
+            "Rosters:", choices=[
+                questionary.Choice("As drafted", value="draft"),
+                questionary.Choice("Current", value="current"),
+            ])))
+
+    drafted = pick_table is not None
+    while True:  # ESC at the prompt leaves the tool
+        view = yield Ask(lambda: ask(questionary.select(
+            "View:", choices=[
+                questionary.Separator("── League ──"),
+                questionary.Choice("Roster origins", value="origins"),
+                questionary.Choice("Category outlook", value="balance"),
+                questionary.Separator("── Draft ──"),
+                questionary.Choice("Draft grades vs ADP", value="grades"),
+                questionary.Choice("Draft hits & busts", value="return"),
+                questionary.Separator("── Transactions ──"),
+                questionary.Choice("Waiver pickups", value="adds"),
+                questionary.Choice("Trade haul", value="trades"),
+                questionary.Separator("── One team ──"),
+                questionary.Choice("Team roster", value="team"),
+                questionary.Choice("Drop candidates & free agents",
+                                   value="gaps"),
+            ])))
+        if view in ("grades", "return") and not drafted:
+            yield Do(not_drafted)
+        elif view == "origins":
+            yield Do(show_origins)
+        elif view == "grades":
+            yield Do(show_draft_grades)
+        elif view == "return":
+            yield Do(show_return)
+        elif view == "adds":
+            yield Do(lambda: show_acquired(ACQUIRED_ADD, "Waiver pickups"))
+        elif view == "trades":
+            yield Do(lambda: show_acquired(ACQUIRED_TRADE, "Traded-in players"))
+        elif view == "balance":
+            source = "current" if not drafted else (yield ask_source())
+            yield Do(lambda source=source: show_balance(source))
+        elif view == "team":
+            row = yield ask_team()
+            source = "current" if not drafted else (yield ask_source())
+            yield Do(lambda row=row, source=source: show_team(row, source))
+        else:
+            row = yield ask_team()
+            yield Do(lambda row=row: show_gaps(row))
 
 
 def _calibrate_schedule_scoring(data: LeagueData):
@@ -1212,8 +1458,5 @@ TOOLS = [
         ("Plan streaming week", streaming_planner),
         ("Show NHL schedule outlook", schedule_outlook),
     ]),
-    ("Roster review", [
-        ("Show draft recap", draft_recap),
-        ("Show projected category balance", category_balance),
-    ]),
+    ("Review rosters & draft", review_rosters),
 ]

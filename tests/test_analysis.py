@@ -1,34 +1,54 @@
+import math
+
 import numpy as np
 import pandas as pd
 import pytest
+from statistics import NormalDist
 
 from fantasy_nhl.analysis import (
+    FULL_SEASON_GP,
+    FULL_SEASON_GS,
+    MIN_SCORE_GAMES,
+    PUNT_Z,
     SEAT_CAP,
     DraftPick,
     PreviewPlayer,
+    RosterPlayer,
+    TransactionCounts,
+    acquisition_summary,
     average_points,
     blended_per_game,
     calibrate_night_value,
     category_contestedness,
+    category_outlook,
     category_win_rates,
     draft_extremes,
     draft_pick_table,
+    draft_return,
     draft_team_summary,
     draft_value_grid,
     drafted_rosters,
     effective_games,
     luck,
+    market_gaps,
     matchup_result,
     max_lineup_seats,
+    min_season_games,
     night_seat_curve,
     off_night_periods,
     open_seat_counts,
+    percentile_ranks,
     pick_weekly_awards,
+    player_table,
+    player_value_scores,
+    player_values,
     position_open_seats,
     preview_week,
     projected_category_balance,
     rank_streaming_candidates,
     rank_timeline,
+    replacement_rates,
+    roster_origins,
     round_robin,
     schedule_summary,
     seat_counts,
@@ -929,6 +949,22 @@ class TestDraftValueGridAndExtremes:
         assert list(steals["Player"]) == ["P3", "P1"]
         assert list(reaches["Player"]) == ["P4", "P2"]
 
+    def test_extremes_ties_keep_draft_order_and_exact_n(self):
+        # all four picks have Value 0: exactly n rows, earliest picks first
+        picks = [_pick(0, 1, 1, adp=1.0), _pick(1, 1, 2, adp=2.0),
+                 _pick(1, 2, 1, adp=3.0), _pick(0, 2, 2, adp=4.0)]
+        steals, reaches = draft_extremes(
+            draft_pick_table(picks, self.TEAMS, 2), 2)
+        assert list(steals["Player"]) == ["P1", "P2"]
+        assert list(reaches["Player"]) == ["P1", "P2"]
+
+    def test_grid_sums_two_picks_in_one_round(self):
+        picks = [_pick(0, 1, 1, adp=3.0), _pick(0, 1, 2, adp=6.0),
+                 _pick(1, 2, 1, adp=3.0)]
+        grid = draft_value_grid(draft_pick_table(picks, self.TEAMS, 2))
+        assert grid.loc["Alpha", "R1"] == 2.0 + 4.0
+        assert pd.isna(grid.loc["Alpha", "R2"])
+
 
 class TestProjectedCategoryBalance:
     CATS = [Category("G"), Category("GAA", inverted=True), Category("SV%")]
@@ -974,6 +1010,141 @@ class TestProjectedCategoryBalance:
         assert pd.isna(z.loc["Alpha", "GAA"])
         assert z.loc["Beta", "GAA"] == 0.0
 
+    def test_blended_pace_full_weight_uses_season_rate(self):
+        # 0.5 G/game this season vs 0.25 projected, over 80 projected games
+        hot = PreviewPlayer("Hot", "", ["Center"],
+                            season_stats={"G": 20, "GP": 40},
+                            projected_stats={"G": 20, "GP": 80})
+        cold = PreviewPlayer("Cold", "", ["Center"],
+                             season_stats={"G": 5, "GP": 40},
+                             projected_stats={"G": 20, "GP": 80})
+        rosters = [[hot], [cold]]
+        _, projected = projected_category_balance(rosters, [Category("G")],
+                                                  ["A", "B"], 0.0)
+        assert projected["G"].tolist() == [20.0, 20.0]
+        _, pace = projected_category_balance(rosters, [Category("G")],
+                                             ["A", "B"], 1.0)
+        assert pace["G"].tolist() == [40.0, 10.0]
+        _, half = projected_category_balance(rosters, [Category("G")],
+                                             ["A", "B"], 0.5)
+        assert half["G"].tolist() == pytest.approx([30.0, 15.0])
+
+    def test_blended_pace_small_sample_stays_on_projections(self):
+        fluke = PreviewPlayer("Fluke", "", ["Center"],
+                              season_stats={"G": 3, "GP": 3},  # 1 G/game
+                              projected_stats={"G": 10, "GP": 80})
+        _, pace = projected_category_balance([[fluke]], [Category("G")],
+                                             ["A"], 1.0)
+        assert pace.loc["A", "G"] == 10.0
+        # a quarter in he only needs 5 games: still too few
+        _, pace = projected_category_balance([[fluke]], [Category("G")],
+                                             ["A"], 0.25)
+        assert pace.loc["A", "G"] == 10.0
+
+    def test_blended_pace_without_projection_uses_season_games(self):
+        callup = PreviewPlayer("Callup", "", ["Center"],
+                               season_stats={"G": 10, "GP": 25})
+        _, pace = projected_category_balance([[callup]], [Category("G")],
+                                             ["A"], 1.0)
+        assert pace.loc["A", "G"] == 10.0
+
+    def test_blended_pace_ratio(self):
+        goalie = PreviewPlayer("G", "", ["Goalie"],
+                               season_stats={"GAA": 2.0, "GS": 30},
+                               projected_stats={"GAA": 3.0, "GS": 60})
+        _, pace = projected_category_balance(
+            [[goalie]], [Category("GAA", inverted=True)], ["A"], 0.5)
+        assert pace.loc["A", "GAA"] == pytest.approx(2.5)
+
+    REPLACEMENT = {"F": {"G": 0.2}, "D": {"G": 0.1}, "G": {"GAA": 3.0}}
+
+    def test_replacement_fills_missing_games(self):
+        half = PreviewPlayer("Half", "", ["Center"],
+                             projected_stats={"G": 10, "GP": 41})
+        unprojected = PreviewPlayer("Rookie", "", ["Defense"])
+        full = PreviewPlayer("Full", "", ["Center"],
+                             projected_stats={"G": 30, "GP": FULL_SEASON_GP})
+        _, pace = projected_category_balance(
+            [[half], [unprojected], [full]], [Category("G")], ["A", "B", "C"],
+            replacement=self.REPLACEMENT)
+        assert pace["G"].tolist() == pytest.approx(
+            [10 + 0.2 * 41, 0.1 * FULL_SEASON_GP, 30.0])
+
+    def test_replacement_fill_on_blended_pace(self):
+        # 0.5 G/game over 41 projected games, the other 41 at 0.2
+        hot = PreviewPlayer("Hot", "", ["Center"],
+                            season_stats={"G": 20, "GP": 40},
+                            projected_stats={"G": 5, "GP": 41})
+        _, pace = projected_category_balance(
+            [[hot]], [Category("G")], ["A"], 1.0, replacement=self.REPLACEMENT)
+        assert pace.loc["A", "G"] == pytest.approx(0.5 * 41 + 0.2 * 41)
+
+    def test_replacement_fill_ratio_weighted_by_missing_starts(self):
+        goalie = self.goalie("G", 2.0, FULL_SEASON_GS // 2)
+        _, pace = projected_category_balance(
+            [[goalie]], self.CATS, ["A"], replacement=self.REPLACEMENT)
+        assert pace.loc["A", "GAA"] == pytest.approx(2.5)
+        # a roster without a goalie counts one replacement goalie
+        _, pace = projected_category_balance(
+            [[PreviewPlayer("S", "", ["Center"])]], self.CATS, ["A"],
+            replacement=self.REPLACEMENT)
+        assert pace.loc["A", "GAA"] == pytest.approx(3.0)
+        _, pace = projected_category_balance(
+            [[PreviewPlayer("S", "", ["Center"])]], self.CATS, ["A"])
+        assert pd.isna(pace.loc["A", "GAA"])
+
+
+class TestReplacementRates:
+    CATS = [Category("G"), Category("GAA", inverted=True)]
+
+    def test_median_per_group_and_category(self):
+        players = [_skater(1, "F1", 10, gp=50), _skater(2, "F2", 20, gp=50),
+                   _skater(3, "F3", 40, gp=50),
+                   _skater(4, "D1", 5, gp=50, eligible_slots=["Defense"]),
+                   _goalie(5, "G1", 2.0), _goalie(6, "G2", 4.0)]
+        rates = replacement_rates(players, self.CATS, blend_weight=1.0)
+        assert rates["F"] == {"G": pytest.approx(0.4)}
+        assert rates["D"] == {"G": pytest.approx(0.1)}
+        assert rates["G"] == {"GAA": pytest.approx(3.0)}
+
+    def test_players_without_rate_skipped_and_empty_groups(self):
+        players = [_skater(1, "F1", 10, gp=50),
+                   _skater(2, "None", 0, gp=0, season_stats={})]
+        rates = replacement_rates(players, self.CATS, blend_weight=1.0)
+        assert rates["F"] == {"G": pytest.approx(0.2)}
+        assert rates["D"] == {} and rates["G"] == {}
+
+
+class TestCategoryOutlook:
+    CATS = [Category("G"), Category("A"), Category("GAA", inverted=True)]
+
+    def test_round_robin_points_and_balance(self):
+        totals = pd.DataFrame(
+            {"G": [30.0, 20.0, 10.0], "A": [10.0, 20.0, 30.0],
+             "GAA": [2.0, 3.0, 3.0]},
+            index=pd.Index(["Alpha", "Beta", "Gamma"], name="Team"))
+        z = pd.DataFrame(
+            {"G": [1.0, 0.0, -1.0], "A": [-1.0, 0.0, 1.0],
+             "GAA": [1.0, -1.0, -1.0]}, index=totals.index)
+        table = category_outlook(z, totals, self.CATS)
+        assert list(table.index) == ["Alpha", "Beta", "Gamma"]
+        # Alpha beats both (G + GAA vs Beta; G + GAA vs Gamma) = 4 pts;
+        # Beta: loses to Alpha, vs Gamma wins G, loses A, ties GAA -> tie
+        assert table["RR Pts"].tolist() == [4, 1, 1]
+        assert table["Cats/M"].tolist() == pytest.approx([2.0, 1.0, 1.0])
+        assert table.loc["Beta", "Spread"] == pytest.approx(
+            np.std([0.0, 0.0, -1.0]))
+        assert table["Punts"].tolist() == [1, 1, 2]
+
+    def test_punt_threshold_inclusive(self):
+        index = pd.Index(["A", "B"], name="Team")
+        z = pd.DataFrame({"G": [PUNT_Z, -PUNT_Z]}, index=index)
+        totals = pd.DataFrame({"G": [1.0, 2.0]}, index=index)
+        table = category_outlook(z, totals, [Category("G")])
+        assert table["Punts"].tolist() == [1, 0]
+        assert table["RR Pts"].tolist() == [0, 2]
+        assert table["Spread"].tolist() == [0.0, 0.0]
+
 
 class TestDraftedRosters:
     def test_groups_by_team_with_projections(self):
@@ -983,3 +1154,304 @@ class TestDraftedRosters:
         assert [len(r) for r in rosters] == [1, 1, 0]
         assert rosters[1][0].projected_stats == {"G": 30}
         assert rosters[0][0].eligible_slots == ["Goalie"]
+        assert rosters[1][0].player_id == 1
+        assert rosters[0][0].team_row == 0
+        assert rosters[0][0].position == "Goalie"
+
+
+GP = MIN_SCORE_GAMES + 5  # enough games for a Score at any blend weight
+
+
+def _skater(pid, name, g, gp=GP, **kw):
+    defaults = dict(position="Center", eligible_slots=["Center", "Util"],
+                    season_stats={"G": g, "GP": gp})
+    defaults.update(kw)
+    return RosterPlayer(name, "", defaults.pop("eligible_slots"),
+                        player_id=pid, **defaults)
+
+
+def _goalie(pid, name, gaa, gs=GP, **kw):
+    return RosterPlayer(name, "", ["Goalie"], player_id=pid, position="Goalie",
+                        season_stats={"GAA": gaa, "GS": gs}, **kw)
+
+
+REVIEW_CATS = [Category("G"), Category("GAA", inverted=True)]
+# normal quantile of the 75th percentile: the score of the better of two
+HALF = NormalDist().inv_cdf(0.75)
+
+
+class TestPlayerValueScores:
+    def test_skaters_and_goalies_scored_within_their_group(self):
+        players = [_skater(1, "Hi", 10), _skater(2, "Lo", 0),
+                   _goalie(3, "Wall", 2.0), _goalie(4, "Sieve", 4.0)]
+        scores = player_value_scores(players, REVIEW_CATS, blend_weight=1.0)
+        assert scores[0] == pytest.approx(HALF)
+        assert scores[1] == pytest.approx(-HALF)
+        # lower GAA is better -> inverted flip
+        assert scores[2] == pytest.approx(HALF)
+        assert scores[3] == pytest.approx(-HALF)
+
+    def test_no_games_gives_none_and_constant_gives_zero(self):
+        players = [_skater(1, "A", 5), _skater(2, "B", 5),
+                   _skater(3, "Nope", 0, gp=0)]
+        scores = player_value_scores(players, REVIEW_CATS, blend_weight=1.0)
+        assert scores[0] == pytest.approx(0.0) and scores[1] == pytest.approx(0.0)
+        assert scores[2] is None
+
+    def test_defensemen_scored_among_defensemen(self):
+        # a D-only category would otherwise hand every D a free bonus
+        cats = [Category("G"), Category("DEF")]
+        forwards = [_skater(1, "F1", 10, season_stats={"G": 10, "GP": GP}),
+                    _skater(2, "F2", 0, season_stats={"G": 0, "GP": GP})]
+        dmen = [_skater(3, "D1", 0, eligible_slots=["Defense"],
+                        season_stats={"G": 2, "DEF": 4, "GP": GP}),
+                _skater(4, "D2", 0, eligible_slots=["Defense"],
+                        season_stats={"G": 0, "DEF": 0, "GP": GP})]
+        scores = player_value_scores(forwards + dmen, cats, 1.0)
+        # forwards: DEF constant (0) -> 0; G decides
+        assert scores[0] == pytest.approx(HALF / 2)
+        assert scores[1] == pytest.approx(-HALF / 2)
+        # defensemen: both cats favour D1, symmetric within the D group
+        assert scores[2] == pytest.approx(HALF)
+        assert scores[3] == pytest.approx(-HALF)
+
+    def test_rank_based_caps_runaway_category(self):
+        # 100 goals/game ranks the same as 11: only the order counts
+        cats = [Category("G")]
+        players = [_skater(1, "Runaway", 1000), _skater(2, "Good", 10),
+                   _skater(3, "Meh", 5)]
+        capped = player_value_scores(players, cats, 1.0)
+        players[0].season_stats["G"] = 11
+        modest = player_value_scores(players, cats, 1.0)
+        assert capped == pytest.approx(modest)
+        assert capped[0] > capped[1] > capped[2]
+        assert capped[1] == pytest.approx(0.0)  # median
+
+    def test_projection_fallback_only_before_the_season(self):
+        rookie = _skater(1, "Rookie", 0, gp=0,
+                         projected_stats={"G": 20, "GP": 10})
+        vet = _skater(2, "Vet", 10, projected_stats={"G": 5, "GP": 10})
+        # preseason: nobody has games, projections rank everyone
+        scores = player_value_scores([rookie, vet], REVIEW_CATS, 0.0)
+        assert scores[0] == pytest.approx(HALF)
+        assert scores[1] == pytest.approx(-HALF)
+        # season over: no games -> no Score, however good the projection
+        scores = player_value_scores([rookie, vet], REVIEW_CATS, 1.0)
+        assert scores[0] is None
+        assert scores[1] == pytest.approx(0.0)  # alone in his group
+
+    def test_min_games_scales_with_season_fraction(self):
+        assert min_season_games(0.0) == 0
+        assert min_season_games(0.1) == math.ceil(MIN_SCORE_GAMES * 0.1)
+        assert min_season_games(1.0) == MIN_SCORE_GAMES
+        few = _skater(1, "Few", 3, gp=MIN_SCORE_GAMES - 1)
+        enough = _skater(2, "Enough", 3, gp=MIN_SCORE_GAMES)
+        scores = player_value_scores([few, enough], REVIEW_CATS, 1.0)
+        assert scores[0] is None and scores[1] is not None
+        # a quarter into the season the same player has played enough
+        scores = player_value_scores([few, enough], REVIEW_CATS, 0.25)
+        assert None not in scores
+
+    def test_goalie_placeholder_ratio_without_starts_ignored(self):
+        # ESPN reports GAA 0.0 for a goalie who has not started: must not
+        # rank him as the best goalie
+        bench = _goalie(1, "Bench", 0.0, gs=0)
+        good = _goalie(2, "Good", 2.5)
+        bad = _goalie(3, "Bad", 3.5)
+        scores = player_value_scores([bench, good, bad], REVIEW_CATS, 1.0)
+        assert scores[0] is None
+        assert scores[1] > scores[2]
+
+    def test_empty(self):
+        assert player_value_scores([], REVIEW_CATS, 0.5) == []
+
+
+class TestPercentileRanks:
+    def test_ties_and_missing(self):
+        assert percentile_ranks([1, 3, 2]) == [
+            pytest.approx(100 / 3), 100.0, pytest.approx(200 / 3)]
+        assert percentile_ranks([1, 1, None]) == [75.0, 75.0, None]
+        assert percentile_ranks([]) == []
+
+
+class TestPlayerValues:
+    def test_gap_sign(self):
+        # Crowd darling with weak stats vs unknown with strong stats
+        pool = [_skater(1, "Hype", 0, pct_owned=90.0),
+                _skater(2, "Gem", 10, pct_owned=10.0)]
+        values = player_values(pool, REVIEW_CATS, 1.0)
+        assert list(values.index) == [1, 2]
+        assert values.loc[1, "Gap"] > 0 > values.loc[2, "Gap"]
+        assert values.loc[2, "ScorePct"] == 100.0
+
+    def test_percentiles_within_position_group(self):
+        pool = [_skater(1, "F", 10, pct_owned=50.0),
+                _skater(2, "D", 1, pct_owned=99.0, eligible_slots=["Defense"]),
+                _goalie(3, "G", 3.0, pct_owned=1.0)]
+        values = player_values(pool, REVIEW_CATS, 1.0)
+        assert list(values["Group"]) == ["F", "D", "G"]
+        # alone in its group: every percentile is 100, Gap 0
+        assert list(values["ScorePct"]) == [100.0] * 3
+        assert list(values["OwnPct"]) == [100.0] * 3
+        assert list(values["Gap"]) == [0.0] * 3
+
+
+class TestRosterReviewTables:
+    TEAMS = ["Alpha", "Beta"]
+
+    def rosters(self):
+        alpha = [_skater(1, "A1", 10, acquisition="DRAFT", team_row=0,
+                         lineup_slot="Center", pct_owned=95.0),
+                 _skater(2, "A2", 4, acquisition="ADD", team_row=0,
+                         lineup_slot="IR", pct_owned=45.0, injury="OUT"),
+                 _goalie(3, "AG", 2.5, acquisition="TRADE", team_row=0,
+                         lineup_slot="Goalie", pct_owned=80.0)]
+        beta = [_skater(4, "B1", 6, acquisition="ADD", team_row=1,
+                        lineup_slot="Bench", pct_owned=60.0),
+                _skater(5, "B2", 2, acquisition="DRAFT", team_row=1,
+                        lineup_slot="Util", pct_owned=20.0)]
+        return [alpha, beta]
+
+    def values(self, rosters, extra=()):
+        pool = [p for r in rosters for p in r] + list(extra)
+        return player_values(pool, REVIEW_CATS, 1.0)
+
+    def test_player_table_columns(self):
+        rosters = self.rosters()
+        table = player_table(rosters[0], self.values(rosters), self.TEAMS)
+        assert list(table["Player"]) == ["A1", "A2", "AG"]
+        assert list(table["Team"]) == ["Alpha"] * 3
+        assert list(table["GP"]) == [GP, GP, GP]
+        assert table.loc[1, "Injury"] == "OUT"
+        assert table["Score"].dtype == float
+        fa = _skater(9, "FA", 1)
+        assert player_table([fa], self.values(rosters), self.TEAMS)\
+            .loc[0, "Team"] == "FA"
+
+    def test_roster_origins(self):
+        rosters = self.rosters()
+        counters = [TransactionCounts(10, 9, 1), TransactionCounts(3, 3, 0)]
+        table = roster_origins(rosters, self.values(rosters), self.TEAMS,
+                               counters)
+        alpha, beta = table.loc[0], table.loc[1]
+        assert (alpha["Size"], alpha["Drafted"], alpha["Added"],
+                alpha["Traded"], alpha["IR"]) == (3, 1, 1, 1, 1)
+        assert (beta["Size"], beta["Drafted"], beta["Added"],
+                beta["Traded"], beta["IR"]) == (2, 1, 1, 0, 0)
+        assert alpha["Avg Own%"] == pytest.approx((95 + 45 + 80) / 3)
+        assert (alpha["Adds"], alpha["Drops"], alpha["Trades"]) == (10, 9, 1)
+        assert list(table["Player"]) == self.TEAMS
+
+    def test_draft_return_sign(self):
+        rosters = self.rosters()
+        values = self.values(rosters)
+        # A1 taken first and is the best skater: little gain; B2 taken last
+        # and is the worst: also small; A2 (2nd pick) mediocre -> negative
+        picks = [
+            DraftPick(0, 1, 1, 1, 1, "A1", "Center", pct_owned=95.0, rostered_by=0),
+            DraftPick(0, 1, 2, 2, 2, "A2", "Center", pct_owned=45.0, rostered_by=0),
+            DraftPick(1, 2, 1, 3, 5, "B2", "Center", pct_owned=20.0, rostered_by=1),
+            DraftPick(1, 2, 2, 4, 4, "B1", "Center", pct_owned=60.0, rostered_by=None),
+        ]
+        pool = {p.player_id: p for r in rosters for p in r}
+        table = draft_return(picks, values, self.TEAMS, pool)
+        by = table.set_index("Player")
+        # skater ScorePct: A1 100, B1 75, A2 50, B2 25; slot pct 100/75/50/25
+        assert by.loc["A1", "Return"] == pytest.approx(0.0)
+        assert by.loc["A2", "Return"] == pytest.approx(-25.0)
+        assert by.loc["B2", "Return"] == pytest.approx(-25.0)
+        assert by.loc["B1", "Return"] == pytest.approx(50.0)
+        assert by.loc["B1", "NowOn"] is None
+        assert by.loc["A1", "GP"] == GP
+        assert list(table["Overall"]) == [1, 2, 3, 4]
+
+    def test_draft_return_unplayed_pick_is_a_full_bust(self):
+        rosters = self.rosters()
+        ghost = _skater(9, "Ghost", 0, gp=0, team_row=0, pct_owned=90.0)
+        values = self.values([rosters[0] + [ghost], rosters[1]])
+        picks = [DraftPick(0, 1, 1, 1, 9, "Ghost", "Center", rostered_by=0),
+                 DraftPick(1, 1, 2, 2, 4, "B1", "Center", rostered_by=1)]
+        table = draft_return(picks, values, self.TEAMS,
+                             {9: ghost}).set_index("Player")
+        # no Score (0 GP) but in the pool -> 0th percentile minus slot 100
+        assert pd.isna(table.loc["Ghost", "Score"])
+        assert table.loc["Ghost", "Return"] == pytest.approx(-100.0)
+        assert table.loc["Ghost", "GP"] == 0
+
+    def test_draft_return_ignores_roster_pct(self):
+        rosters = self.rosters()
+        for player in rosters[0] + rosters[1]:
+            player.pct_owned = 100.0 - player.pct_owned  # invert the crowd
+        values = self.values(rosters)
+        picks = [DraftPick(0, 1, 1, 1, 1, "A1", "Center", pct_owned=5.0),
+                 DraftPick(1, 1, 2, 2, 4, "B1", "Center", pct_owned=40.0)]
+        table = draft_return(picks, values, self.TEAMS).set_index("Player")
+        assert table.loc["A1", "Return"] == pytest.approx(0.0)
+        assert table.loc["B1", "Return"] == pytest.approx(25.0)
+        assert table.loc["A1", "Own%"] == 5.0  # informational only
+
+    def test_draft_return_unknown_player(self):
+        rosters = self.rosters()
+        picks = [DraftPick(0, 1, 1, 1, 99, "Ghost", "Center")]
+        table = draft_return(picks, self.values(rosters), self.TEAMS)
+        assert pd.isna(table.loc[0, "Return"])
+        assert pd.isna(table.loc[0, "Score"])
+        assert pd.isna(table.loc[0, "GP"])
+
+    def test_acquisition_summary_groups_by_team_row(self):
+        rosters = self.rosters()
+        same_names = ["Twins", "Twins"]
+        summary, players = acquisition_summary(
+            rosters, self.values(rosters), same_names, "ADD")
+        assert list(summary["Count"]) == [1, 1]
+        assert list(players["TeamRow"]) == [1, 0]
+
+    def test_acquisition_summary(self):
+        rosters = self.rosters()
+        summary, players = acquisition_summary(
+            rosters, self.values(rosters), self.TEAMS, "ADD")
+        assert list(players["Player"]) == ["B1", "A2"]  # by Score desc
+        assert list(summary["Count"]) == [1, 1]
+        assert summary.loc[0, "Best"] == "A2"
+        assert summary.loc[1, "Best"] == "B1"
+        trades, traded = acquisition_summary(
+            rosters, self.values(rosters), self.TEAMS, "TRADE")
+        assert list(traded["Player"]) == ["AG"]
+        assert trades.loc[1, "Count"] == 0
+        assert trades.loc[1, "Best"] is None
+        assert pd.isna(trades.loc[1, "Avg Score"])
+
+    def test_market_gaps(self):
+        rosters = self.rosters()
+        fas = [_skater(7, "Stud", 12, pct_owned=5.0),
+               _skater(8, "Dud", 0, pct_owned=50.0),
+               _goalie(10, "Wall", 2.0, pct_owned=10.0),
+               _goalie(11, "Sieve", 4.0, pct_owned=30.0),
+               _goalie(12, "Meh", 3.0, pct_owned=20.0)]
+        values = self.values(rosters, fas)
+        drops, skaters, goalies = market_gaps(rosters[0], fas, values,
+                                              self.TEAMS, 2, 2)
+        # A2 is below the skater median, AG is a mid goalie now that there
+        # are FA goalies to rank against, A1 is the best skater
+        assert list(drops["Player"]) == ["A2", "AG"]
+        assert list(skaters["Player"]) == ["Stud", "Dud"]
+        assert list(goalies["Player"]) == ["Wall", "Meh"]  # best GAA first
+        assert skaters.loc[0, "Team"] == "FA"
+        assert skaters.loc[0, "Gap"] < 0  # under-owned for his stats
+        assert drops.loc[0, "Slot"] == "IR"
+
+    def test_market_gaps_unscored_first(self):
+        rosters = self.rosters()
+        ghost = _skater(9, "Ghost", 0, gp=0, team_row=0, pct_owned=99.0)
+        roster = rosters[0] + [ghost]
+        values = self.values([roster, rosters[1]])
+        drops, _, _ = market_gaps(roster, [], values, self.TEAMS, 1, 1)
+        assert list(drops["Player"]) == ["Ghost"]
+        assert pd.isna(drops.loc[0, "Score"])
+
+    def test_market_gaps_n_larger_than_pool(self):
+        rosters = self.rosters()
+        drops, skaters, goalies = market_gaps(
+            rosters[1], [], self.values(rosters), self.TEAMS, 50, 5)
+        assert len(drops) == 2
+        assert skaters.empty and goalies.empty
