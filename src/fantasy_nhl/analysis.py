@@ -33,6 +33,25 @@ class PreviewPlayer:
     injury: str = ""  # ESPN injuryStatus (empty = fine/unknown)
 
 
+@dataclass
+class DraftPick:
+    """One draft pick joined with ESPN's current info on the player."""
+    team_row: int  # drafting fantasy team (LeagueData row)
+    round: int
+    pick_in_round: int
+    overall: int
+    player_id: int
+    name: str
+    position: str  # ESPN default position name (e.g. "Goalie")
+    eligible_slots: list[str] = field(default_factory=list)  # no Bench/IR
+    adp: float | None = None  # ESPN average draft position (None = unknown)
+    pct_owned: float | None = None  # ESPN roster% today
+    pct_change: float | None = None  # ESPN roster% change over 7 days
+    espn_rank: int | None = None  # ESPN standard draft rank
+    projected_stats: dict[str, float] = field(default_factory=dict)
+    rostered_by: int | None = None  # fantasy team row today (None = free agent)
+
+
 def matchup_result(player_stats: np.ndarray, opponent_stats: np.ndarray,
                    categories: list[Category]) -> np.ndarray:
     """
@@ -680,3 +699,141 @@ def preview_week(players: list[PreviewPlayer], slot_counts: dict[str, int],
                 (blended_per_game(player, cat.name, blend_weight) or 0.0) * n
                 for player, n in zip(players, remaining))
     return games, totals
+
+
+_DEFENSE_POSITION = "Defense"
+_GOALIE_POSITION = "Goalie"
+
+
+def draft_pick_table(picks: list[DraftPick], team_names: list[str],
+                     n_teams: int) -> pd.DataFrame:
+    """
+    One row per draft pick in draft order. Value = ADP − overall pick, so a
+    positive value means the player went later than ESPN's average draft
+    position (a steal), negative means a reach. Players without an ESPN ADP
+    are floored at one pick after the last one (flagged in 'ADP?').
+
+    :param n_teams: picks per round, to express Value in rounds as well
+    """
+    total = max((p.overall for p in picks), default=0)
+    rows = []
+    for p in picks:
+        missing = p.adp is None or p.adp <= 0
+        adp = float(total + 1) if missing else float(p.adp)
+        rows.append({
+            "TeamRow": p.team_row,
+            "Team": team_names[p.team_row],
+            "Rd": p.round,
+            "Pick": p.pick_in_round,
+            "Overall": p.overall,
+            "Player": p.name,
+            "Pos": p.position,
+            "ADP": adp,
+            "ADP?": missing,
+            "Value": adp - p.overall,
+            "ValueRd": (adp - p.overall) / n_teams,
+            "Own%": p.pct_owned,
+            "Chg": p.pct_change,
+            "Rank": p.espn_rank,
+            "NowOn": (None if p.rostered_by is None
+                      else team_names[p.rostered_by]),
+        })
+    return pd.DataFrame(rows, columns=[
+        "TeamRow", "Team", "Rd", "Pick", "Overall", "Player", "Pos", "ADP",
+        "ADP?", "Value", "ValueRd", "Own%", "Chg", "Rank", "NowOn"])
+
+
+def draft_team_summary(table: pd.DataFrame) -> pd.DataFrame:
+    """
+    Per drafting team (index = team row): average and total pick Value, the
+    best steal and biggest reach, goalie/defense counts, the round of the
+    first goalie and how many own picks are still on the roster.
+    """
+    rows = []
+    index = []
+    for row, group in table.groupby("TeamRow", sort=True):
+        index.append(row)
+        best = group.loc[group["Value"].idxmax()]
+        worst = group.loc[group["Value"].idxmin()]
+        goalies = group[group["Pos"] == _GOALIE_POSITION]
+        rows.append({
+            "Player": group["Team"].iloc[0],
+            "Avg value": group["Value"].mean(),
+            "Total": group["Value"].sum(),
+            "Best steal": f"{best['Player']} ({best['Value']:+.0f})",
+            "Biggest reach": f"{worst['Player']} ({worst['Value']:+.0f})",
+            "G": int(len(goalies)),
+            "1st G": int(goalies["Rd"].min()) if len(goalies) else None,
+            "D": int((group["Pos"] == _DEFENSE_POSITION).sum()),
+            "Kept": int((group["NowOn"] == group["Team"]).sum()),
+            "Picks": int(len(group)),
+        })
+    return pd.DataFrame(rows, index=pd.Index(index, name="TeamRow"))
+
+
+def draft_value_grid(table: pd.DataFrame) -> pd.DataFrame:
+    """Pick Value per team (rows, team-row order) and round (columns R1..Rn)."""
+    grid = table.pivot(index="TeamRow", columns="Rd", values="Value")
+    names = table.drop_duplicates("TeamRow").set_index("TeamRow")["Team"]
+    grid.index = pd.Index([names[row] for row in grid.index], name="Team")
+    grid.columns = [f"R{r}" for r in grid.columns]
+    return grid
+
+
+def draft_extremes(table: pd.DataFrame,
+                   n: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """League-wide top-n steals (largest Value) and reaches (smallest)."""
+    return (table.nlargest(n, "Value", keep="all").head(n),
+            table.nsmallest(n, "Value", keep="all").head(n))
+
+
+def drafted_rosters(picks: list[DraftPick],
+                    n_teams: int) -> list[list[PreviewPlayer]]:
+    """Draft-day rosters as PreviewPlayers (projections only) by team row."""
+    rosters: list[list[PreviewPlayer]] = [[] for _ in range(n_teams)]
+    for p in picks:
+        rosters[p.team_row].append(PreviewPlayer(
+            name=p.name, pro_team="", eligible_slots=list(p.eligible_slots),
+            projected_stats=dict(p.projected_stats)))
+    return rosters
+
+
+def projected_category_balance(rosters: list[list[PreviewPlayer]],
+                               categories: list[Category],
+                               team_names: list[str],
+                               ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Projected season totals per team and category, and their z-scores across
+    the league. Ratio categories (GAA, SV%) are goalie-start-weighted means
+    of the goalies' projections. Inverted categories are flipped so a
+    positive z-score always means "good".
+
+    :return: (z-scores, raw totals), both teams x categories
+    """
+    names = [cat.name for cat in categories]
+    totals = np.full((len(rosters), len(categories)), np.nan)
+    for row, players in enumerate(rosters):
+        for i, cat in enumerate(categories):
+            if cat.name in RATIO_CATEGORIES:
+                weighted = starts = 0.0
+                for p in players:
+                    if _GOALIE_SLOT not in p.eligible_slots:
+                        continue
+                    value = p.projected_stats.get(cat.name)
+                    gs = p.projected_stats.get("GS", 0) or 0
+                    if value is not None and gs:
+                        weighted += value * gs
+                        starts += gs
+                totals[row, i] = weighted / starts if starts else np.nan
+            else:
+                totals[row, i] = sum(p.projected_stats.get(cat.name, 0) or 0
+                                     for p in players)
+    index = pd.Index(team_names, name="Team")
+    totals_df = pd.DataFrame(totals, index=index, columns=names)
+    std = totals_df.std(axis=0, ddof=0)
+    z = (totals_df - totals_df.mean(axis=0)) / std.where(std > 0, 1.0)
+    z = z.where(totals_df.isna() | (std > 0), 0.0)
+    for cat in categories:
+        if cat.inverted:
+            z[cat.name] *= -1
+    return z, totals_df

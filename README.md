@@ -48,6 +48,9 @@ Select tool
 │   ├── Show matchup preview
 │   ├── Plan streaming week
 │   └── Show NHL schedule outlook
+├── Roster review
+│   ├── Show draft recap
+│   └── Show projected category balance
 └── Quit
 ```
 
@@ -134,6 +137,25 @@ answer re-run.
   fits the night-value curve behind the scores from a chosen (past) league
   season and stores it in `calibration.yaml`; until then a linear proxy
   is used.
+- **Show draft recap** — Grades the league's draft against ESPN's average
+  draft position (ADP). Each pick's *value* is `ADP − overall pick`:
+  positive means the player went later than the ESPN crowd takes him (a
+  steal), negative a reach; players ESPN has no ADP for count as one pick
+  after the last one. Shows a per-team summary (average and total value,
+  best steal, biggest reach, goalies and defensemen drafted, round of the
+  first goalie, and how many own picks are still on the roster), a
+  teams × rounds value grid, the league-wide top-10 steals and reaches with
+  ESPN's current roster% and who owns the player now, then lets you drill
+  into any team's pick list (with ESPN's draft rank). ADP and roster% are
+  ESPN's values as of today; ESPN archives ADP to a placeholder once a
+  season is over, which the tool flags.
+- **Show projected category balance** — Sums ESPN's season projections over
+  each team's roster — as drafted or as of today — per scoring category, and
+  shows the z-score across the league (ratio categories such as GAA are
+  weighted by projected goalie starts; inverted categories are flipped so
+  positive is always good). An `Overall` column averages the z-scores and
+  sorts the table; a footer row shows the league-average raw totals. Useful
+  for spotting which categories a roster is built to win or has punted.
 
 
 ### Luck
@@ -278,8 +300,8 @@ src/fantasy_nhl/
   cli.py                     # interactive session: league picker, menu tree, wizard runner
   prompts.py                 # prompt primitives: Ask/Do steps, ESC = back, Ctrl-C = quit
   config.py                  # YAML loading into LeagueConfig/Category dataclasses
-  espn_data.py               # ESPN API access: scores, rosters, NHL schedule, settings
-  analysis.py                # pure logic: round-robin tables, predictions, lineup seats
+  espn_data.py               # ESPN API access: scores, rosters, draft, NHL schedule, settings
+  analysis.py                # pure logic: round-robin tables, predictions, lineup seats, draft value
   display.py                 # rich rendering: tables, color gradients
   plots.py                   # matplotlib PNG figures (power rankings, schedule grids)
   tools.py                   # CLI tools and the TOOLS menu tree

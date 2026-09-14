@@ -25,6 +25,11 @@ from .analysis import (
     calibrate_night_value,
     category_contestedness,
     category_win_rates,
+    draft_extremes,
+    draft_pick_table,
+    draft_team_summary,
+    draft_value_grid,
+    drafted_rosters,
     effective_games,
     luck,
     matchup_result,
@@ -34,6 +39,7 @@ from .analysis import (
     pick_weekly_awards,
     position_open_seats,
     preview_week,
+    projected_category_balance,
     rank_streaming_candidates,
     rank_timeline,
     round_robin,
@@ -56,6 +62,7 @@ from .espn_data import (
     LeagueData,
     fetch_adds_used,
     fetch_calibration_data,
+    fetch_draft_data,
     fetch_free_agents,
     fetch_preview_data,
     fetch_rosters_and_slots,
@@ -998,6 +1005,150 @@ def _roster_fit(data: LeagueData, playing_by_period: dict[int, set[str]],
     return (yield Do(compute))
 
 
+_EXTREMES = 10  # league-wide steals/reaches listed
+
+
+def _fetch_draft(data: LeagueData):
+    with console.status("Fetching draft and player info..."):
+        return fetch_draft_data(data)
+
+
+def _fmt_value(value: float) -> str:
+    return f"{value:+.0f}"
+
+
+def _pick_view(table: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    """Display copy of pick rows: abbreviated position, rounded numbers,
+    free agents labelled."""
+    view = table.copy()
+    view["Pos"] = view["Pos"].map(lambda p: _SLOT_ABBREV.get(p, p or "?"))
+    view["ADP"] = view["ADP"].round(1)
+    view["Value"] = view["Value"].round(0).astype(int)
+    view["Own%"] = view["Own%"].round(1)
+    view["Rank"] = view["Rank"].astype("Int64")
+    view["NowOn"] = view["NowOn"].fillna("FA")
+    return view[columns].reset_index(drop=True)
+
+
+def draft_recap(data: LeagueData):
+    """Grade the draft against ESPN's ADP: per-team summary, teams-x-rounds
+    value grid, league-wide steals and reaches, then per-team pick lists."""
+    draft = yield Do(lambda: _fetch_draft(data))
+    if not draft.picks:
+        yield Do(lambda: console.print("The league has not drafted yet.",
+                                       style="yellow"))
+        return
+
+    table = draft_pick_table(draft.picks, data.team_names, draft.n_teams)
+
+    def value_style(value: float) -> str:
+        # a full round of value is a strong signal; colour saturates there
+        return diverging_style(value, draft.n_teams)
+
+    def render_overview() -> None:
+        if table["ADP"].nunique() <= 1:
+            # ESPN replaces ADP with a single placeholder once a season is over
+            console.print("ESPN reports the same ADP for every player "
+                          "(season archived?) - pick values are meaningless.",
+                          style="yellow")
+        summary = draft_team_summary(table)
+        summary["Avg value"] = summary["Avg value"].round(1)
+        summary["Total"] = summary["Total"].round(0).astype(int)
+        summary["Kept"] = [f"{k}/{n}" for k, n in
+                           zip(summary["Kept"], summary["Picks"])]
+        summary = _ranked(summary.drop(columns="Picks"), by="Avg value")
+        print_df(summary, "Draft Recap (pick value = ESPN ADP − pick; "
+                 "positive = later than ADP)",
+                 styles={"Avg value": value_style,
+                         "Total": lambda v: diverging_style(
+                             v, draft.n_teams * draft.n_rounds / 4)})
+
+        grid = draft_value_grid(table).round(0).astype("Int64")
+        grid.insert(0, "Player", grid.index)
+        grid.index = range(1, len(grid) + 1)
+        print_df(grid, "Pick value by round",
+                 styles={col: value_style for col in grid.columns
+                         if col != "Player"})
+
+        steals, reaches = draft_extremes(table, _EXTREMES)
+        cols = ["Player", "Pos", "Team", "Rd", "Pick", "ADP", "Value", "Own%",
+                "NowOn"]
+        for label, rows in (("Steals", steals), ("Reaches", reaches)):
+            view = _pick_view(rows, cols)
+            view.index = range(1, len(view) + 1)
+            print_df(view, f"Biggest {label.lower()} (top {len(view)})",
+                     styles={"Value": value_style})
+        console.print("ADP and roster% are ESPN's values as of today; "
+                      "players ESPN has no ADP for count as pick "
+                      f"{int(table['Overall'].max()) + 1}.", style="dim")
+
+    yield Do(render_overview)
+
+    while True:  # ESC at the prompt leaves the tool
+        row = yield Ask(lambda: ask(questionary.select(
+            "Show a team's picks?",
+            choices=[questionary.Choice(name, value=i)
+                     for i, name in enumerate(data.team_names)])))
+
+        def render_team(row: int = row) -> None:
+            picks = table[table["TeamRow"] == row].sort_values("Overall")
+            view = _pick_view(picks, ["Rd", "Pick", "Player", "Pos", "ADP",
+                                      "Value", "Own%", "Rank", "NowOn"])
+            view.index = range(1, len(view) + 1)
+            print_df(view, f"{data.team_names[row]} — draft picks",
+                     styles={"Value": value_style})
+        yield Do(render_team)
+
+
+def category_balance(data: LeagueData):
+    """Projected category strength per team (z-scores across the league)
+    for the draft-day or the current rosters."""
+    source = yield Ask(lambda: ask(questionary.select(
+        "Rosters:", choices=[
+            questionary.Choice("As drafted", value="draft"),
+            questionary.Choice("Current", value="current"),
+        ])))
+
+    def fetch() -> list[list[PreviewPlayer]] | None:
+        if source == "draft":
+            draft = _fetch_draft(data)
+            if not draft.picks:
+                console.print("The league has not drafted yet.", style="yellow")
+                return None
+            return drafted_rosters(draft.picks, draft.n_teams)
+        with console.status("Fetching rosters..."):
+            rosters = fetch_rosters_and_slots(data)[1]
+        if not any(rosters):
+            console.print("Rosters are empty.", style="yellow")
+            return None
+        return rosters
+    rosters = yield Do(fetch)
+    if rosters is None:
+        return
+
+    def render() -> None:
+        cats = data.config.categories
+        names = [cat.name for cat in cats]
+        z, totals = projected_category_balance(rosters, cats, data.team_names)
+        table = z.round(2)
+        table["Overall"] = z.mean(axis=1).round(2)
+        table.insert(0, "Player", table.index)
+        table = _ranked(table.reset_index(drop=True), by="Overall")
+        footer = pd.DataFrame([{"Player": "(league avg)", **{
+            name: (f"{avg:.3f}" if name in RATIO_CATEGORIES else f"{avg:.0f}")
+            for name, avg in totals.mean(axis=0).items()}}], index=[""])
+        label = "draft-day" if source == "draft" else "current"
+        print_df(table, f"Projected Category Balance ({label} rosters; "
+                 "z-score across teams, + = good)",
+                 styles={col: lambda v: diverging_style(v, 2)
+                         for col in names + ["Overall"]},
+                 footer=footer)
+        console.print("ESPN season projections summed per roster "
+                      "(ratio categories weighted by projected goalie "
+                      "starts); inverted categories flipped.", style="dim")
+    yield Do(render)
+
+
 def _calibrate_schedule_scoring(data: LeagueData):
     """Wizard steps calibrating the schedule-scoring night-value curve from
     a chosen league season and storing it in calibration.yaml."""
@@ -1060,5 +1211,9 @@ TOOLS = [
         ("Show matchup preview", matchup_preview),
         ("Plan streaming week", streaming_planner),
         ("Show NHL schedule outlook", schedule_outlook),
+    ]),
+    ("Roster review", [
+        ("Show draft recap", draft_recap),
+        ("Show projected category balance", category_balance),
     ]),
 ]

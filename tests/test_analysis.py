@@ -4,12 +4,18 @@ import pytest
 
 from fantasy_nhl.analysis import (
     SEAT_CAP,
+    DraftPick,
     PreviewPlayer,
     average_points,
     blended_per_game,
     calibrate_night_value,
     category_contestedness,
     category_win_rates,
+    draft_extremes,
+    draft_pick_table,
+    draft_team_summary,
+    draft_value_grid,
+    drafted_rosters,
     effective_games,
     luck,
     matchup_result,
@@ -20,6 +26,7 @@ from fantasy_nhl.analysis import (
     pick_weekly_awards,
     position_open_seats,
     preview_week,
+    projected_category_balance,
     rank_streaming_candidates,
     rank_timeline,
     round_robin,
@@ -818,3 +825,161 @@ class TestRankStreamingCandidates:
         table = rank_streaming_candidates([], self.KEEP, self.SLOTS,
                                           {1: set()}, [1])
         assert table.empty
+
+
+def _pick(team_row, rnd, pick, n_teams=2, **kw):
+    overall = (rnd - 1) * n_teams + pick
+    defaults = dict(player_id=overall, name=f"P{overall}", position="Center",
+                    eligible_slots=["Center", "Util"])
+    defaults.update(kw)
+    return DraftPick(team_row, rnd, pick, overall, **defaults)
+
+
+class TestDraftPickTable:
+    TEAMS = ["Alpha", "Beta"]
+
+    def test_value_sign_and_rounds(self):
+        # Alpha takes a player with ADP 5 at pick 1 (reach), Beta an ADP-1
+        # player at pick 2 (steal); 2 teams -> a round is 2 picks
+        picks = [_pick(0, 1, 1, adp=5.0), _pick(1, 1, 2, adp=1.0)]
+        table = draft_pick_table(picks, self.TEAMS, n_teams=2)
+        assert list(table["Value"]) == [4.0, -1.0]
+        assert list(table["ValueRd"]) == [2.0, -0.5]
+        assert list(table["Team"]) == ["Alpha", "Beta"]
+        assert not table["ADP?"].any()
+
+    def test_missing_adp_floored_after_last_pick(self):
+        picks = [_pick(0, 1, 1, adp=1.0), _pick(1, 1, 2, adp=None),
+                 _pick(1, 2, 1, adp=0.0), _pick(0, 2, 2, adp=3.0)]
+        table = draft_pick_table(picks, self.TEAMS, n_teams=2)
+        assert list(table["ADP"]) == [1.0, 5.0, 5.0, 3.0]
+        assert list(table["ADP?"]) == [False, True, True, False]
+        assert list(table["Value"]) == [0.0, 3.0, 2.0, -1.0]
+
+    def test_now_on_maps_roster_row(self):
+        picks = [_pick(0, 1, 1, adp=1.0, rostered_by=1),
+                 _pick(1, 1, 2, adp=2.0, rostered_by=None)]
+        table = draft_pick_table(picks, self.TEAMS, n_teams=2)
+        assert list(table["NowOn"]) == ["Beta", None]
+
+    def test_empty_draft(self):
+        table = draft_pick_table([], self.TEAMS, n_teams=2)
+        assert table.empty
+        assert "Value" in table.columns
+
+
+class TestDraftTeamSummary:
+    TEAMS = ["Alpha", "Beta"]
+
+    def picks(self):
+        return [
+            _pick(0, 1, 1, adp=3.0, rostered_by=0),  # +2
+            _pick(1, 1, 2, adp=1.0, rostered_by=1, position="Goalie",
+                  eligible_slots=["Goalie"]),  # -1
+            _pick(1, 2, 1, adp=9.0, rostered_by=0, position="Defense"),  # +6
+            _pick(0, 2, 2, adp=1.0, rostered_by=None, position="Goalie"),  # -3
+        ]
+
+    def test_values_and_extremes(self):
+        table = draft_pick_table(self.picks(), self.TEAMS, n_teams=2)
+        summary = draft_team_summary(table)
+        assert list(summary.index) == [0, 1]
+        assert list(summary["Player"]) == ["Alpha", "Beta"]
+        assert list(summary["Avg value"]) == [-0.5, 2.5]
+        assert list(summary["Total"]) == [-1.0, 5.0]
+        assert summary.loc[0, "Best steal"] == "P1 (+2)"
+        assert summary.loc[0, "Biggest reach"] == "P4 (-3)"
+        assert summary.loc[1, "Best steal"] == "P3 (+6)"
+
+    def test_positions_and_retention(self):
+        table = draft_pick_table(self.picks(), self.TEAMS, n_teams=2)
+        summary = draft_team_summary(table)
+        assert list(summary["G"]) == [1, 1]
+        assert list(summary["1st G"]) == [2, 1]
+        assert list(summary["D"]) == [0, 1]
+        # Alpha kept P1 (lost P4 to FA); Beta kept its goalie, P3 moved to Alpha
+        assert list(summary["Kept"]) == [1, 1]
+        assert list(summary["Picks"]) == [2, 2]
+
+    def test_no_goalies(self):
+        picks = [_pick(0, 1, 1, adp=1.0)]
+        summary = draft_team_summary(
+            draft_pick_table(picks, self.TEAMS, n_teams=2))
+        assert summary.loc[0, "G"] == 0
+        assert pd.isna(summary.loc[0, "1st G"])
+
+
+class TestDraftValueGridAndExtremes:
+    TEAMS = ["Alpha", "Beta"]
+
+    def test_grid_shape_and_values(self):
+        picks = [_pick(0, 1, 1, adp=3.0), _pick(1, 1, 2, adp=1.0),
+                 _pick(1, 2, 1, adp=9.0), _pick(0, 2, 2, adp=1.0)]
+        grid = draft_value_grid(draft_pick_table(picks, self.TEAMS, 2))
+        assert list(grid.index) == ["Alpha", "Beta"]
+        assert list(grid.columns) == ["R1", "R2"]
+        assert grid.loc["Alpha"].tolist() == [2.0, -3.0]
+        assert grid.loc["Beta"].tolist() == [-1.0, 6.0]
+
+    def test_extremes(self):
+        picks = [_pick(0, 1, 1, adp=3.0), _pick(1, 1, 2, adp=1.0),
+                 _pick(1, 2, 1, adp=9.0), _pick(0, 2, 2, adp=1.0)]
+        steals, reaches = draft_extremes(
+            draft_pick_table(picks, self.TEAMS, 2), 2)
+        assert list(steals["Player"]) == ["P3", "P1"]
+        assert list(reaches["Player"]) == ["P4", "P2"]
+
+
+class TestProjectedCategoryBalance:
+    CATS = [Category("G"), Category("GAA", inverted=True), Category("SV%")]
+
+    @staticmethod
+    def goalie(name, gaa, gs):
+        return PreviewPlayer(name, "", ["Goalie"],
+                             projected_stats={"GAA": gaa, "GS": gs, "SV%": 0.9})
+
+    def test_totals_and_z_scores(self):
+        rosters = [
+            [PreviewPlayer("A1", "", ["Center"], projected_stats={"G": 30}),
+             PreviewPlayer("A2", "", ["Center"], projected_stats={"G": 10})],
+            [PreviewPlayer("B1", "", ["Center"], projected_stats={"G": 20})],
+        ]
+        z, totals = projected_category_balance(rosters, [Category("G")],
+                                               ["Alpha", "Beta"])
+        assert totals["G"].tolist() == [40.0, 20.0]
+        assert z["G"].tolist() == [1.0, -1.0]
+
+    def test_ratio_weighted_by_starts_and_inverted_flip(self):
+        rosters = [
+            [self.goalie("A", 2.0, 60), self.goalie("A2", 4.0, 20)],  # 2.5
+            [self.goalie("B", 3.5, 50)],
+        ]
+        z, totals = projected_category_balance(rosters, self.CATS,
+                                               ["Alpha", "Beta"])
+        assert totals["GAA"].tolist() == pytest.approx([2.5, 3.5])
+        # lower GAA is better -> Alpha positive
+        assert z.loc["Alpha", "GAA"] == pytest.approx(1.0)
+        assert z.loc["Beta", "GAA"] == pytest.approx(-1.0)
+
+    def test_constant_category_and_no_goalies(self):
+        rosters = [
+            [PreviewPlayer("A", "", ["Center"], projected_stats={"G": 5})],
+            [PreviewPlayer("B", "", ["Center"], projected_stats={"G": 5}),
+             self.goalie("BG", 3.0, 40)],
+        ]
+        z, totals = projected_category_balance(rosters, self.CATS,
+                                               ["Alpha", "Beta"])
+        assert z["G"].tolist() == [0.0, 0.0]
+        assert pd.isna(totals.loc["Alpha", "GAA"])
+        assert pd.isna(z.loc["Alpha", "GAA"])
+        assert z.loc["Beta", "GAA"] == 0.0
+
+
+class TestDraftedRosters:
+    def test_groups_by_team_with_projections(self):
+        picks = [_pick(1, 1, 1, projected_stats={"G": 30}),
+                 _pick(0, 1, 2, eligible_slots=["Goalie"], position="Goalie")]
+        rosters = drafted_rosters(picks, n_teams=3)
+        assert [len(r) for r in rosters] == [1, 1, 0]
+        assert rosters[1][0].projected_stats == {"G": 30}
+        assert rosters[0][0].eligible_slots == ["Goalie"]

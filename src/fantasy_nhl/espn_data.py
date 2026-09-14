@@ -7,8 +7,9 @@ from zoneinfo import ZoneInfo
 import numpy as np
 from espn_api.hockey import League
 from espn_api.hockey.constant import POSITION_MAP, PRO_TEAM_MAP
+from espn_api.hockey.player import Player
 
-from .analysis import PreviewPlayer
+from .analysis import DraftPick, PreviewPlayer
 from .config import LeagueConfig
 
 # NHL scoring periods roll over on US/Eastern calendar days
@@ -372,6 +373,84 @@ def fetch_free_agents(data: LeagueData, slot_counts: dict[str, int],
         if player is not None and "Goalie" not in player.eligible_slots:
             agents.append(player)
     return agents
+
+
+@dataclass
+class DraftData:
+    """The league's draft joined with ESPN's current player info."""
+    picks: list[DraftPick]  # in draft order; empty if not drafted yet
+    n_teams: int
+    n_rounds: int
+    slot_counts: dict[str, int]
+
+
+# ESPN rejects very large x-fantasy-filter headers; 238 ids fit in one request
+_PLAYER_INFO_CHUNK = 200
+
+
+def _fetch_player_info(league: League, player_ids: list[int]) -> dict[int, dict]:
+    """Raw kona_player_info entries (ownership, draft ranks, stat splits) by
+    player id, for rostered and free-agent players alike."""
+    info: dict[int, dict] = {}
+    for start in range(0, len(player_ids), _PLAYER_INFO_CHUNK):
+        chunk = player_ids[start:start + _PLAYER_INFO_CHUNK]
+        # a limit without a sort key makes ESPN answer HTTP 400
+        filters = {"players": {
+            "filterIds": {"value": chunk}, "limit": len(chunk),
+            "sortPercOwned": {"sortPriority": 1, "sortAsc": False}}}
+        raw = league.espn_request.league_get(
+            params={"view": "kona_player_info",
+                    "scoringPeriodId": league.scoringPeriodId},
+            headers={"x-fantasy-filter": json.dumps(filters)})
+        for entry in raw.get("players", []):
+            info[entry["id"]] = entry
+    return info
+
+
+def fetch_draft_data(data: LeagueData) -> DraftData:
+    """Draft picks with each player's current ESPN ADP, roster%, rank and
+    projections (one settings request plus one player-info request per
+    ~200 picks). Picks are on the league session already."""
+    league = data.espn_league
+    if league is None:
+        raise ValueError("LeagueData has no live ESPN session.")
+    slot_counts, _ = _fetch_roster_settings(league)
+    n_teams = len(league.teams)
+    if not league.draft:
+        return DraftData([], n_teams, 0, slot_counts)
+
+    row_by_team_id = {team.team_id: row for row, team in enumerate(league.teams)}
+    rostered_by = {player.playerId: row
+                   for row, team in enumerate(league.teams)
+                   for player in team.roster}
+    info = _fetch_player_info(league, [p.playerId for p in league.draft])
+
+    picks = []
+    for pick in league.draft:
+        entry = info.get(pick.playerId)
+        player = Player(entry) if entry else None
+        raw_player = entry["player"] if entry else {}
+        ownership = raw_player.get("ownership") or {}
+        rank = (raw_player.get("draftRanksByRankType") or {}).get("STANDARD", {})
+        picks.append(DraftPick(
+            team_row=row_by_team_id[pick.team.team_id],
+            round=pick.round_num,
+            pick_in_round=pick.round_pick,
+            overall=(pick.round_num - 1) * n_teams + pick.round_pick,
+            player_id=pick.playerId,
+            name=player.name if player else pick.playerName,
+            position=player.position if player else "",
+            eligible_slots=[s for s in player.eligibleSlots
+                            if s not in ("Bench", "IR")] if player else [],
+            adp=ownership.get("averageDraftPosition"),
+            pct_owned=ownership.get("percentOwned"),
+            pct_change=ownership.get("percentChange"),
+            espn_rank=rank.get("rank"),
+            projected_stats=(player.stats.get(f"Projected {data.config.year}", {})
+                             .get("total") or {}) if player else {},
+            rostered_by=rostered_by.get(pick.playerId),
+        ))
+    return DraftData(picks, n_teams, max(p.round for p in picks), slot_counts)
 
 
 def _actual_games(league: League, week: int,
