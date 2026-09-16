@@ -128,6 +128,12 @@ answer re-run.
   **Calibrate scoring**, which fits the night-value curve behind the scores
   from a chosen (past) league season and stores it in `calibration.yaml`;
   until then a linear proxy is used.
+- **Matchup dates** — Schedule outlook, matchup preview, and streaming planning
+  use ESPN's season calendar combined with the league's matchup settings, not
+  an assumption that every matchup is one calendar week. This includes extended
+  matchups around breaks and multi-period playoff rounds. The calendar is read
+  from the public ESPN app and cached for the session; if unavailable or for the
+  wrong season, the tool reports an error rather than guessing dates.
 - **Review rosters & draft** — One fetch (all rosters including Bench and
   IR, the 200 most-owned free agents, the draft, ESPN ownership and the
   transaction counters), then a menu of views you can switch between

@@ -1,7 +1,11 @@
 """Fetching league data from the ESPN fantasy API."""
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from urllib.error import URLError
+from urllib.parse import urljoin, urlparse
+from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -154,56 +158,147 @@ def _period_dates(pro_schedule: dict, first_period: int,
             for p in range(first_period, final_period + 1)}
 
 
-def _week_scoring_periods(league: League,
-                          period_dates: dict[int, date]) -> dict[int, list[int]]:
-    """Scoring periods per matchup week: exact (from ESPN's scored days) for
-    elapsed weeks, Mon-Sun calendar extrapolation for future days. ESPN does
-    not publish the mapping for days that have not been scored yet."""
-    groups: dict[tuple, list[int]] = {}
-    for period, day in period_dates.items():
-        groups.setdefault(tuple(day.isocalendar()[:2]), []).append(period)
-    calendar_weeks = [sorted(ps) for _, ps in sorted(groups.items())]
+def _app_constants(html: str) -> dict:
+    """Read ESPN's embedded JSON app state, without executing JavaScript."""
+    try:
+        marker = re.search(r"\b__NEXT_DATA__\s*=\s*", html)
+        if marker is None:
+            marker = re.search(
+                r'<script\b[^>]*\bid=[\'\"]__NEXT_DATA__[\'\"][^>]*>\s*', html)
+        if marker is None:
+            raise ValueError("missing app state")
+        state, _ = json.JSONDecoder().raw_decode(html[marker.end():])
+        return state["props"]["pageProps"]["page"]["config"]["constants"]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("ESPN app calendar data is missing or invalid.") from exc
 
-    known = {int(w): sorted(int(p) for p in ps)
-             for w, ps in league.matchup_ids.items()}
-    current = league.currentMatchupPeriod
-    mapping = {w: ps for w, ps in known.items() if w < current}
-    reg_weeks = league.settings.reg_season_count
-    # playoff matchup periods can span several calendar weeks
-    playoff_len = max(league.settings.playoff_matchup_period_length, 1)
 
-    def week_length(week: int) -> int:
-        return playoff_len if week > reg_weeks else 1
+def _season_periods(constants: dict, year: int,
+                    period_type_id: int) -> dict[int, list[int]]:
+    """Expand ESPN base periods, including extended opening/break matchups.
 
-    def group_index(period: int) -> int:
-        return next(i for i, g in enumerate(calendar_weeks) if period in g)
+    League matchupPeriods contains these base period IDs, not daily scoring
+    IDs. Reject missing/wrong-season data rather than guessing the calendar.
+    """
+    try:
+        if int(constants["seasonConfig"]) != year:
+            raise ValueError("wrong season")
+        segment = next(s for s in constants["segments"] if s["id"] == 0)
+        period_type = next(t for t in segment["periodTypes"]
+                           if t["id"] == period_type_id)
+        periods: dict[int, list[int]] = {}
+        used: set[int] = set()
+        for entry in period_type["periods"]:
+            pid = int(entry["id"])
+            start, end = int(entry["scoringPeriodStart"]), int(entry["scoringPeriodEnd"])
+            if pid in periods or start < 1 or end < start:
+                raise ValueError("invalid period range")
+            days = list(range(start, end + 1))
+            if used.intersection(days):
+                raise ValueError("overlapping periods")
+            periods[pid] = days
+            used.update(days)
+        if not periods:
+            raise ValueError("empty periods")
+        return periods
+    except (KeyError, TypeError, ValueError, StopIteration) as exc:
+        raise ValueError(
+            f"ESPN season calendar for {year} is missing or invalid; "
+            "cannot safely determine matchup dates.") from exc
 
-    if current in known:
-        # extend the ongoing week's scored days to the end of its calendar span
-        last = max(known[current])
-        end = max(group_index(last),
-                  group_index(min(known[current])) + week_length(current) - 1)
-        span = {p for g in calendar_weeks[group_index(last):end + 1] for p in g}
-        mapping[current] = sorted(set(known[current])
-                                  | {p for p in span if p > last})
-    else:
-        # no day scored yet: the week starts right after the last scored one
-        start = max(mapping[current - 1]) + 1 if current - 1 in mapping \
-            else league.firstScoringPeriod
-        idx = next((i for i, g in enumerate(calendar_weeks) if start in g), None)
-        mapping[current] = [] if idx is None else \
-            [p for g in calendar_weeks[idx:idx + week_length(current)]
-             for p in g if p >= start]
 
-    last = max(mapping[current], default=0)
-    future = [g for g in calendar_weeks if g[0] > last]
-    week = current + 1
-    i = 0
-    while i < len(future):
-        length = week_length(week)
-        mapping[week] = [p for g in future[i:i + length] for p in g]
-        week += 1
-        i += length
+def _read_calendar_resource(url: str) -> str:
+    """Read only public ESPN resources; never send league cookies."""
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.hostname not in {
+            "fantasy.espn.com", "cdn1.espn.net"}:
+        raise ValueError("Unexpected ESPN calendar resource URL.")
+    request = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        with urlopen(request, timeout=30) as response:
+            return response.read().decode("utf-8")
+    except (URLError, TimeoutError, UnicodeError) as exc:
+        raise ValueError(
+            "Unable to load ESPN season calendar; "
+            "cannot safely determine matchup dates.") from exc
+
+
+def _archived_calendar(html: str, year: int) -> dict:
+    """Follow the app's season-specific static chunk for archived calendars.
+
+    ESPN's initial page ignores seasonId and always embeds the current season.
+    Its client loads older constants from a versioned chunk. Discover that
+    resource from the current bundle instead of pinning deployment hashes.
+    Only the segment data literal is parsed; no downloaded code is executed.
+    """
+    try:
+        main = re.search(
+            r'<script\b[^>]*\bsrc=[\'\"]([^\'\"]+/_next/static/commons/'
+            r'main-[^\'\"]+\.js)[\'\"]', html)
+        if main is None:
+            raise ValueError("missing app bundle")
+        main_url = urljoin("https://fantasy.espn.com/", main.group(1))
+        bundle = _read_calendar_resource(main_url)
+        chunk = re.search(
+            rf'\b(\d+):"(chunks/modules_api_lm_seasons_fhl_{year}_[a-f0-9]+)"',
+            bundle)
+        if chunk is None:
+            raise ValueError("missing season chunk")
+        chunk_id, name = chunk.groups()
+        digest = re.search(rf'\b{chunk_id}:"([a-f0-9]{{20}})"', bundle)
+        if digest is None:
+            raise ValueError("missing chunk hash")
+        chunk_url = urljoin(main_url, f"../../webpack/{name}-{digest.group(1)}.js")
+        source = _read_calendar_resource(chunk_url)
+        season = re.search(r"\bseasonConfig:(\d+)\b", source)
+        literal = re.search(r"\.exports=(?=\[\{id:0,periodTypes:)", source)
+        if season is None or int(season.group(1)) != year or literal is None:
+            raise ValueError("missing or wrong-season segment data")
+        # Segment literals contain arrays, numbers, booleans and bare keys.
+        quoted = re.sub(r'([{,])([A-Za-z_$][\w$]*):', r'\1"\2":',
+                        source[literal.end():])
+        segments, _ = json.JSONDecoder().raw_decode(quoted)
+        return {"seasonConfig": year, "segments": segments}
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"ESPN archived calendar for {year} is unavailable "
+                         "or invalid; cannot safely determine matchup dates.") from exc
+
+
+def _fetch_season_periods(year: int, period_type_id: int) -> dict[int, list[int]]:
+    """Read current or archived app calendar constants without league cookies."""
+    url = f"https://fantasy.espn.com/hockey/league/schedule?seasonId={year}"
+    html = _read_calendar_resource(url)
+    constants = _app_constants(html)
+    if int(constants.get("seasonConfig", 0)) != year:
+        constants = _archived_calendar(html, year)
+    return _season_periods(constants, year, period_type_id)
+
+
+def _week_scoring_periods(league: League, period_dates: dict[int, date],
+                          season_periods: dict[int, list[int]],
+                          ) -> dict[int, list[int]]:
+    """Expand league matchup IDs through ESPN's authoritative base periods.
+
+    League-defined multi-period matchups work without special playoff logic.
+    Clip to the league's scoring dates; never add phantom NHL-only matchups.
+    """
+    mapping: dict[int, list[int]] = {}
+    used: set[int] = set()
+    try:
+        for week, period_ids in sorted(league.settings.matchup_periods.items(),
+                                       key=lambda item: int(item[0])):
+            days = [p for pid in period_ids for p in season_periods[int(pid)]
+                    if p in period_dates]
+            if len(set(days)) != len(days) or used.intersection(days):
+                raise ValueError("overlapping matchup periods")
+            if days:
+                mapping[int(week)] = sorted(days)
+                used.update(days)
+        if not mapping:
+            raise ValueError("empty matchup calendar")
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("ESPN matchup calendar does not match league settings; "
+                         "cannot safely determine matchup dates.") from exc
     return mapping
 
 
@@ -238,8 +333,8 @@ def _playing_by_period(pro_schedule: dict) -> dict[int, set[str]]:
 
 
 def fetch_schedule_data(data: LeagueData) -> ScheduleData:
-    """Season-wide NHL schedule and matchup-week mapping (cached; one
-    pro-schedule request)."""
+    """Cached NHL schedule and exact fantasy calendar (pro-schedule plus
+    public ESPN app-calendar requests, including archive chunks if needed)."""
     if data.schedule is None:
         league = data.espn_league
         if league is None:
@@ -247,10 +342,10 @@ def fetch_schedule_data(data: LeagueData) -> ScheduleData:
         pro_schedule = league._get_all_pro_schedule()
         period_dates = _period_dates(pro_schedule, league.firstScoringPeriod,
                                      league.finalScoringPeriod)
-        week_periods = _week_scoring_periods(league, period_dates)
-        # NHL calendar weeks past the last fantasy matchup are phantom weeks
-        total = len(league.settings.matchup_periods)
-        week_periods = {w: ps for w, ps in week_periods.items() if w <= total}
+        settings = league.settings._raw_schedule_settings
+        season_periods = _fetch_season_periods(
+            data.config.year, int(settings["periodTypeId"]))
+        week_periods = _week_scoring_periods(league, period_dates, season_periods)
         data.schedule = ScheduleData(
             playing_by_period=_playing_by_period(pro_schedule),
             period_dates=period_dates,
