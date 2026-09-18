@@ -29,6 +29,7 @@ from fantasy_nhl.analysis import (
     draft_value_grid,
     drafted_rosters,
     effective_games,
+    lineup_game_counts,
     luck,
     market_gaps,
     matchup_result,
@@ -64,6 +65,67 @@ CATEGORIES = [
     Category("A"),
     Category("GAA", inverted=True),
 ]
+
+
+class TestLineupGameCounts:
+    def test_saved_slots_not_eligibility_or_injury(self):
+        players = [PreviewPlayer("Same name", "BOS", ["Center"],
+                                 injury="OUT", player_id=1),
+                   PreviewPlayer("Same name", "BOS", ["Center"], player_id=2)]
+        slots = {1: {1: "Center", 2: "Bench"},
+                 2: {1: "Bench", 2: "Center"},
+                 3: {1: "IR", 2: "Center"}}
+        assert lineup_game_counts(players, {"Center": 1},
+                                  {d: {"BOS"} for d in slots}, slots, slots) == [1, 2]
+
+    @pytest.mark.parametrize("slot", ["Center", "Forward", "Util", "Goalie"])
+    def test_active_slot_counts_even_with_no_daily_stats(self, slot):
+        p = PreviewPlayer("A", "BOS", [slot], player_id=1)
+        assert lineup_game_counts([p], {slot: 1}, {1: {"BOS"}}, [1],
+                                  {1: {1: slot}}) == [1]
+
+    @pytest.mark.parametrize("slot", ["Bench", "IR", "Center"])
+    def test_nonactive_slots_count_zero(self, slot):
+        p = PreviewPlayer("A", "BOS", ["Center"], player_id=1)
+        assert lineup_game_counts([p], {"Center": 0, "Bench": 5, "IR": 2},
+                                  {1: {"BOS"}}, [1], {1: {1: slot}}) == [0]
+
+    @pytest.mark.parametrize("daily", [{}, {1: {}}, {1: {1: "Mystery"}}])
+    def test_missing_game_assignment_makes_total_unknown(self, daily):
+        p = PreviewPlayer("A", "BOS", ["Center"], player_id=1)
+        daily = {**daily, 2: {1: "Center"}}
+        assert lineup_game_counts([p], {"Center": 1}, {1: {"BOS"}, 2: {"BOS"}},
+                                  [1, 2], daily) == [None]
+
+    def test_missing_assignment_on_idle_day_does_not_affect_total(self):
+        p = PreviewPlayer("A", "BOS", ["Center"], player_id=1)
+        assert lineup_game_counts([p], {"Center": 1}, {2: {"BOS"}}, [1, 2],
+                                  {2: {1: "Center"}}) == [1]
+
+    def test_only_selected_dates_count_including_today(self):
+        players = [PreviewPlayer("A", "BOS", ["Center"], player_id=1),
+                   PreviewPlayer("B", "BOS", ["Center"], player_id=2)]
+        playing = {d: {"BOS"} for d in range(1, 17)}
+        daily = {d: {1: "Center", 2: "Center"} for d in playing}
+        # Today=3, extended matchup ends=14; not elapsed 1–2 or lookahead 15–16.
+        assert lineup_game_counts(players, {"Center": 2}, playing,
+                                  iter(range(3, 15)), daily) == [12, 12]
+        assert lineup_game_counts(players, {"Center": 2}, playing,
+                                  [14], daily) == [1, 1]
+
+    def test_empty_periods_idle_and_unknown_identity(self):
+        p = PreviewPlayer("A", "BOS", ["Center"])
+        assert lineup_game_counts([p], {}, {}, [], {}) == [0]
+        assert lineup_game_counts([p], {}, {}, [1], {}) == [0]
+        assert lineup_game_counts([], {}, {}, [1], {}) == []
+        assert lineup_game_counts([p], {"Center": 1}, {1: {"BOS"}}, [1],
+                                  {1: {0: "Center"}}) == [None]
+
+    def test_existing_positional_constructors_keep_their_meaning(self):
+        p = PreviewPlayer("A", "BOS", ["Center"], {"G": 1}, {"G": 2}, "OUT")
+        assert (p.injury, p.player_id) == ("OUT", 0)
+        r = RosterPlayer("A", "BOS", ["Center"], {}, {}, "OUT", 123, "Center")
+        assert (r.player_id, r.position) == (123, "Center")
 
 
 class TestMatchupResult:

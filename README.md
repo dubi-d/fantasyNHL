@@ -115,7 +115,27 @@ answer re-run.
   the week as ongoing. Optionally ranks skater free agents by how many of
   the open days they would actually fill a lineup seat, with blended
   per-game category rates (see below) alongside (injured players are flagged
-  DTD/OUT/IR).
+  DTD/OUT/IR). The roster's **Games** column counts scheduled games in each
+  player's **saved active ESPN lineup**, from today through the end of the
+  matchup (or simulated today onward); Bench/IR and next-matchup lookahead
+  don't count. Orange dots mark games assigned to Bench on that date, red
+  dots mark IR assignments. Players currently in your fantasy IR slot appear
+  last, with red team-schedule dots and **Games 0**, regardless of future
+  assignments; they remain excluded from all seat/streaming calculations.
+  **Inj** shows reported injury status separately from IR-slot placement
+  (DTD/SUS yellow, OUT/IR red, healthy blank). Dots show team games, not
+  guaranteed appearances or goalie starts.
+
+  Saved assignments are fetched using one date-specific ESPN roster request
+  per actionable day. `?` marks unavailable assignments and incomplete Games
+  totals; missing data is never replaced with today's lineup or a predicted
+  bench. Open-seat/coverage/FA tables still model maximum usable capacity, so
+  an orange bench dot can coexist with an open seat. Simulations use today's
+  loaded roster/IR group with the selected dates' saved assignments, not a
+  reconstructed historical roster. Roster membership and injuries are the
+  loaded league snapshot (reload the league after roster/IR changes); daily
+  assignments are freshly fetched when entering the planner, and reused
+  when stepping back to change streamer choices.
 - **Show NHL schedule outlook** — Per-NHL-team games and off-night games
   (≤16 teams playing) per fantasy matchup, for the full season, the
   remaining matchups, or the playoffs only, with *effective-games* scores

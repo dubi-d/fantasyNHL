@@ -434,6 +434,7 @@ def _preview_player(player, year: int,
         projected_stats=player.stats.get(f"Projected {year}",
                                          {}).get("total") or {},
         injury=getattr(player, "injuryStatus", "") or "",
+        player_id=player.playerId,
     )
 
 
@@ -451,6 +452,56 @@ def _preview_rosters(league: League, year: int,
                 players.append(preview)
         rosters.append(players)
     return rosters
+
+
+def fetch_ir_roster(data: LeagueData, team_row: int) -> list[RosterPlayer]:
+    """Display-only IR players from the same loaded snapshot as the roster.
+
+    Assignment to IR, not injury status, controls membership. No new requests;
+    unlike preview players, these rows need not fit an active lineup slot.
+    """
+    league = data.espn_league
+    if league is None:
+        raise ValueError("LeagueData has no live ESPN session.")
+    return [_roster_player(player, data.config.year,
+                           team_row=team_row, lineup_slot="IR")
+            for player in league.teams[team_row].roster
+            if player.lineupSlot == "IR"]
+
+
+def fetch_daily_lineup_slots(data: LeagueData, team_row: int,
+                            periods: list[int]) -> dict[int, dict[int, str]]:
+    """Saved assignments for one team, with one mRoster GET per requested day.
+
+    Date-specific mRoster works independently of matchup pairings (including
+    future days). Never substitute the loaded/current roster for missing data.
+    Empty or mismatched-date responses stay unknown; request errors propagate.
+    """
+    if not periods:
+        return {}
+    league = data.espn_league
+    if league is None:
+        raise ValueError("LeagueData has no live ESPN session.")
+    team_id = league.teams[team_row].team_id
+    daily: dict[int, dict[int, str]] = {}
+    for period in dict.fromkeys(periods):
+        raw = league.espn_request.league_get(
+            params={"view": "mRoster", "scoringPeriodId": period})
+        slots: dict[int, str] = {}
+        daily[period] = slots
+        if raw.get("scoringPeriodId") != period:
+            continue
+        team = next((t for t in (raw.get("teams") or [])
+                     if t.get("id") == team_id), {})
+        roster = team.get("roster") or {}
+        for entry in roster.get("entries") or []:
+            player = (entry.get("playerPoolEntry") or {}).get("player") or {}
+            player_id = entry.get("playerId") or player.get("id")
+            slot = POSITION_MAP.get(entry.get("lineupSlotId"))
+            if (isinstance(player_id, int) and player_id > 0
+                    and isinstance(slot, str)):
+                slots[player_id] = slot
+    return daily
 
 
 def fetch_free_agents(data: LeagueData, slot_counts: dict[str, int],

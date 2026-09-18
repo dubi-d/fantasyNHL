@@ -67,6 +67,106 @@ def _data(league):
     )
 
 
+def _entry(player_id, slot_id):
+    # Future roster entries need no per-day stats to carry an assignment.
+    return {"playerId": player_id, "lineupSlotId": slot_id,
+            "playerPoolEntry": {"player": {"id": player_id}}}
+
+
+def _lineup_data(responses):
+    request = Mock(side_effect=responses)
+    league = SimpleNamespace(
+        teams=[SimpleNamespace(team_id=7), SimpleNamespace(team_id=42)],
+        espn_request=SimpleNamespace(league_get=request))
+    return _data(cast(League, league)), request
+
+
+def test_daily_lineups_use_selected_team_and_exact_requested_dates():
+    def response(day, slot):
+        return {"scoringPeriodId": day, "teams": [
+            {"id": 7, "roster": {"entries": [_entry(99, 0)]}},
+            {"id": 42, "roster": {"entries": [_entry(11, slot), _entry(12, 5)]}}]}
+    data, request = _lineup_data([response(3, 0), response(4, 7)])
+    assert espn_data.fetch_daily_lineup_slots(data, 1, [3, 4, 3]) == {
+        3: {11: "Center", 12: "Goalie"}, 4: {11: "Bench", 12: "Goalie"}}
+    assert [c.kwargs for c in request.call_args_list] == [
+        {"params": {"view": "mRoster", "scoringPeriodId": d}} for d in [3, 4]]
+
+
+@pytest.mark.parametrize("response", [
+    {"scoringPeriodId": 2, "teams": [{"id": 42, "roster": {"entries": [_entry(11, 0)]}}]},
+    {"teams": [{"id": 42, "roster": {"entries": [_entry(11, 0)]}}]},
+    {"scoringPeriodId": 3},
+    {"scoringPeriodId": 3, "teams": None},
+    {"scoringPeriodId": 3, "teams": [{"id": 7}]},
+    {"scoringPeriodId": 3, "teams": [{"id": 42}]},
+    {"scoringPeriodId": 3, "teams": [{"id": 42, "roster": None}]},
+    {"scoringPeriodId": 3, "teams": [{"id": 42, "roster": {}}]},
+    {"scoringPeriodId": 3, "teams": [{"id": 42, "roster": {"entries": None}}]},
+])
+def test_missing_or_wrong_date_lineup_stays_unknown(response):
+    data, _ = _lineup_data([response])
+    assert espn_data.fetch_daily_lineup_slots(data, 1, [3]) == {3: {}}
+
+
+def test_daily_lineup_skips_missing_identity_and_unrecognized_slots():
+    entries = [
+        {}, {"lineupSlotId": 0}, _entry(0, 0), _entry(1, 999),
+        {"playerId": 2}, {"playerId": 3, "lineupSlotId": "Center"},
+        {"lineupSlotId": 8, "playerPoolEntry": {"player": {"id": 4}}},
+        {"playerId": 5, "lineupSlotId": 6, "playerPoolEntry": None},
+    ]
+    data, _ = _lineup_data([{"scoringPeriodId": 3, "teams": [
+        {"id": 42, "roster": {"entries": entries}}]}])
+    assert espn_data.fetch_daily_lineup_slots(data, 1, [3]) == {3: {4: "IR", 5: "Util"}}
+
+
+def test_no_lineup_requests_for_empty_dates_and_request_errors_propagate():
+    data, request = _lineup_data([])
+    assert espn_data.fetch_daily_lineup_slots(data, 1, []) == {}
+    request.assert_not_called()
+    request.side_effect = RuntimeError("request failed")
+    with pytest.raises(RuntimeError, match="request failed"):
+        espn_data.fetch_daily_lineup_slots(data, 1, [3])
+    with pytest.raises(ValueError, match="no live ESPN session"):
+        espn_data.fetch_daily_lineup_slots(_data(None), 1, [3])
+
+
+def _roster_member(player_id, slot, injury="ACTIVE", eligible=None):
+    return SimpleNamespace(playerId=player_id, name=f"Player {player_id}",
+                           lineupSlot=slot, injuryStatus=injury,
+                           eligibleSlots=eligible or ["Center", "Bench", "IR"],
+                           proTeam="Boston Bruins", stats={}, position="Center")
+
+
+def test_ir_roster_is_display_only_and_independent_of_injury_status():
+    assigned = _roster_member(1, "IR", eligible=["Bench", "IR"])
+    active = _roster_member(2, "Center", "INJURY_RESERVE")
+    bench = _roster_member(3, "Bench", "OUT")
+    data, request = _lineup_data([])
+    data.espn_league.teams[1].roster = [assigned, active, bench]
+    ir = espn_data.fetch_ir_roster(data, 1)
+    assert [(p.player_id, p.injury, p.lineup_slot, p.team_row) for p in ir] == [
+        (1, "ACTIVE", "IR", 1)]
+    assert ir[0].eligible_slots == []  # no active eligibility needed for display
+    assert ir[0].position == "Center"
+    data.espn_league.teams[0].roster = []
+    previews = espn_data._preview_rosters(data.espn_league, 2027, {"Center": 1})
+    assert [p.player_id for p in previews[1]] == [2, 3]
+    assert [p.injury for p in previews[1]] == ["INJURY_RESERVE", "OUT"]
+    assert espn_data.fetch_ir_roster(data, 0) == []
+    request.assert_not_called()
+
+
+def test_preview_player_identity_and_ir_missing_session():
+    p = espn_data._preview_player(_roster_member(123, "Center"), 2027, {"Center": 1})
+    assert p.player_id == 123
+    assert p.eligible_slots == ["Center"]
+    assert espn_data._preview_player(_roster_member(123, "Center"), 2027, {}) is None
+    with pytest.raises(ValueError, match="no live ESPN session"):
+        espn_data.fetch_ir_roster(_data(None), 0)
+
+
 def test_2027_playoffs_follow_extended_matchup(monkeypatch, calendar_2027):
     periods = {p["id"]: list(range(p["scoringPeriodStart"],
                                    p["scoringPeriodEnd"] + 1))

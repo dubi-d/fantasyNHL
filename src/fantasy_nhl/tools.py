@@ -40,6 +40,7 @@ from .analysis import (
     draft_value_grid,
     drafted_rosters,
     effective_games,
+    lineup_game_counts,
     luck,
     market_gaps,
     matchup_result,
@@ -77,7 +78,9 @@ from .espn_data import (
     LeagueData,
     fetch_adds_used,
     fetch_calibration_data,
+    fetch_daily_lineup_slots,
     fetch_free_agents,
+    fetch_ir_roster,
     fetch_preview_data,
     fetch_roster_review,
     fetch_rosters_and_slots,
@@ -486,6 +489,10 @@ def streaming_planner(data: LeagueData):
     roster = sorted(preview.rosters[my_row],
                     key=lambda p: min(_SLOT_ORDER.get(s, len(_SLOT_ORDER))
                                       for s in p.eligible_slots))
+    ir_roster = sorted(fetch_ir_roster(data, my_row),
+                       key=lambda p: min((_SLOT_ORDER.get(s, len(_SLOT_ORDER))
+                                           for s in p.eligible_slots),
+                                          default=len(_SLOT_ORDER)))
 
     actionable = [p for p in preview.periods if p >= preview.current_period]
     simulated_from = None
@@ -501,6 +508,13 @@ def streaming_planner(data: LeagueData):
         if sim:
             actionable = [p for p in preview.periods if p >= sim]
             simulated_from = labels[sim]
+
+    daily_slots = {}
+    if actionable:
+        def fetch_lineups():
+            with console.status("Fetching saved daily ESPN lineups..."):
+                return fetch_daily_lineup_slots(data, my_row, actionable)
+        daily_slots = yield Do(fetch_lineups)
 
     streamers: list[str] = []
     if actionable:
@@ -518,6 +532,8 @@ def streaming_planner(data: LeagueData):
         adds_used=adds_used[my_row],
         adds_limit=preview.add_limit,
         lookahead_periods=preview.next_periods[:2],
+        daily_lineup_slots=daily_slots,
+        ir_roster=ir_roster,
     )
     align = yield Do(lambda: _render_streaming_plan(
         context, week, data.team_names[my_row], streamers, simulated_from))
@@ -564,8 +580,9 @@ def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
                   f"adds used this week: [bold]{used} / {limit}[/]")
     if simulated_from:
         console.print(f"SIMULATION — planning as if today were "
-                      f"{simulated_from}; the grid shows the current roster, "
-                      f"not the historical lineups of that week.",
+                      f"{simulated_from}; using the current roster/IR group "
+                      "with saved assignments for those dates, not a "
+                      "reconstructed historical roster.",
                       style="bold magenta")
     elif not ctx.actionable_periods:
         console.print("Week is over — the grid shows the current roster, not "
@@ -578,14 +595,56 @@ def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
                       "week's first days — informational only, excluded from "
                       "the coverage ranking.", style="dim")
 
-    # roster grid: game markers per day, open seats as footer
-    grid = pd.DataFrame([{
-        "Player": p.name + (" *" if p.name in streamers else ""),
-        "Pos": _position_label(p.eligible_slots),
-        "Team": p.pro_team,
-        **{labels[d]: "•" if p.pro_team in ctx.playing_by_period.get(d, set())
-           else "" for d in ctx.periods + look},
-    } for p in ctx.roster], index=[""] * len(ctx.roster))
+    console.print(
+        "Games = remaining scheduled games in saved active ESPN slots "
+        "(today included, no lookahead). [orange3]•[/] = saved Bench; "
+        "[red]•[/] = IR; ? = lineup unavailable / incomplete total. "
+        "Current IR rows are last, always Games 0. Inj = reported injury status.",
+        style="dim")
+    console.print(
+        "Dots show NHL team schedules, not guaranteed player appearances or "
+        "goalie starts. Open seats/coverage model capacity, not saved lineups; "
+        "IR rows never fill seats.", style="dim")
+
+    # Only the displayed rows include IR. All calculations keep ctx.roster.
+    games = lineup_game_counts(ctx.roster, ctx.slot_counts,
+                                ctx.playing_by_period, ctx.actionable_periods,
+                                ctx.daily_lineup_slots)
+    actionable = set(ctx.actionable_periods)
+
+    def marker(player: PreviewPlayer, day: int, ir: bool) -> str:
+        if player.pro_team not in ctx.playing_by_period.get(day, set()):
+            return ""
+        if ir:
+            return "[red]•[/]"
+        if day not in actionable:
+            return "•"
+        slot = ctx.daily_lineup_slots.get(day, {}).get(player.player_id)
+        if player.player_id <= 0:
+            return "?"
+        if slot == "Bench":
+            return "[orange3]•[/]"
+        if slot == "IR":
+            return "[red]•[/]"
+        return "•" if slot in ctx.slot_counts else "?"
+
+    rows = []
+    for ir, players, counts in ((False, ctx.roster, games),
+                                (True, ctx.ir_roster, [0] * len(ctx.ir_roster))):
+        for player, count in zip(players, counts):
+            rows.append({
+                "Player": player.name + (" (IR)" if ir else
+                          " *" if player.name in streamers else ""),
+                "Pos": _position_label(player.eligible_slots)
+                       or getattr(player, "position", ""),
+                "Team": player.pro_team,
+                "Games": "?" if count is None else str(count),
+                "Inj": _INJURY_ABBREV.get(player.injury, player.injury[:3]),
+                **{labels[d]: marker(player, d, ir) for d in ctx.periods + look},
+            })
+    grid = pd.DataFrame(rows, index=[""] * len(rows),
+                        columns=["Player", "Pos", "Team", "Games", "Inj",
+                                 *labels.values()])
 
     keep = [p for p in ctx.roster if p.name not in streamers]
     seat_periods = ctx.actionable_periods + look
@@ -645,11 +704,13 @@ def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
         })
         cov_table.index = range(1, len(cov_table) + 1)
 
-    # pad each table's last leading column so day columns line up across tables
+    # Pad Team/Pos so day columns line up despite the roster summary columns.
     grid_team_w = _col_width("Team", list(grid["Team"]))
     grid_lead = _lead(1, _col_width("Player", list(grid["Player"])
                                     + [r["Player"] for r in footer_rows]),
-                      _col_width("Pos", list(grid["Pos"])), grid_team_w) \
+                      _col_width("Pos", list(grid["Pos"])), grid_team_w,
+                      _col_width("Games", list(grid["Games"])),
+                      _col_width("Inj", list(grid["Inj"]))) \
         + sum(len(labels[d]) + 3 for d in elapsed)
     leads = [grid_lead]
     if pos_table is not None:
@@ -664,6 +725,7 @@ def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
     look_dim = {labels[d]: "dim" for d in look}
     styles: dict[str, StyleFn] = {labels[d]: (lambda _: "dim")
                                   for d in elapsed + look}
+    styles["Inj"] = _injury_style
     print_df(grid, f"Roster week {week}"
              + (" (* = streamer)" if streamers else ""),
              styles=styles, footer=footer,
@@ -700,10 +762,14 @@ def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
     return target
 
 
-# injury statuses worth flagging next to a candidate
+# Injury statuses shared by roster and candidate tables.
 _INJURY_ABBREV = {"DAY_TO_DAY": "DTD", "OUT": "OUT",
                   "INJURY_RESERVE": "IR", "SUSPENSION": "SUS",
                   "ACTIVE": "", "": ""}
+
+
+def _injury_style(value: object) -> str:
+    return "red" if value in ("OUT", "IR") else ("yellow" if value else "")
 
 
 def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
@@ -761,8 +827,7 @@ def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
         labels[d]: (lambda v: "bold green" if v == "•" else "")
         for d in ctx.actionable_periods}
     styles.update({labels[d]: (lambda _: "dim") for d in look})
-    styles["Inj"] = lambda v: "red" if v in ("OUT", "IR") else (
-        "yellow" if v else "")
+    styles["Inj"] = _injury_style
 
     for start in range(0, len(table), page_size):
         page = table.iloc[start:start + page_size]

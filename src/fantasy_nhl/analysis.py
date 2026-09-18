@@ -33,6 +33,7 @@ class PreviewPlayer:
     season_stats: dict[str, float] = field(default_factory=dict)
     projected_stats: dict[str, float] = field(default_factory=dict)
     injury: str = ""  # ESPN injuryStatus (empty = fine/unknown)
+    player_id: int = 0  # stable identity for date-specific saved lineups
 
 
 @dataclass
@@ -58,7 +59,6 @@ class DraftPick:
 class RosterPlayer(PreviewPlayer):
     """A rostered or free-agent player with ESPN's ownership and origin
     info (all lineup slots, including Bench and IR)."""
-    player_id: int = 0
     position: str = ""  # ESPN default position name
     acquisition: str = ""  # DRAFT / ADD / TRADE ("" for free agents)
     team_row: int | None = None  # fantasy team row (None = free agent)
@@ -316,6 +316,40 @@ class StreamingContext:
     adds_limit: int | None = None  # None = no limit / unknown
     # first days of the next week, shown as muted info columns only
     lookahead_periods: list[int] = field(default_factory=list)
+    # Saved ESPN slot by scoring period and player ID; missing means unknown.
+    daily_lineup_slots: dict[int, dict[int, str]] = field(default_factory=dict)
+    # Display-only current IR assignments; never included in seat calculations.
+    ir_roster: list[RosterPlayer] = field(default_factory=list)
+
+
+def lineup_game_counts(players: list[PreviewPlayer], slot_counts: dict[str, int],
+                       playing_by_period: dict[int, set[str]],
+                       periods: Iterable[int],
+                       daily_lineup_slots: dict[int, dict[int, str]],
+                       ) -> list[int | None]:
+    """Scheduled games assigned to active ESPN slots, not hypothetical seats.
+
+    A missing assignment on a scheduled day makes the player's total unknown
+    (None). Bench/IR games don't count. Callers choose the exact dates, including
+    today for streaming; current IR display rows are handled separately.
+    """
+    periods = list(periods)
+    known_slots = set(slot_counts) | {"Bench", "IR"}
+    counts: list[int | None] = []
+    for player in players:
+        count = 0
+        for period in periods:
+            if player.pro_team not in playing_by_period.get(period, set()):
+                continue
+            slot = daily_lineup_slots.get(period, {}).get(player.player_id)
+            if player.player_id <= 0 or slot not in known_slots:
+                counts.append(None)
+                break
+            if slot not in ("Bench", "IR") and slot_counts.get(slot, 0) > 0:
+                count += 1
+        else:
+            counts.append(count)
+    return counts
 
 
 def open_seat_counts(players: list[PreviewPlayer],
