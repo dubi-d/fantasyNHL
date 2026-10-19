@@ -413,9 +413,13 @@ def _print_matchup_preview(data: LeagueData, week: int) -> None:
         dates = (f", {preview.start_date:%a %b %-d} \u2013 "
                  f"{preview.end_date:%a %b %-d}")
     console.print(f"\n[bold]Week {week} preview[/] — {len(preview.periods)} "
-                  f"days{dates}, {status}. Games = games actually played on "
-                  f"elapsed days plus playable games of the current roster "
-                  f"on remaining days.")
+                  f"days{dates}, {status}. Games = games already played "
+                  f"(incl. today's started games) plus playable games of the "
+                  f"current roster for the rest of the week.")
+
+    playing = dict(preview.playing_by_period)
+    today = preview.current_period
+    playing[today] = playing.get(today, set()) - preview.started_today
 
     categories = data.config.categories
     games = {}
@@ -423,8 +427,7 @@ def _print_matchup_preview(data: LeagueData, week: int) -> None:
     display = {}
     for row in range(len(data.team_names)):
         games[row], scores[row] = preview_week(
-            preview.rosters[row], preview.slot_counts,
-            preview.playing_by_period,
+            preview.rosters[row], preview.slot_counts, playing,
             preview.remaining_periods, preview.actual_scores[row],
             categories, preview.blend_weight,
             preview.actual_games[row], preview.actual_goalie_games[row])

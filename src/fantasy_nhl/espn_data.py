@@ -50,6 +50,8 @@ class ScheduleData:
     playing_by_period: dict[int, set[str]]  # period -> NHL teams with a game
     period_dates: dict[int, date]  # period -> calendar day
     week_periods: dict[int, list[int]]  # matchup week -> scoring periods
+    # period -> NHL team -> start time of its game that day
+    game_starts: dict[int, dict[str, datetime]] = field(default_factory=dict)
 
 
 @dataclass
@@ -62,16 +64,18 @@ class PreviewData:
     slot_counts: dict[str, int]  # active lineup slots (name -> capacity)
     playing_by_period: dict[int, set[str]]  # period -> NHL teams with a game
     periods: list[int]  # scoring periods of the week
-    remaining_periods: list[int]  # periods strictly after today
+    remaining_periods: list[int]  # periods still to predict: today and later
     blend_weight: float  # weight of current-season rates vs projections
-    actual_games: np.ndarray  # player games counted on elapsed days, by row
-    actual_goalie_games: np.ndarray  # goalie games counted on elapsed days
+    actual_games: np.ndarray  # player games already counted, by row
+    actual_goalie_games: np.ndarray  # goalie games already counted
     start_date: date | None = None  # first calendar day of the week
     end_date: date | None = None  # last calendar day of the week
     current_period: int = 0  # today's scoring period
     period_dates: dict[int, date] = field(default_factory=dict)  # week's days
     add_limit: int | None = None  # weekly acquisition limit (None = no limit)
     next_periods: list[int] = field(default_factory=list)  # next week's days
+    # NHL teams whose game today had started at fetch time (counted as actual)
+    started_today: set[str] = field(default_factory=set)
 
 
 def fetch_league_data(config: LeagueConfig) -> LeagueData:
@@ -332,6 +336,21 @@ def _playing_by_period(pro_schedule: dict) -> dict[int, set[str]]:
     return playing
 
 
+def _game_starts(pro_schedule: dict) -> dict[int, dict[str, datetime]]:
+    """Start time of each NHL team's game per scoring period."""
+    starts: dict[int, dict[str, datetime]] = {}
+    for team_id, games_by_period in pro_schedule.items():
+        name = PRO_TEAM_MAP.get(team_id)
+        if name is None:
+            continue
+        for period_str, games in games_by_period.items():
+            if games:
+                start = min(datetime.fromtimestamp(g["date"] / 1000, tz=_EASTERN)
+                            for g in games)
+                starts.setdefault(int(period_str), {})[name] = start
+    return starts
+
+
 def fetch_schedule_data(data: LeagueData) -> ScheduleData:
     """Cached NHL schedule and exact fantasy calendar (pro-schedule plus
     public ESPN app-calendar requests, including archive chunks if needed)."""
@@ -350,6 +369,7 @@ def fetch_schedule_data(data: LeagueData) -> ScheduleData:
             playing_by_period=_playing_by_period(pro_schedule),
             period_dates=period_dates,
             week_periods=week_periods,
+            game_starts=_game_starts(pro_schedule),
         )
     return data.schedule
 
@@ -763,8 +783,13 @@ def fetch_preview_data(data: LeagueData, week: int) -> PreviewData:
         raise ValueError(f"No scoring periods known for week {week}.")
     periods = week_periods[week]
     next_periods = week_periods.get(week + 1, [])
-    # live totals already cover today; predict only the days after it
-    remaining_periods = [p for p in periods if p > league.scoringPeriodId]
+    today = league.scoringPeriodId
+    # live totals cover today's started games; the rest of today is predicted
+    remaining_periods = [p for p in periods if p >= today]
+    now = datetime.now(tz=_EASTERN)
+    started_today = {team for team, start
+                     in schedule.game_starts.get(today, {}).items()
+                     if start <= now}
 
     playing_by_period = schedule.playing_by_period
 
@@ -784,9 +809,9 @@ def fetch_preview_data(data: LeagueData, week: int) -> PreviewData:
 
     blend_weight = _blend_weight(league)
 
-    remaining_set = set(remaining_periods)
-    games_by_id, goalie_by_id = _actual_games(
-        league, week, [p for p in periods if p not in remaining_set])
+    counted = [p for p in periods if p < today
+               or (p == today and started_today)]
+    games_by_id, goalie_by_id = _actual_games(league, week, counted)
     actual_games = np.zeros(len(league.teams))
     actual_goalie_games = np.zeros(len(league.teams))
     for team_id, row in row_by_team_id.items():
@@ -813,4 +838,5 @@ def fetch_preview_data(data: LeagueData, week: int) -> PreviewData:
                       if p in period_dates},
         add_limit=add_limit,
         next_periods=next_periods,
+        started_today=started_today,
     )

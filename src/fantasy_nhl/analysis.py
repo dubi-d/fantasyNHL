@@ -747,7 +747,9 @@ def preview_week(players: list[PreviewPlayer], slot_counts: dict[str, int],
     totals = np.zeros(len(categories))
     for i, cat in enumerate(categories):
         if cat.name in RATIO_CATEGORIES:
-            weighted = actual_scores[i] * actual_goalie_games
+            # ESPN reports GAA as inf before the first goalie game
+            weighted = (actual_scores[i] * actual_goalie_games
+                        if actual_goalie_games else 0.0)
             goalie_games = actual_goalie_games
             for player, n, goalie in zip(players, remaining, is_goalie):
                 if not (goalie and n):

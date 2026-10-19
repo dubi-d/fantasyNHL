@@ -306,3 +306,35 @@ def test_fetch_failure_does_not_cache_guessed_dates(monkeypatch):
         espn_data.fetch_week_dates(data)
     assert data.schedule is None
     assert data.week_dates is None
+
+
+def test_game_starts_by_period_and_team():
+    start = datetime(2026, 10, 19, 19, tzinfo=ZoneInfo("America/New_York"))
+    starts = espn_data._game_starts({
+        1: {"21": [{"date": start.timestamp() * 1000}], "22": []},
+        -99: {"21": [{"date": 0}]}})  # unknown NHL team id
+    assert starts == {21: {espn_data.PRO_TEAM_MAP[1]: start}}
+
+
+@pytest.mark.parametrize("started,counted", [(False, [20]), (True, [20, 21])])
+def test_preview_predicts_today_until_games_start(monkeypatch, started, counted):
+    now = datetime.now(tz=ZoneInfo("America/New_York"))
+    start = now + timedelta(hours=-1 if started else 1)
+    league = SimpleNamespace(scoringPeriodId=21, teams=[],
+                             scoreboard=lambda week: [])
+    data = _data(cast(League, league))
+    data.schedule = espn_data.ScheduleData(
+        playing_by_period={21: {"Boston Bruins"}},
+        period_dates={p: date(2026, 10, p - 2) for p in (20, 21, 22)},
+        week_periods={1: [20, 21, 22]},
+        game_starts={21: {"Boston Bruins": start}})
+    actual = Mock(return_value=({}, {}))
+    monkeypatch.setattr(espn_data, "_actual_games", actual)
+    monkeypatch.setattr(espn_data, "_blend_weight", lambda league: 0.0)
+    monkeypatch.setattr(espn_data, "_fetch_roster_settings",
+                        lambda league: ({}, None))
+    monkeypatch.setattr(espn_data, "_preview_rosters", lambda *args: [])
+    preview = espn_data.fetch_preview_data(data, 1)
+    assert preview.remaining_periods == [21, 22]
+    assert preview.started_today == ({"Boston Bruins"} if started else set())
+    assert actual.call_args.args[2] == counted

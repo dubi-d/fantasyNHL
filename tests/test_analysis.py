@@ -502,6 +502,13 @@ class TestPreviewWeek:
         # G: 2 + 0.5 * 1; GAA: (3.5 * 2 + 2.0 * 1) / 3
         assert totals == pytest.approx([2.5, 3.0])
 
+    def test_infinite_actual_ratio_without_goalie_games(self, players):
+        # ESPN reports GAA inf before the first goalie game of the week
+        actual = np.array([0.0, np.inf])
+        _, totals = preview_week(players, self.SLOTS, self.PLAYING,
+                                 [1], actual, self.CATEGORIES, 1.0)
+        assert totals[1] == pytest.approx(2.0)
+
     def test_ratio_ignores_skater_stats(self, players):
         # the skater's bogus GAA=99 must not contaminate the goalie average
         _, totals = preview_week(players, self.SLOTS, self.PLAYING,
