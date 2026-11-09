@@ -1061,14 +1061,24 @@ def position_group(player: PreviewPlayer) -> str:
     return "D" if _DEFENSE_SLOT in player.eligible_slots else "F"
 
 
-def _rank_z(table: pd.DataFrame) -> pd.DataFrame:
-    """Normal quantile of each column's percentile rank (ties averaged):
-    median 0, 84th percentile +1, 98th +2. Rank-based, so a runaway leader
-    in one category is not credited beyond his rank."""
-    normal = NormalDist()
+def _rank_pct(table: pd.DataFrame,
+              categories: list[Category]) -> pd.DataFrame:
+    """Midpoint percentile rank (0-100, ties averaged) of each column,
+    inverted categories flipped so higher is always better."""
     n = table.notna().sum(axis=0)
-    pct = (table.rank(axis=0) - 0.5) / n
-    return pct.map(lambda p: np.nan if pd.isna(p) else normal.inv_cdf(p))
+    pct = (table.rank(axis=0) - 0.5) / n * 100
+    for cat in categories:
+        if cat.inverted and cat.name in pct:
+            pct[cat.name] = 100 - pct[cat.name]
+    return pct
+
+
+def _rank_z(pct: pd.DataFrame) -> pd.DataFrame:
+    """Normal quantile of percentile ranks: median 0, 84th percentile +1,
+    98th +2. Rank-based, so a runaway leader in one category is not
+    credited beyond his rank."""
+    normal = NormalDist()
+    return pct.map(lambda p: np.nan if pd.isna(p) else normal.inv_cdf(p / 100))
 
 
 # season games a player needs for a Score over a FULL season; scaled by the
@@ -1100,14 +1110,30 @@ def player_value_scores(players: list[PreviewPlayer], categories: list[Category]
 
     :return: one score per player (None without enough games)
     """
+    pct = category_percentiles(
+        category_rates(players, categories, blend_weight),
+        [position_group(p) for p in players], categories)
+    scores = _rank_z(pct).mean(axis=1)
+    return [None if pd.isna(s) else float(s) for s in scores]
+
+
+def category_rates(players: list[PreviewPlayer], categories: list[Category],
+                   blend_weight: float) -> pd.DataFrame:
+    """
+    Blended per-game rate (ratio categories: blended ratio) of every player
+    in every category of his kind (skater or goalie categories), one row
+    per player in input order, one column per category name. NaN for the
+    other kind's categories and for players with fewer season games than
+    min_season_games(blend_weight).
+    """
     required = min_season_games(blend_weight)
-    groups = np.array([position_group(p) for p in players])
-    rates = np.full((len(players), len(categories)), np.nan)
+    names = [cat.name for cat in categories]
+    rates = pd.DataFrame(np.nan, index=range(len(players)), columns=names)
     for i, player in enumerate(players):
         if _stat_games(player.season_stats) < required:
             continue
-        is_goalie = groups[i] == "G"
-        for j, cat in enumerate(categories):
+        is_goalie = position_group(player) == "G"
+        for cat in categories:
             if (cat.name in GOALIE_CATEGORIES) != is_goalie:
                 continue
             if cat.name in RATIO_CATEGORIES:
@@ -1115,18 +1141,122 @@ def player_value_scores(players: list[PreviewPlayer], categories: list[Category]
             else:
                 value = blended_per_game(player, cat.name, blend_weight)
             if value is not None:
-                rates[i, j] = value
-    scores = pd.Series(np.nan, index=range(len(players)))
+                rates.loc[i, cat.name] = value
+    return rates
+
+
+def category_percentiles(rates: pd.DataFrame, groups: list[str],
+                         categories: list[Category]) -> pd.DataFrame:
+    """Percentile (0-100, higher = better) of each rate within its row's
+    position group; NaN where the rate is missing."""
+    groups = np.asarray(groups)
+    pct = pd.DataFrame(np.nan, index=rates.index, columns=rates.columns)
     for group in POSITION_GROUPS:
         members = groups == group
-        if not members.any():
-            continue
-        z = _rank_z(pd.DataFrame(rates[members]))
-        for j, cat in enumerate(categories):
-            if cat.inverted:
-                z[j] *= -1
-        scores[np.flatnonzero(members)] = z.mean(axis=1).to_numpy()
-    return [None if pd.isna(s) else float(s) for s in scores]
+        if members.any():
+            pct.loc[members] = _rank_pct(rates.loc[members], categories)
+    return pct
+
+
+def season_totals(players: list[PreviewPlayer],
+                  categories: list[Category]) -> pd.DataFrame:
+    """Raw season totals (ratio categories: season value) per player and
+    category of his kind, indexed by player id; NaN without games."""
+    rows = []
+    for player in players:
+        stats = player.season_stats
+        is_goalie = position_group(player) == "G"
+        has_games = bool(_stat_games(stats))
+        rows.append({
+            cat.name: (stats.get(cat.name, 0.0)
+                       if has_games and (cat.name in GOALIE_CATEGORIES) == is_goalie
+                       else np.nan)
+            for cat in categories})
+    return pd.DataFrame(
+        rows, columns=[cat.name for cat in categories], dtype=float,
+        index=pd.Index([p.player_id for p in players], name="player_id"))
+
+
+# category profile: Peak = mean percentile of the best PEAK_CATS categories,
+# Breadth = mean percentile of the rest, Spec = Peak - Breadth (shape)
+PEAK_CATS = 2
+ELITE_PCT = 90
+HOLE_PCT = 25
+# Type = tier by Level (Score percentile in group) + shape by Spec; Spec
+# quartiles in the 2025-26 pool ~27 / 35 / 45 for F and D alike
+TIER_ELITE = 90
+TIER_SOLID = 60
+SPEC_HIGH = 40
+SPEC_LOW = 25
+
+
+def _player_type(level: float, spec: float) -> str:
+    if pd.isna(level):
+        return ""
+    # classify on the displayed (whole-number) values
+    level = round(level)
+    tier = ("Elite" if level >= TIER_ELITE
+            else "Solid" if level >= TIER_SOLID else "Depth")
+    if pd.isna(spec):
+        return tier
+    spec = round(spec)
+    if spec >= SPEC_HIGH:
+        return f"{tier} specialist"
+    return f"{tier} all-rounder" if spec <= SPEC_LOW else tier
+
+
+def category_profiles(pool: list[PreviewPlayer], categories: list[Category],
+                      blend_weight: float
+                      ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Per-category strength of every player in a pool, within his position
+    group (see category_rates / category_percentiles).
+
+    :return: (rates, pcts, summary), all indexed by player id; summary has
+        Group, Score (as player_value_scores), Level (Score percentile in
+        the group), Peak, Breadth, Spec (Peak - Breadth; NaN with at most
+        PEAK_CATS cats), Elite (cats at or above ELITE_PCT), Holes (cats at
+        or below HOLE_PCT), Best (names of the top PEAK_CATS cats) and Type
+        (Elite / Solid / Depth by Level, + specialist / all-rounder by Spec)
+    """
+    index = pd.Index([p.player_id for p in pool], name="player_id")
+    groups = [position_group(p) for p in pool]
+    rates = category_rates(pool, categories, blend_weight)
+    pct = category_percentiles(rates, groups, categories)
+    scores = _rank_z(pct).mean(axis=1)
+    levels = pd.Series(np.nan, index=scores.index)
+    for group in POSITION_GROUPS:
+        members = np.asarray(groups) == group
+        if members.any():
+            levels[members] = pd.array(percentile_ranks(scores[members]),
+                                       dtype=float)
+    rows = []
+    for i in range(len(pool)):
+        ranked = pct.iloc[i].dropna().sort_values(ascending=False, kind="stable")
+        top, rest = ranked.iloc[:PEAK_CATS], ranked.iloc[PEAK_CATS:]
+        peak = top.mean() if len(top) else np.nan
+        breadth = rest.mean() if len(rest) else np.nan
+        rows.append({
+            "Level": levels.iloc[i],
+            "Peak": peak,
+            "Breadth": breadth,
+            "Spec": peak - breadth,
+            "Elite": int((ranked >= ELITE_PCT).sum()) if len(ranked) else None,
+            "Holes": int((ranked <= HOLE_PCT).sum()) if len(ranked) else None,
+            "Best": "/".join(top.index),
+            "Type": _player_type(levels.iloc[i], peak - breadth),
+        })
+    summary = pd.DataFrame(
+        rows, index=index,
+        columns=["Level", "Peak", "Breadth", "Spec", "Elite", "Holes", "Best",
+                 "Type"]).astype(
+        {"Level": float, "Peak": float, "Breadth": float, "Spec": float,
+         "Elite": "Int64", "Holes": "Int64"})
+    summary.insert(0, "Group", groups)
+    summary.insert(1, "Score", scores.to_numpy())
+    rates.index = index
+    pct.index = index
+    return rates, pct, summary
 
 
 def percentile_ranks(values: Iterable[float | None]) -> list[float | None]:

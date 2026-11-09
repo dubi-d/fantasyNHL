@@ -48,7 +48,7 @@ Select tool
 │   ├── Show matchup preview
 │   ├── Plan streaming week
 │   └── Show NHL schedule outlook
-├── Review rosters & draft
+├── Players, rosters & draft
 └── Quit
 ```
 
@@ -154,12 +154,21 @@ answer re-run.
   matchups around breaks and multi-period playoff rounds. The calendar is read
   from the public ESPN app and cached for the session; if unavailable or for the
   wrong season, the tool reports an error rather than guessing dates.
-- **Review rosters & draft** — One fetch (all rosters including Bench and
+- **Players, rosters & draft** — One fetch (all rosters including Bench and
   IR, the 200 most-owned free agents, the draft, ESPN ownership and the
   transaction counters), then a menu of views you can switch between
   freely. Every player is valued by a stat-based `Score` (see *Player
   value* below); ESPN's roster% is shown alongside for context only — it
   reflects ESPN's default settings, not this league's categories.
+  - *Players* — **Category leaderboard**: the whole pool, the free agents
+    or one team's roster, for forwards, defensemen, all skaters or
+    goalies, sorted by `Score`, `Spec`, `Elite` or any single
+    category, with one column per category showing percentiles, per-game
+    rates or season totals (always colored by percentile). Also saves a
+    level-vs-specialization map PNG to `plots/`. **Compare players**: pick 2–4
+    skaters or 2–4 goalies by name (autocomplete) for a per-category table
+    (season total · per game · percentile), their profile metrics and a
+    radar PNG. See *Player category profiles* below.
   - *League* — **Roster origins**: per team, how many players were
     drafted, added or traded in, how many sit on IR, average roster% and
     Score, and the season's add/drop/trade counters. **Category outlook**:
@@ -322,7 +331,7 @@ otherwise by `Reg Score`. The remaining scope prompts you to choose which of
 (skipped when only one applies). The playoffs-only scope sorts by `Fit` when
 chosen, otherwise `Score`.
 
-### Player value (Review rosters & draft)
+### Player value (Players, rosters & draft)
 
 The review pools every rostered player, the 200 most-owned free agents and
 every drafted player, and attaches these metrics to each of them:
@@ -363,7 +372,40 @@ every drafted player, and attaches these metrics to each of them:
 ESPN's roster% and 7-day change are the values as of today, not as of the
 transaction.
 
-### Category outlook (Review rosters & draft)
+### Player category profiles (Players, rosters & draft)
+
+`Score` collapses a player into one number; the profile keeps the
+per-category picture. Each category's **percentile** is the player's rank
+in his blended per-game rate within his position group of the pool — the
+same ranking `Score` is built on (midpoint percentile, 100 = best,
+inverted categories flipped; blank under the minimum games). The profile
+separates *how good* a player is from *what shape* his production has:
+
+- **`Level`** — his `Score` percentile within the position group (how
+  good).
+- **`Peak`** / **`Breadth`** — mean percentile of his best two categories /
+  of the remaining ones.
+- **`Spec`** — `Peak − Breadth` in percentile points (what shape): high =
+  carries a couple of categories and gives little elsewhere, low = evenly
+  spread. Blank when the group has only two categories (goalies in a SV/GAA
+  league). Nearly independent of `Level` (correlation −0.3 for forwards,
+  −0.55 for defensemen in 2025-26), unlike `Breadth`, which tracks `Score`
+  almost one to one (0.96).
+- **`Elite`** / **`Holes`** — number of categories at or above the 90th /
+  at or below the 25th percentile.
+- **`Best`** — his top two categories.
+- **`Type`** — tier by `Level`: Elite (≥ 90), Solid (≥ 60), Depth; plus
+  *specialist* when `Spec` ≥ 40 or *all-rounder* when `Spec` ≤ 25 (the
+  2025-26 quartiles are about 27 / 35 / 45). Examples: Kucherov and
+  Draisaitl are elite specialists (offense, no hits/blocks), Seider an
+  elite all-rounder, McNabb a depth specialist (BLK/HIT).
+
+The map PNG plots `Level` against `Spec` for the whole group (grey) with
+the listed players highlighted. A specialist helps most on a roster that is
+weak in his categories; an all-rounder fits anywhere. The profile describes
+the player's shape — it is not an extra value bonus on top of `Score`.
+
+### Category outlook (Players, rosters & draft)
 
 Each roster's full-season pace per category, its z-score across the league,
 and how that profile would turn into matchup results.

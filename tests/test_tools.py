@@ -12,6 +12,7 @@ from rich.text import Text
 from fantasy_nhl import display, tools
 from fantasy_nhl.analysis import PreviewPlayer, RosterPlayer, StreamingContext
 from fantasy_nhl.cli import run_tool
+from fantasy_nhl.config import Category
 from fantasy_nhl.prompts import BACK, Ask, Do
 
 
@@ -240,3 +241,78 @@ def test_back_to_streamers_reuses_daily_lineup_snapshot(monkeypatch, rendered):
     assert [call.args[3] for call in render.call_args_list] == [[], ["First"]]
     assert all(call.args[0].daily_lineup_slots is ctx.daily_lineup_slots
                for call in render.call_args_list)
+
+
+def _profile_player(pid, name, g, hit, team_row=None, slots=("Center",)):
+    return RosterPlayer(name, "BOS", list(slots), player_id=pid,
+                        position=slots[0], team_row=team_row,
+                        season_stats={"G": g, "A": g, "HIT": hit, "GP": 30})
+
+
+def test_player_profile_views(monkeypatch, rendered, tmp_path):
+    _, output, calls = rendered
+    rosters = [[_profile_player(1, "Sniper", 20, 5, 0),
+                _profile_player(2, "Banger", 2, 90, 0)],
+               [_profile_player(3, "Twin", 10, 40, 1)]]
+    free_agents = [_profile_player(4, "Twin", 1, 1),
+                   _profile_player(5, "Wall", 0, 0, slots=("Goalie",))]
+    review = SimpleNamespace(rosters=rosters, free_agents=free_agents, picks=[],
+                             drafted_players={}, counters=[], blend_weight=1.0,
+                             slot_counts={}, n_teams=2)
+    monkeypatch.setattr(tools, "fetch_roster_review", lambda data: review)
+    monkeypatch.setattr(tools, "_plot_path", lambda data, prefix: tmp_path / f"{prefix}.png")
+    data = SimpleNamespace(team_names=["Alpha", "Beta"], config=SimpleNamespace(
+        categories=[Category("G"), Category("A"), Category("HIT")],
+        name="Test", year=2026))
+
+    wizard = tools.review_rosters(data)
+    step = next(wizard)
+    step = wizard.send(step.run())  # view prompt
+    for answer in ("leaders", "team", 0, "F", "HIT", "total"):
+        step = wizard.send(answer)
+    assert isinstance(step, Do)
+    step.run()
+    leaders, title, kwargs = calls[-1]
+    assert "Alpha" in title and "HIT percentile" in title
+    assert leaders["Player"].tolist() == ["Banger", "Sniper"]
+    assert leaders["HIT"].tolist() == [90, 5]  # season totals
+    # colored by percentile (Banger tops HIT), not by the displayed total
+    assert kwargs["cell_styles"].loc[1, "HIT"] == display.heatmap_style(0.875)
+    assert (tmp_path / "player_map.png").exists()
+
+    # compare: autocomplete labels disambiguate the two "Twin"s
+    questions = []
+    monkeypatch.setattr(tools.questionary, "autocomplete",
+                        lambda message, **kw: questions.append(kw) or kw)
+    step = wizard.send(None)
+    step = wizard.send("compare")
+    labels = iter(["Sniper (C, Alpha)", "Twin (C, FA)", ""])
+    monkeypatch.setattr(tools, "ask", lambda question: next(labels))
+    for _ in range(3):
+        step = wizard.send(step.run())
+    validate = questions[-1]["validate"]
+    assert validate("") is True  # two picked: Enter finishes
+    assert validate("Wall (G, FA)") == "Can't mix skaters and goalies"
+    assert validate("Sniper (C, Alpha)") == "Already picked"
+    assert questions[0]["validate"]("") == "Pick a player"
+    assert isinstance(step, Do)
+    step.run()
+    cells, _, _ = calls[-2]
+    assert list(cells.columns) == ["Cat", "Sniper", "Twin"]
+    assert cells["Sniper"].tolist() == ["20 · 0.67 · 88", "20 · 0.67 · 88",
+                                       "5 · 0.17 · 38"]
+    assert (tmp_path / "player_radar.png").exists()
+
+def test_autocomplete_dropdown_is_readable():
+    from prompt_toolkit.styles import default_ui_style, merge_styles
+    from questionary.styles import merge_styles_default
+    style = merge_styles([default_ui_style(),
+                          merge_styles_default([tools._AUTOCOMPLETE_STYLE])])
+    # class order as prompt_toolkit's completion menu renders the items
+    item = style.get_attrs_for_style_str(
+        "class:completion-menu class:completion-menu.completion class:answer")
+    current = style.get_attrs_for_style_str(
+        "class:completion-menu class:completion-menu.completion.current "
+        "class:answer class:selected")
+    assert (item.color, item.bgcolor, item.bold) == ("e4e4e4", "303030", False)
+    assert (current.color, current.bgcolor, current.reverse) == ("ffffff", "0087af", False)

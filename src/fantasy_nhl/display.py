@@ -41,13 +41,16 @@ def print_df(df: pd.DataFrame, title: str,
              styles: dict[str, StyleFn] | None = None,
              footer: pd.DataFrame | None = None,
              widths: dict[str, int] | None = None,
-             header_styles: dict[str, str] | None = None) -> None:
+             header_styles: dict[str, str] | None = None,
+             cell_styles: pd.DataFrame | None = None) -> None:
     """Render a DataFrame as a rich table, index shown as '#'.
 
     styles maps column name -> (value -> style string) for per-cell styling.
     footer rows are appended dim in a separate section.
     widths maps column name -> minimum content width.
     header_styles maps column name -> extra style layered on the header.
+    cell_styles (same index, subset of columns) holds style strings that
+    override styles where present (style a cell by another table's value).
     """
     styles = styles or {}
     widths = widths or {}
@@ -61,13 +64,16 @@ def print_df(df: pd.DataFrame, title: str,
                          min_width=widths.get(str(col)),
                          header_style=header_styles.get(str(col)))
 
-    def cell(col: str, value: object) -> str:
+    def cell(idx: object, col: str, value: object) -> str:
         style = styles.get(col, lambda _: "")(value)
+        if cell_styles is not None and col in cell_styles.columns:
+            style = cell_styles.at[idx, col] or style
         text = "" if pd.isna(value) else str(value)
         return f"[{style}]{text}[/]" if style else text
 
     for idx, row in df.iterrows():
-        table.add_row(str(idx), *(cell(col, row[col]) for col in df.columns))
+        table.add_row(str(idx), *(cell(idx, col, row[col])
+                                  for col in df.columns))
 
     if footer is not None:
         table.add_section()

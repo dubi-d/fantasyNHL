@@ -21,6 +21,7 @@ from fantasy_nhl.analysis import (
     calibrate_night_value,
     category_contestedness,
     category_outlook,
+    category_profiles,
     category_win_rates,
     draft_extremes,
     draft_pick_table,
@@ -52,6 +53,7 @@ from fantasy_nhl.analysis import (
     roster_origins,
     round_robin,
     schedule_summary,
+    season_totals,
     seat_counts,
     team_gap_coverage,
     team_week_schedule,
@@ -1333,6 +1335,98 @@ class TestPlayerValueScores:
 
     def test_empty(self):
         assert player_value_scores([], REVIEW_CATS, 0.5) == []
+
+
+PROFILE_CATS = [Category("G"), Category("A"), Category("HIT"), Category("BLK"),
+                Category("GAA", inverted=True)]
+
+
+def _profiled(pid, name, g, a, hit, blk, gp=GP):
+    return _skater(pid, name, g, season_stats={
+        "G": g, "A": a, "HIT": hit, "BLK": blk, "GP": gp})
+
+
+class TestCategoryProfiles:
+    # 4 forwards -> midpoint percentiles 12.5 / 37.5 / 62.5 / 87.5
+    POOL = [_profiled(1, "Banger", 1, 1, 40, 40),
+            _profiled(2, "Star", 10, 10, 30, 30),
+            _profiled(3, "Mid", 5, 5, 20, 20),
+            _profiled(4, "Low", 2, 2, 10, 10),
+            _goalie(5, "Wall", 2.0), _goalie(6, "Sieve", 4.0)]
+
+    def test_percentiles_within_group_and_inverted(self):
+        _, pcts, _ = category_profiles(self.POOL, PROFILE_CATS, 1.0)
+        assert list(pcts.index) == [1, 2, 3, 4, 5, 6]
+        assert list(pcts.loc[1, ["G", "A", "HIT", "BLK"]]) == [
+            12.5, 12.5, 87.5, 87.5]
+        assert pd.isna(pcts.loc[1, "GAA"]) and pd.isna(pcts.loc[5, "G"])
+        # lower GAA is better: the better of two goalies sits at 75
+        assert pcts.loc[5, "GAA"] == 75.0 and pcts.loc[6, "GAA"] == 25.0
+
+    def test_peak_breadth_and_type(self):
+        _, _, summary = category_profiles(self.POOL, PROFILE_CATS, 1.0)
+        banger, star = summary.loc[1], summary.loc[2]
+        assert (banger["Peak"], banger["Breadth"], banger["Spec"]) == (
+            87.5, 12.5, 75.0)
+        assert banger["Best"] == "HIT/BLK" and banger["Type"].endswith("specialist")
+        assert banger["Holes"] == 2 and banger["Elite"] == 0
+        assert (star["Peak"], star["Breadth"], star["Spec"]) == (87.5, 62.5, 25.0)
+        assert star["Level"] == 100.0 and star["Best"] == "G/A"
+        assert star["Type"] == "Elite all-rounder"
+        assert summary.loc[4, "Level"] == 25.0
+        assert summary.loc[4, "Type"].startswith("Depth")
+
+    def test_score_matches_player_value_scores(self):
+        _, _, summary = category_profiles(self.POOL, PROFILE_CATS, 1.0)
+        expected = player_value_scores(self.POOL, PROFILE_CATS, 1.0)
+        assert list(summary["Score"]) == pytest.approx(expected)
+
+    def test_no_spec_with_at_most_two_categories(self):
+        _, _, summary = category_profiles(self.POOL, PROFILE_CATS, 1.0)
+        goalie = summary.loc[5]
+        assert goalie["Group"] == "G" and goalie["Peak"] == 75.0
+        assert pd.isna(goalie["Breadth"]) and pd.isna(goalie["Spec"])
+        # tier only: the better of two goalies tops his group
+        assert goalie["Level"] == 100.0 and goalie["Type"] == "Elite"
+
+    def test_elite_counts_top_decile(self):
+        pool = [_skater(i, str(i), i) for i in range(10)]
+        _, pcts, summary = category_profiles(pool, [Category("G")], 1.0)
+        assert pcts.loc[9, "G"] == 95.0
+        assert list(summary["Elite"]) == [0] * 9 + [1]
+
+    def test_short_sample_left_blank(self):
+        pool = self.POOL + [_profiled(7, "Callup", 9, 9, 50, 50, gp=3)]
+        rates, pcts, summary = category_profiles(pool, PROFILE_CATS, 1.0)
+        assert rates.loc[7].isna().all() and pcts.loc[7].isna().all()
+        assert pd.isna(summary.loc[7, "Peak"]) and pd.isna(summary.loc[7, "Elite"])
+        assert pd.isna(summary.loc[7, "Level"])
+        assert summary.loc[7, "Type"] == "" and summary.loc[7, "Best"] == ""
+        # the call-up does not shift the others' percentiles
+        assert summary.loc[1, "Peak"] == 87.5
+
+    @pytest.mark.parametrize("level,spec,expected", [
+        (95, 45, "Elite specialist"), (95, 20, "Elite all-rounder"),
+        (95, 32, "Elite"), (70, 40, "Solid specialist"),
+        (60, 25, "Solid all-rounder"), (30, 60, "Depth specialist"),
+        (30, 30, "Depth"), (95, float("nan"), "Elite"),
+        (float("nan"), 30, "")])
+    def test_type_thresholds(self, level, spec, expected):
+        from fantasy_nhl.analysis import _player_type
+        assert _player_type(level, spec) == expected
+
+    def test_season_totals(self):
+        pool = [_profiled(1, "F", 3, 4, 5, 6),
+                _profiled(2, "Unplayed", 0, 0, 0, 0, gp=0),
+                _goalie(3, "G", 2.5)]
+        totals = season_totals(pool, PROFILE_CATS)
+        assert list(totals.loc[1, ["G", "A", "HIT", "BLK"]]) == [3, 4, 5, 6]
+        assert pd.isna(totals.loc[1, "GAA"]) and totals.loc[3, "GAA"] == 2.5
+        assert totals.loc[2].isna().all() and pd.isna(totals.loc[3, "G"])
+
+    def test_empty(self):
+        rates, pcts, summary = category_profiles([], PROFILE_CATS, 1.0)
+        assert rates.empty and pcts.empty and summary.empty
 
 
 class TestPercentileRanks:

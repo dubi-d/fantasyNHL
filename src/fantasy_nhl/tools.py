@@ -17,12 +17,19 @@ from .analysis import (
     ACQUIRED_ADD,
     ACQUIRED_TRADE,
     COMBINED_PLAYOFF_WEIGHT,
+    ELITE_PCT,
     FULL_SEASON_GP,
     FULL_SEASON_GS,
     GOALIE_CATEGORIES,
+    HOLE_PCT,
     OFF_NIGHT_MAX_TEAMS,
+    PEAK_CATS,
     PUNT_Z,
     RATIO_CATEGORIES,
+    SPEC_HIGH,
+    SPEC_LOW,
+    TIER_ELITE,
+    TIER_SOLID,
     PreviewPlayer,
     RosterPlayer,
     StreamingContext,
@@ -32,6 +39,7 @@ from .analysis import (
     calibrate_night_value,
     category_contestedness,
     category_outlook,
+    category_profiles,
     category_win_rates,
     draft_extremes,
     draft_pick_table,
@@ -60,6 +68,7 @@ from .analysis import (
     roster_origins,
     round_robin,
     schedule_summary,
+    season_totals,
     team_gap_coverage,
     team_week_schedule,
     trailing_points,
@@ -88,7 +97,7 @@ from .espn_data import (
     fetch_week_dates,
     fetch_week_pairings,
 )
-from .prompts import Ask, Do, ask
+from .prompts import BACK, Ask, Do, ask
 
 # points awarded for a real matchup result ("NA" -> no luck value yet)
 RESULT_PTS = {"W": 2, "T": 1, "L": 0}
@@ -1140,11 +1149,55 @@ _PLAYER_STYLES: dict[str, StyleFn] = {
     "Inj": lambda v: {"DTD": "yellow", "SUS": "yellow", "OUT": "bold red",
                       "IR": "bold red"}.get(v, "")}
 
+_LEADERS_N = 30  # leaderboard rows (one team's roster: all)
+_COMPARE_MAX = 4  # players per comparison
+_GROUP_CHOICES = {"F": "Forwards", "D": "Defense", "FD": "Skaters (F + D)",
+                  "G": "Goalies"}
+_CELL_CHOICES = {"pct": "Percentiles", "rate": "Per-game rates",
+                 "total": "Season totals"}
+# questionary's default dropdown is bold orange on light grey
+_AUTOCOMPLETE_STYLE = questionary.Style([
+    ("completion-menu", "bg:#303030"),
+    # items also carry questionary's "answer"/"selected" classes, applied last
+    ("completion-menu.completion answer", "fg:#e4e4e4 nobold"),
+    ("completion-menu.completion.current selected",
+     "bg:#0087af fg:#ffffff bold noreverse"),
+    ("scrollbar.background", "bg:#444444"),
+    ("scrollbar.button", "bg:#909090"),
+])
+
+
+def _pct_cell_style(pct: float) -> str:
+    return "" if pd.isna(pct) else heatmap_style(pct / 100)
+
+
+def _stat_text(cat: str, value: float, per_game: bool) -> str:
+    """Season total / per-game rate as text (ratio categories as is)."""
+    if pd.isna(value):
+        return ""
+    if cat == "SV%":
+        return f"{value:.3f}"
+    if cat in RATIO_CATEGORIES or per_game:
+        return f"{value:.2f}"
+    return f"{value:.0f}"
+
+
+def _stat_column(cat: str, values: pd.Series, cells: str) -> pd.Series:
+    """Numeric leaderboard cell column, rounded for display."""
+    if cells == "pct":
+        return values.round(0).astype("Int64")
+    if cat == "SV%":
+        return values.round(3)
+    if cells == "rate" or cat in RATIO_CATEGORIES:
+        return values.round(2)
+    return values.round(0).astype("Int64")
+
 
 def review_rosters(data: LeagueData):
-    """Roster and draft review: league-wide composition and projected
-    category outlook (ranked by round-robin points), draft grades vs ADP
-    and hits & busts, waiver pickups and trade hauls, and one team's
+    """Player, roster and draft review: per-category player profiles
+    (leaderboard and head-to-head comparison), league-wide composition and
+    projected category outlook (ranked by round-robin points), draft grades
+    vs ADP and hits & busts, waiver pickups and trade hauls, and one team's
     roster or drop candidates - all valued by a stat-based Score, with
     ESPN roster% alongside."""
     def fetch():
@@ -1169,6 +1222,15 @@ def review_rosters(data: LeagueData):
     values = player_values(list(pool.values()), cats, review.blend_weight)
     pick_table = (draft_pick_table(review.picks, data.team_names, n_teams)
                   if review.picks else None)
+    rates, pcts, profile = category_profiles(list(pool.values()), cats,
+                                             review.blend_weight)
+    totals = season_totals(list(pool.values()), cats)
+    info = player_table(pool.values(), values, data.team_names)
+    info.index = profile.index
+
+    def group_cats(goalies: bool) -> list[str]:
+        return [cat.name for cat in cats
+                if (cat.name in GOALIE_CATEGORIES) == goalies]
 
     def value_style(value: float) -> str:
         # a full round of pick value is a strong signal; colour saturates there
@@ -1188,6 +1250,188 @@ def review_rosters(data: LeagueData):
 
     def not_drafted() -> None:
         console.print("The league has not drafted yet.", style="yellow")
+
+    def profile_footer() -> None:
+        console.print(
+            f"Percentile = rank of the per-game rate within the player's "
+            f"position group (F / D / G) of the {len(pool)}-player pool "
+            f"(100 = best, inverted categories flipped). Level = Score "
+            f"percentile within the group; Spec = Peak - Breadth, where "
+            f"Peak = mean percentile of the best {PEAK_CATS} categories and "
+            f"Breadth = mean of the rest; Elite = categories >= {ELITE_PCT}, "
+            f"Holes = categories <= {HOLE_PCT}. Type = Elite (Level >= "
+            f"{TIER_ELITE}) / Solid (>= {TIER_SOLID}) / Depth, + specialist "
+            f"(Spec >= {SPEC_HIGH}) or all-rounder (Spec <= {SPEC_LOW}); "
+            f"shape, not extra value.",
+            style="dim")
+        footer()
+
+    def show_leaders(scope: str, row: int | None, group: str, sort: str,
+                     cells: str) -> None:
+        names = group_cats(group == "G")
+        members = profile["Group"].isin(list(group))
+        if scope == "fa":
+            members &= info["TeamRow"].isna()
+        elif scope == "team":
+            members &= info["TeamRow"] == row
+        ids = profile.index[members]
+        if ids.empty:
+            console.print("No players in this selection.", style="yellow")
+            return
+        key = pcts.loc[ids, sort] if sort in names else profile.loc[ids, sort]
+        ids = key.sort_values(ascending=False, na_position="last",
+                              kind="stable").index
+        if scope != "team":
+            ids = ids[:_LEADERS_N]
+        source = {"pct": pcts, "rate": rates, "total": totals}[cells]
+        table = pd.concat([info.loc[ids, ["Player", "Pos", "Team", "GP",
+                                          "Injury"]],
+                           profile.loc[ids, ["Score", "Level", "Spec",
+                                             "Elite", "Holes", "Type",
+                                             "Best"]]], axis=1)
+        for col in ("Level", "Spec"):
+            table[col] = table[col].round(0).astype("Int64")
+        for name in names:
+            table[name] = _stat_column(name, source.loc[ids, name], cells)
+        view = _player_view(table, ["Player", "Pos", "Team", "GP", "Inj",
+                                    "Score", "Level", "Spec", "Elite",
+                                    "Holes", "Type", "Best", *names])
+        cell_styles = pcts.loc[ids, names].map(_pct_cell_style)
+        cell_styles.index = view.index
+        where = {"all": "pool", "fa": "free agents",
+                 "team": data.team_names[row] if row is not None else ""}[scope]
+        sort_label = f"{sort} percentile" if sort in names else sort
+        print_df(view,
+                 f"Category leaderboard — {_GROUP_CHOICES[group]}, {where} "
+                 f"(cells: {_CELL_CHOICES[cells].lower()}, colored by "
+                 f"percentile; by {sort_label})",
+                 styles={**_PLAYER_STYLES, "Level": _pct_cell_style,
+                         "Elite": lambda v: diverging_style(v, 3),
+                         "Holes": lambda v: diverging_style(-v, 3)},
+                 cell_styles=cell_styles)
+        profile_footer()
+
+        background = profile[profile["Group"].isin(list(group))]
+        if background["Spec"].isna().all():
+            console.print(f"No Level/Spec map: {_GROUP_CHOICES[group]} "
+                          f"have at most {PEAK_CATS} categories.", style="dim")
+            return
+        from . import plots  # deferred: matplotlib import is slow
+        path = _plot_path(data, "player_map")
+        with console.status("Rendering figure..."):
+            plots.level_spec_figure(
+                background, info.loc[ids, "Player"],
+                f"{data.config.name} — {_GROUP_CHOICES[group]}: level vs "
+                f"specialization ({where}, {data.config.year})", path)
+        console.print(f"Saved [bold]{path}[/]")
+
+    def show_compare(ids: tuple[int, ...]) -> None:
+        names = group_cats(profile.at[ids[0], "Group"] == "G")
+        labels = [info.at[pid, "Player"] for pid in ids]
+        if len(set(labels)) < len(labels):
+            labels = [f"{name} ({info.at[pid, 'Team']})"
+                      for name, pid in zip(labels, ids)]
+        cells = pd.DataFrame({
+            label: [" · ".join(filter(None, (
+                _stat_text(name, totals.at[pid, name], per_game=False),
+                _stat_text(name, rates.at[pid, name], per_game=True),
+                "" if pd.isna(pcts.at[pid, name])
+                else f"{pcts.at[pid, name]:.0f}")))
+                for name in names]
+            for label, pid in zip(labels, ids)})
+        cells.insert(0, "Cat", names)
+        cells.index = range(1, len(cells) + 1)
+        cell_styles = pd.DataFrame(
+            {label: [_pct_cell_style(pcts.at[pid, name]) for name in names]
+             for label, pid in zip(labels, ids)}, index=cells.index)
+        print_df(cells, "Player comparison (season total · per game · "
+                 "percentile within group)", cell_styles=cell_styles)
+
+        metrics = ["Pos", "Team", "GP", "Score", "Level", "Peak", "Breadth",
+                   "Spec", "Elite", "Holes", "Type", "Best"]
+        rows = pd.concat([info.loc[list(ids), ["Pos", "Team", "GP"]],
+                          profile.loc[list(ids), metrics[3:]]], axis=1)
+        text = {"Score": lambda v: f"{v:.2f}",
+                **{m: lambda v: f"{v:.0f}"
+                   for m in ("Level", "Peak", "Breadth", "Spec")}}
+        summary = pd.DataFrame(
+            {label: ["" if pd.isna(rows.at[pid, m])
+                     else text.get(m, str)(rows.at[pid, m]) for m in metrics]
+             for label, pid in zip(labels, ids)})
+        summary.insert(0, "Metric", metrics)
+        summary.index = range(1, len(summary) + 1)
+        styler = {"Score": _score_style, "Level": _pct_cell_style,
+                  "Peak": _pct_cell_style, "Breadth": _pct_cell_style}
+        summary_styles = pd.DataFrame(
+            {label: [styler[m](rows.at[pid, m]) if m in styler else ""
+                     for m in metrics]
+             for label, pid in zip(labels, ids)}, index=summary.index)
+        print_df(summary, "Profile summary", cell_styles=summary_styles)
+        profile_footer()
+
+        from . import plots  # deferred: matplotlib import is slow
+        path = _plot_path(data, "player_radar")
+        radar = pcts.loc[list(ids), names]
+        radar.index = labels
+        with console.status("Rendering figure..."):
+            plots.category_radar_figure(
+                radar, f"{data.config.name} — category percentiles "
+                f"({data.config.year})", path)
+        console.print(f"Saved [bold]{path}[/]")
+
+    by_label: dict[str, int] = {}
+    for pid in sorted(pool, key=lambda p: pool[p].name):
+        label = (f"{pool[pid].name} "
+                 f"({_SLOT_ABBREV.get(pool[pid].position, pool[pid].position)}, "
+                 f"{info.at[pid, 'Team']})")
+        by_label[label if label not in by_label else f"{label} #{pid}"] = pid
+
+    def ask_player(picked: tuple[int, ...]):
+        required = len(picked) < 2
+        goalies = (None if not picked
+                   else profile.at[picked[0], "Group"] == "G")
+
+        def validate(text: str) -> bool | str:
+            if not text.strip():
+                return True if not required else "Pick a player"
+            pid = by_label.get(text)
+            if pid is None:
+                return "Pick a player from the list"
+            if pid in picked:
+                return "Already picked"
+            if goalies is not None and (profile.at[pid, "Group"] == "G") != goalies:
+                return "Can't mix skaters and goalies"
+            return True
+
+        def run():
+            answer = ask(questionary.autocomplete(
+                f"Player {len(picked) + 1}"
+                + ("" if required else " (Enter to finish)") + ":",
+                choices=list(by_label), validate=validate,
+                match_middle=True, style=_AUTOCOMPLETE_STYLE))
+            return answer if answer is BACK else by_label.get(answer, _SKIP)
+        return Ask(run)
+
+    def ask_leaders():
+        scope = yield Ask(lambda: ask(questionary.select(
+            "Players:", choices=[
+                questionary.Choice("Whole pool", value="all"),
+                questionary.Choice("Free agents", value="fa"),
+                questionary.Choice("One team", value="team"),
+            ])))
+        row = (yield ask_team()) if scope == "team" else None
+        group = yield Ask(lambda: ask(questionary.select(
+            "Position:", choices=[questionary.Choice(label, value=key)
+                                  for key, label in _GROUP_CHOICES.items()])))
+        names = group_cats(group == "G")
+        sorts = ["Score"] + (
+            ["Spec"] if len(names) > PEAK_CATS else []) + ["Elite"]
+        sort = yield Ask(lambda: ask(questionary.select(
+            "Sort by:", choices=sorts + names)))
+        cells = yield Ask(lambda: ask(questionary.select(
+            "Cells show:", choices=[questionary.Choice(label, value=key)
+                                    for key, label in _CELL_CHOICES.items()])))
+        return scope, row, group, sort, cells
 
     def show_origins() -> None:
         table = roster_origins(review.rosters, values, data.team_names,
@@ -1425,6 +1669,9 @@ def review_rosters(data: LeagueData):
     while True:  # ESC at the prompt leaves the tool
         view = yield Ask(lambda: ask(questionary.select(
             "View:", choices=[
+                questionary.Separator("── Players ──"),
+                questionary.Choice("Category leaderboard", value="leaders"),
+                questionary.Choice("Compare players", value="compare"),
                 questionary.Separator("── League ──"),
                 questionary.Choice("Roster origins", value="origins"),
                 questionary.Choice("Category outlook", value="balance"),
@@ -1441,6 +1688,17 @@ def review_rosters(data: LeagueData):
             ])))
         if view in ("grades", "return") and not drafted:
             yield Do(not_drafted)
+        elif view == "leaders":
+            choice = yield from ask_leaders()
+            yield Do(lambda choice=choice: show_leaders(*choice))
+        elif view == "compare":
+            picked: tuple[int, ...] = ()
+            while len(picked) < _COMPARE_MAX:
+                pid = yield ask_player(picked)
+                if pid is _SKIP:
+                    break
+                picked += (pid,)
+            yield Do(lambda picked=picked: show_compare(picked))
         elif view == "origins":
             yield Do(show_origins)
         elif view == "grades":
@@ -1526,5 +1784,5 @@ TOOLS = [
         ("Plan streaming week", streaming_planner),
         ("Show NHL schedule outlook", schedule_outlook),
     ]),
-    ("Review rosters & draft", review_rosters),
+    ("Players, rosters & draft", review_rosters),
 ]

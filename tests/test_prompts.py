@@ -19,6 +19,7 @@ def _drive(make_question, keys: str):
     lambda **kw: questionary.checkbox("c", choices=["a", "b"], **kw),
     lambda **kw: questionary.confirm("y?", **kw),
     lambda **kw: questionary.text("t", **kw),
+    lambda **kw: questionary.autocomplete("p", choices=["Ann", "Bob"], **kw),
 ])
 class TestAsk:
     def test_escape_returns_back(self, make):
@@ -40,3 +41,12 @@ def test_text_input_then_enter():
 
 def test_escape_after_typing_still_backs_out():
     assert _drive(lambda **kw: questionary.text("t", **kw), "0.4\x1b") is BACK
+
+
+def test_autocomplete_validation_blocks_until_valid():
+    def make(**kw):
+        return questionary.autocomplete(
+            "p", choices=["Ann", "Bob"],
+            validate=lambda t: t in ("Ann", "Bob") or "pick one", **kw)
+    # "Zed" is rejected; erase it and type a valid name
+    assert _drive(make, "Zed\r\x7f\x7f\x7fBob\r") == "Bob"

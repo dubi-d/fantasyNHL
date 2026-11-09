@@ -5,8 +5,11 @@ import matplotlib
 
 matplotlib.use("Agg")  # headless backend; must be set before importing pyplot
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from matplotlib.ticker import MaxNLocator
+
+from .analysis import PEAK_CATS, SPEC_HIGH, SPEC_LOW, TIER_ELITE, TIER_SOLID
 
 # distinct marker per team so lines stay tellable apart where they cross
 _MARKERS = ["o", "s", "^", "D", "v", "P", "X", "*", "p", "h"]
@@ -205,6 +208,81 @@ def schedule_heatmap_figure(games: pd.DataFrame, off: pd.DataFrame,
                     fontsize=7, fontweight="bold", color=color)
     _score_columns(ax, scores or {}, len(games.columns))
     _mark_playoffs(ax, games, playoff_weeks)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def category_radar_figure(pcts: pd.DataFrame, title: str, path: Path) -> None:
+    """Save a radar PNG of category percentiles (0-100): one polygon per
+    row (player label), one axis per column (category)."""
+    cats = [str(c) for c in pcts.columns]
+    angles = np.linspace(0, 2 * np.pi, len(cats), endpoint=False).tolist()
+    styles = _team_styles([str(p) for p in pcts.index])
+    fig, ax = plt.subplots(figsize=(8, 8), layout="constrained",
+                           subplot_kw={"projection": "polar"})
+    fig.suptitle(title, fontsize=14, fontweight="bold")
+    for label, row in pcts.iterrows():
+        values = row.fillna(0).to_list()
+        style = styles[str(label)]
+        ax.plot(angles + angles[:1], values + values[:1], linewidth=2,
+                color=style["color"], marker=style["marker"], label=str(label))
+        ax.fill(angles + angles[:1], values + values[:1],
+                color=style["color"], alpha=0.12)
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(-1)
+    ax.set_xticks(angles, cats, fontsize=11, fontweight="bold")
+    ax.set_ylim(0, 100)
+    ax.set_yticks([25, 50, 75, 100], ["25", "50", "75", "100"],
+                  fontsize=8, color="gray")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.06),
+              ncol=min(len(pcts.index), 4), frameon=False)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+_GROUP_COLORS = {"F": "#4363d8", "D": "#f58231", "G": "#3cb44b"}
+
+
+def level_spec_figure(summary: pd.DataFrame, highlight: pd.Series,
+                      title: str, path: Path) -> None:
+    """Save a Level-vs-Spec scatter PNG: every summary row (category
+    profile with Group/Level/Spec) as a grey dot, the highlight rows
+    (index subset -> label) colored by group and labeled."""
+    pool = summary.dropna(subset=["Level", "Spec"])
+    shown = pool.loc[pool.index.intersection(highlight.index)]
+    fig, ax = plt.subplots(figsize=(11, 8), layout="constrained")
+    fig.suptitle(title, fontsize=14, fontweight="bold")
+    ax.scatter(pool["Level"], pool["Spec"], s=12, color="lightgray",
+               zorder=1)
+    for group, members in shown.groupby("Group"):
+        ax.scatter(members["Level"], members["Spec"], s=40, zorder=3,
+                   color=_GROUP_COLORS.get(str(group), "black"),
+                   edgecolor="black", linewidth=0.5, label=str(group))
+    for pid, row in shown.iterrows():
+        ax.annotate(str(highlight[pid]), (row["Level"], row["Spec"]),
+                    xytext=(4, 3), textcoords="offset points", fontsize=7)
+    top = max(100.0, float(pool["Spec"].max()) + 5) if len(pool) else 100.0
+    for x in (TIER_SOLID, TIER_ELITE):
+        ax.axvline(x, color="gray", linestyle="--", linewidth=1)
+    for y in (SPEC_LOW, SPEC_HIGH):
+        ax.axhline(y, color="gray", linestyle="--", linewidth=1)
+    for name, x in (("Depth", TIER_SOLID / 2), ("Solid", (TIER_SOLID + TIER_ELITE) / 2),
+                    ("Elite", (TIER_ELITE + 100) / 2)):
+        ax.text(x, top - 1, name, ha="center", va="top", fontsize=11,
+                color="gray", style="italic", fontweight="bold")
+    for name, y, va in (("specialists", SPEC_HIGH + 1, "bottom"),
+                        ("all-rounders", SPEC_LOW - 1, "top")):
+        ax.text(1, y, name, ha="left", va=va, fontsize=10, color="gray",
+                style="italic", fontweight="bold")
+    ax.set_xlim(0, 101)
+    ax.set_ylim(0, top)
+    ax.set_xlabel("Level (Score percentile within the position group)")
+    ax.set_ylabel(f"Spec (Peak − Breadth: best {PEAK_CATS} categories vs "
+                  "the rest, percentile points)")
+    ax.grid(alpha=0.3)
+    ax.spines[["top", "right"]].set_visible(False)
+    if len(shown):
+        ax.legend(loc="lower left", frameon=False)
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
