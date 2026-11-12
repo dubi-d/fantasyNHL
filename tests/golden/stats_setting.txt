@@ -1,0 +1,47 @@
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: Blended (season + projection)
+    * Quit
+  > 'Player stats: Blended'
+? Player stats for Scores, per-game rates and predictions: [select, default='blended']
+    * Blended (season + projection)
+    * This season only
+  > 'This season only'
+Player stats: ␛[1mThis season only␛[0m — ESPN's projections are ignored; players without games this season have no rate. Category outlook keeps its blended pace.
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: This season only
+    * Quit
+  > 'Player stats: This season only'
+? Player stats for Scores, per-game rates and predictions: [select, default='season']
+    * Blended (season + projection)
+    * This season only
+  > ESC
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: This season only
+    * Quit
+  > 'Player stats: This season only'
+? Player stats for Scores, per-game rates and predictions: [select, default='season']
+    * Blended (season + projection)
+    * This season only
+  > 'Blended'
+Player stats: ␛[1mBlended ␛[0m␛[1m(␛[0m␛[1mseason + projection␛[0m␛[1m)␛[0m — season rates weighted by the share of the season elapsed, ESPN's projection for the rest.
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: Blended (season + projection)
+    * Quit
+  > ESC
+[quit]

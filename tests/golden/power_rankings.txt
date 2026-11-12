@@ -1,0 +1,89 @@
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: Blended (season + projection)
+    * Quit
+  > 'Season standings'
+? Season standings: [select, use_shortcuts=True]
+    * Show accumulated scores
+    * Show luck ranking
+    * Show power rankings over time
+    * Show category strength profile
+  > 'Show power rankings over time'
+? Hot-streak window in matchups (2-4)? [text, default='4', validate='<set>']
+  > '1' rejected: Enter a number between 2 and 4
+  > 'x' rejected: Enter a number between 2 and 4
+  > '5' rejected: Enter a number between 2 and 4
+  > '3'
+
+␛[1mPower Rankings (round-robin points per     ␛[0m
+␛[1mcompleted matchup)                         ␛[0m
+┏━━━┳━━━━━━━━━┳━━━━┳━━━━┳━━━━┳━━━━┳━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mM1␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mM2␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mM3␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mM4␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTotal␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━━━━━╇━━━━╇━━━━╇━━━━╇━━━━╇━━━━━━━┩
+│␛[2m ␛[0m␛[2m1␛[0m␛[2m ␛[0m│ Delta   │  ␛[37;48;2;20;110;20m5␛[0m │  ␛[37;48;2;20;110;20m5␛[0m │  ␛[37;48;2;40;85;40m4␛[0m │  ␛[37;48;2;0;135;0m6␛[0m │    ␛[37;48;2;20;110;20m20␛[0m │
+│␛[2m ␛[0m␛[2m2␛[0m␛[2m ␛[0m│ Alpha   │  ␛[37;48;2;40;85;40m4␛[0m │  ␛[37;48;2;20;110;20m5␛[0m │  ␛[37;48;2;40;85;40m4␛[0m │  ␛[37;48;2;40;85;40m4␛[0m │    ␛[37;48;2;35;91;35m17␛[0m │
+│␛[2m ␛[0m␛[2m3␛[0m␛[2m ␛[0m│ Charlie │  ␛[37;48;2;98;40;40m2␛[0m │  ␛[37;48;2;98;40;40m2␛[0m │  ␛[37;48;2;98;40;40m2␛[0m │  ␛[37;48;2;175;0;0m0␛[0m │     ␛[37;48;2;118;30;30m6␛[0m │
+│␛[2m ␛[0m␛[2m4␛[0m␛[2m ␛[0m│ Bravo   │  ␛[37;48;2;137;20;20m1␛[0m │  ␛[37;48;2;175;0;0m0␛[0m │  ␛[37;48;2;98;40;40m2␛[0m │  ␛[37;48;2;98;40;40m2␛[0m │     ␛[37;48;2;127;25;25m5␛[0m │
+└───┴─────────┴────┴────┴────┴────┴───────┘
+[status] Rendering figure...
+[figure] power_rankings_figure
+    form_ranks = DataFrame ['int64', 'int64', 'int64', 'int64']
+    ,1,2,3,4
+    Alpha,2,2,2,2
+    Bravo,4,4,4,3
+    Charlie,3,3,3,3
+    Delta,1,1,1,1
+
+    avg_points = DataFrame ['float64', 'float64', 'float64', 'float64']
+    ,1,2,3,4
+    Alpha,4.0,4.5,4.333333333333333,4.25
+    Bravo,1.0,0.5,1.0,1.25
+    Charlie,2.0,2.0,2.0,1.5
+    Delta,5.0,5.0,4.666666666666667,5.0
+
+    window = 3
+    title = 'Test League — Power Rankings (through matchup 4)'
+Saved ␛[1mplots/power_rankings_test_league.png␛[0m
+? Hot-streak window in matchups (2-4)? [text, default='4', validate='<set>']
+  > '2'
+
+␛[1mPower Rankings (round-robin points per     ␛[0m
+␛[1mcompleted matchup)                         ␛[0m
+┏━━━┳━━━━━━━━━┳━━━━┳━━━━┳━━━━┳━━━━┳━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mM1␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mM2␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mM3␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mM4␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTotal␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━━━━━╇━━━━╇━━━━╇━━━━╇━━━━╇━━━━━━━┩
+│␛[2m ␛[0m␛[2m1␛[0m␛[2m ␛[0m│ Delta   │  ␛[37;48;2;20;110;20m5␛[0m │  ␛[37;48;2;20;110;20m5␛[0m │  ␛[37;48;2;40;85;40m4␛[0m │  ␛[37;48;2;0;135;0m6␛[0m │    ␛[37;48;2;20;110;20m20␛[0m │
+│␛[2m ␛[0m␛[2m2␛[0m␛[2m ␛[0m│ Alpha   │  ␛[37;48;2;40;85;40m4␛[0m │  ␛[37;48;2;20;110;20m5␛[0m │  ␛[37;48;2;40;85;40m4␛[0m │  ␛[37;48;2;40;85;40m4␛[0m │    ␛[37;48;2;35;91;35m17␛[0m │
+│␛[2m ␛[0m␛[2m3␛[0m␛[2m ␛[0m│ Charlie │  ␛[37;48;2;98;40;40m2␛[0m │  ␛[37;48;2;98;40;40m2␛[0m │  ␛[37;48;2;98;40;40m2␛[0m │  ␛[37;48;2;175;0;0m0␛[0m │     ␛[37;48;2;118;30;30m6␛[0m │
+│␛[2m ␛[0m␛[2m4␛[0m␛[2m ␛[0m│ Bravo   │  ␛[37;48;2;137;20;20m1␛[0m │  ␛[37;48;2;175;0;0m0␛[0m │  ␛[37;48;2;98;40;40m2␛[0m │  ␛[37;48;2;98;40;40m2␛[0m │     ␛[37;48;2;127;25;25m5␛[0m │
+└───┴─────────┴────┴────┴────┴────┴───────┘
+[status] Rendering figure...
+[figure] power_rankings_figure
+    form_ranks = DataFrame ['int64', 'int64', 'int64', 'int64']
+    ,1,2,3,4
+    Alpha,2,2,1,2
+    Bravo,4,4,4,3
+    Charlie,3,3,3,4
+    Delta,1,1,1,1
+
+    avg_points = DataFrame ['float64', 'float64', 'float64', 'float64']
+    ,1,2,3,4
+    Alpha,4.0,4.5,4.333333333333333,4.25
+    Bravo,1.0,0.5,1.0,1.25
+    Charlie,2.0,2.0,2.0,1.5
+    Delta,5.0,5.0,4.666666666666667,5.0
+
+    window = 2
+    title = 'Test League — Power Rankings (through matchup 4)'
+Saved ␛[1mplots/power_rankings_test_league.png␛[0m
+? Hot-streak window in matchups (2-4)? [text, default='4', validate='<set>']
+  > ESC
+? Season standings: [select, use_shortcuts=True]
+    * Show accumulated scores
+    * Show luck ranking
+    * Show power rankings over time
+    * Show category strength profile
+[end of script]

@@ -1,0 +1,160 @@
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: Blended (season + projection)
+    * Quit
+  > 'Player stats'
+? Player stats for Scores, per-game rates and predictions: [select, default='blended']
+    * Blended (season + projection)
+    * This season only
+  > 'This season only'
+Player stats: ␛[1mThis season only␛[0m — ESPN's projections are ignored; players without games this season have no rate. Category outlook keeps its blended pace.
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: This season only
+    * Quit
+  > 'Roster planning'
+? Roster planning: [select, use_shortcuts=True]
+    * Show matchup preview
+    * Plan streaming week
+    * Show NHL schedule outlook
+  > 'Plan streaming week'
+[status] Fetching matchup dates...
+[fetch] fetch_week_dates()
+? Select matchup: [select, default='Matchup 1 (Oct 5 – Oct 11) (current)']
+    * Matchup 1 (Oct 5 – Oct 11) (current)
+    * Matchup 2 (Oct 12 – Oct 18)
+    * Matchup 3 (Oct 19 – Oct 25)
+    * Matchup 4 (Oct 26 – Nov 1)
+    * Matchup 5 (Nov 2 – Nov 8)
+    * Matchup 6 (Nov 9 – Nov 15)
+    * Matchup 7 (Nov 16 – Nov 22) (playoffs)
+    * Matchup 8 (Nov 23 – Nov 29) (playoffs)
+  > 'Matchup 1'
+[status] Fetching streaming data for week 1...
+[fetch] fetch_preview_data(1)
+[fetch] fetch_adds_used(1)
+? Select your team: [select]
+    * Alpha
+    * Bravo
+    * Charlie
+    * Delta
+  > 'Alpha'
+[fetch] fetch_ir_roster(0)
+[status] Fetching saved daily ESPN lineups...
+[fetch] fetch_daily_lineup_slots(0, [1, 2, 3, 4, 5, 6, 7])
+? Mark your streamers (droppable roster spots): [checkbox]
+    * Alpha C1
+    * Alpha C2
+    * Alpha CW1
+    * Alpha LW1
+    * Alpha RW1
+    * Alpha D1
+    * Alpha D2
+    * Alpha D3
+    * Alpha G1
+    * Alpha G2
+  > []
+
+␛[1mWeek ␛[0m␛[1;36m1␛[0m␛[1m streaming planner␛[0m — Alpha, adds used this week: ␛[1;36m2␛[0m␛[1m ␛[0m␛[1;35m/␛[0m␛[1m ␛[0m␛[1;36m4␛[0m
+␛[2mColumns after Sun ␛[0m␛[1;2;36m11␛[0m␛[2m preview next week's first days — informational only, excluded from the coverage ranking.␛[0m
+␛[2mGames = remaining scheduled games in saved active ESPN slots ␛[0m␛[1;2m(␛[0m␛[2mtoday included, no lookahead␛[0m␛[1;2m)␛[0m␛[2m. ␛[0m␛[2;38;5;172m•␛[0m␛[2m = saved Bench; ␛[0m␛[2;31m•␛[0m␛[2m = IR; ? = lineup unavailable ␛[0m␛[2;35m/␛[0m␛[2m incomplete total. Current IR rows are last, always Games ␛[0m␛[1;2;36m0␛[0m␛[2m. Inj = reported injury status.␛[0m
+␛[2mDots show NHL team schedules, not guaranteed player appearances or goalie starts. Open seats/coverage model capacity, not saved lineups; IR rows never fill seats.␛[0m
+
+␛[1mRoster week 1                                                                                                                      ␛[0m
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer             ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGames␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mMon 5␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTue 6␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mWed 7␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mThu 8␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mFri 9␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSat 10␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSun 11␛[0m␛[1;36m ␛[0m┃␛[1;2;36m ␛[0m␛[1;2;36mMon 12␛[0m␛[1;2;36m ␛[0m┃␛[1;2;36m ␛[0m␛[1;2;36mTue 13␛[0m␛[1;2;36m ␛[0m┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━┩
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha C1            │ C    │ CBJ  │ ?     │     │ •     │ •     │ •     │ ␛[38;5;172m•␛[0m     │       │        │ ?      │        │ ␛[2m•␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha C2            │ C    │ LA   │ 3     │ ␛[33mDTD␛[0m │       │ •     │       │ •     │       │ •      │        │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha CW1           │ C/LW │ ANA  │ 4     │     │ •     │ •     │       │ ␛[38;5;172m•␛[0m     │ •     │ •      │        │        │ ␛[2m•␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha LW1           │ LW   │ MTL  │ 3     │     │ •     │ ␛[38;5;172m•␛[0m     │ •     │ •     │       │        │        │        │ ␛[2m•␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha RW1           │ RW   │ CHI  │ 2     │     │       │ •     │       │       │ ␛[38;5;172m•␛[0m     │ •      │        │        │ ␛[2m•␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha D1            │ D    │ LA   │ ?     │     │       │ •     │       │ •     │       │ ?      │        │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha D2            │ D    │ NYR  │ 1     │     │       │       │       │ •     │       │ ␛[38;5;172m•␛[0m      │        │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha D3            │ D    │ ANA  │ ?     │     │ ␛[38;5;172m•␛[0m     │ ␛[38;5;172m•␛[0m     │       │ ?     │ ␛[38;5;172m•␛[0m     │ ␛[31m•␛[0m      │        │        │ ␛[2m•␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha G1            │ G    │ DET  │ ?     │     │ •     │ •     │ ?     │ ␛[38;5;172m•␛[0m     │       │ •      │        │        │ ␛[2m•␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha G2            │ G    │ CHI  │ ?     │     │       │ ?     │       │       │ ␛[38;5;172m•␛[0m     │ ␛[38;5;172m•␛[0m      │        │        │ ␛[2m•␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha RW2 (IR)      │ RW   │ LA   │ 0     │ ␛[31mIR␛[0m  │       │ ␛[31m•␛[0m     │       │ ␛[31m•␛[0m     │       │ ␛[31m•␛[0m      │        │ ␛[2;31m•␛[0m      │ ␛[2;31m•␛[0m      │
+├───┼─────────────────────┼──────┼──────┼───────┼─────┼───────┼───────┼───────┼───────┼───────┼────────┼────────┼────────┼────────┤
+│␛[2;3m ␛[0m␛[2;3m ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m(open skater seats)␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m   ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m3    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m5    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m1    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m4    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m1     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m6     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m4     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-     ␛[0m␛[2;3m ␛[0m│
+│␛[2;3m ␛[0m␛[2;3m ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m(open goalie seats)␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m   ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m1     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m1     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-     ␛[0m␛[2;3m ␛[0m│
+└───┴─────────────────────┴──────┴──────┴───────┴─────┴───────┴───────┴───────┴───────┴───────┴────────┴────────┴────────┴────────┘
+
+␛[1mOpen seats by lineup slot                                                                                                          ␛[0m
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos                                            ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mMon 5␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTue 6␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mWed 7␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mThu 8␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mFri 9␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSat 10␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSun 11␛[0m␛[1;36m ␛[0m┃␛[1;2;36m ␛[0m␛[1;2;36mMon 12␛[0m␛[1;2;36m ␛[0m┃␛[1;2;36m ␛[0m␛[1;2;36mTue 13␛[0m␛[1;2;36m ␛[0m┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━┩
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ C                                               │ -     │ -     │ -     │ -     │ -     │ -      │ -      │ ␛[2m-␛[0m      │ ␛[2m-␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ LW                                              │ -     │ -     │ -     │ -     │ 1     │ -      │ 1      │ ␛[2m1␛[0m      │ ␛[2m-␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ RW                                              │ 1     │ -     │ 1     │ 1     │ -     │ -      │ 1      │ ␛[2m1␛[0m      │ ␛[2m-␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ F                                               │ -     │ -     │ 1     │ -     │ 1     │ 1      │ 1      │ ␛[2m1␛[0m      │ ␛[2m-␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ D                                               │ 1     │ -     │ 2     │ -     │ 1     │ -      │ 2      │ ␛[2m-␛[0m      │ ␛[2m-␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ G                                               │ -     │ -     │ -     │ -     │ -     │ -      │ 1      │ ␛[2m1␛[0m      │ ␛[2m-␛[0m      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ U                                               │ 1     │ -     │ 1     │ -     │ 1     │ -      │ 1      │ ␛[2m1␛[0m      │ ␛[2m-␛[0m      │
+├───┼─────────────────────────────────────────────────┼───────┼───────┼───────┼───────┼───────┼────────┼────────┼────────┼────────┤
+│␛[2;3m ␛[0m␛[2;3m ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m(total)                                        ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m3    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m5    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m1    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m4    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m1     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m7     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m5     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-     ␛[0m␛[2;3m ␛[0m│
+└───┴─────────────────────────────────────────────────┴───────┴───────┴───────┴───────┴───────┴────────┴────────┴────────┴────────┘
+
+␛[1mNHL teams covering the open days (Mon 5, Wed 7, Thu 8, Fri 9, Sat 10, Sun 11)                                                                      ␛[0m
+┏━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam                                          ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mMon 5␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTue 6␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mWed 7␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mThu 8␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mFri 9␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSat 10␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSun 11␛[0m␛[1;36m ␛[0m┃␛[1;2;36m ␛[0m␛[1;2;36mMon 12␛[0m␛[1;2;36m ␛[0m┃␛[1;2;36m ␛[0m␛[1;2;36mTue 13␛[0m␛[1;2;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mCover␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGames␛[0m␛[1;36m ␛[0m┃
+┡━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━┩
+│␛[2m ␛[0m␛[2m 1␛[0m␛[2m ␛[0m│ EDM                                            │ ␛[1;32m•␛[0m     │ •     │       │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │        │ ␛[2m•␛[0m      │     5 │     6 │
+│␛[2m ␛[0m␛[2m 2␛[0m␛[2m ␛[0m│ OTT                                            │ ␛[1;32m•␛[0m     │ •     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │       │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │        │ ␛[2m•␛[0m      │     5 │     6 │
+│␛[2m ␛[0m␛[2m 3␛[0m␛[2m ␛[0m│ ANA                                            │ ␛[1;32m•␛[0m     │ •     │       │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │        │        │ ␛[2m•␛[0m      │     4 │     5 │
+│␛[2m ␛[0m␛[2m 4␛[0m␛[2m ␛[0m│ BOS                                            │       │ •     │       │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │        │        │     4 │     5 │
+│␛[2m ␛[0m␛[2m 5␛[0m␛[2m ␛[0m│ CBJ                                            │ ␛[1;32m•␛[0m     │ •     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │       │        │ ␛[1;32m•␛[0m      │        │ ␛[2m•␛[0m      │     4 │     5 │
+│␛[2m ␛[0m␛[2m 6␛[0m␛[2m ␛[0m│ CGY                                            │ ␛[1;32m•␛[0m     │ •     │       │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │        │        │ ␛[2m•␛[0m      │     4 │     5 │
+│␛[2m ␛[0m␛[2m 7␛[0m␛[2m ␛[0m│ DET                                            │ ␛[1;32m•␛[0m     │ •     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │       │ ␛[1;32m•␛[0m      │        │        │ ␛[2m•␛[0m      │     4 │     5 │
+│␛[2m ␛[0m␛[2m 8␛[0m␛[2m ␛[0m│ NJ                                             │ ␛[1;32m•␛[0m     │ •     │       │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │        │        │ ␛[2m•␛[0m      │     4 │     5 │
+│␛[2m ␛[0m␛[2m 9␛[0m␛[2m ␛[0m│ COL                                            │       │ •     │       │ ␛[1;32m•␛[0m     │       │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │     3 │     4 │
+│␛[2m ␛[0m␛[2m10␛[0m␛[2m ␛[0m│ FLA                                            │       │ •     │       │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │        │        │        │     3 │     4 │
+│␛[2m ␛[0m␛[2m11␛[0m␛[2m ␛[0m│ MIN                                            │       │ •     │       │ ␛[1;32m•␛[0m     │       │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │     3 │     4 │
+│␛[2m ␛[0m␛[2m12␛[0m␛[2m ␛[0m│ MTL                                            │ ␛[1;32m•␛[0m     │ •     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │       │        │        │        │ ␛[2m•␛[0m      │     3 │     4 │
+└────┴────────────────────────────────────────────────┴───────┴───────┴───────┴───────┴───────┴────────┴────────┴────────┴────────┴───────┴───────┘
+? Show free agent candidates for the open days? [confirm, default=True]
+  > True
+[status] Fetching free agents...
+[fetch] fetch_free_agents({'Center': 1, 'Left Wing': 1, 'Right Wing': 1, 'Forward': 1, 'Defense': 2, 'Goalie': 1, 'Util': 1})
+␛[33mNobody here has played this season yet, so ␛[0m␛[32m'This season only'␛[0m␛[33m stats are empty - switch Player stats to Blended in the main menu to use projections.␛[0m
+
+␛[1mFree agent candidates 1–15 of 29 by open days filled (• = fills an open seat, · = plays) — stats: this season only                                                         ␛[0m
+┏━━━━┳━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━┳━━━━━━━┳━━━┳━━━┳━━━━━┳━━━━━┳━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer  ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam                        ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mMon 5␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTue 6␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mWed 7␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mThu 8␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mFri 9␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSat 10␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSun 11␛[0m␛[1;36m ␛[0m┃␛[1;2;36m ␛[0m␛[1;2;36mMon 12␛[0m␛[1;2;36m ␛[0m┃␛[1;2;36m ␛[0m␛[1;2;36mTue 13␛[0m␛[1;2;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mFit␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGames␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mG␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mA␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPPP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHIT␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃
+┡━━━━╇━━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━╇━━━━━━━╇━━━╇━━━╇━━━━━╇━━━━━╇━━━━━┩
+│␛[2m ␛[0m␛[2m 1␛[0m␛[2m ␛[0m│ Free CW2 │ C/LW │ EDM                          │ ␛[1;32m•␛[0m     │ ·     │       │ ·     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │        │ ␛[2m·␛[0m      │   4 │     6 │   │   │     │     │ ␛[33mSUS␛[0m │
+│␛[2m ␛[0m␛[2m 2␛[0m␛[2m ␛[0m│ Free CW3 │ C/LW │ EDM                          │ ␛[1;32m•␛[0m     │ ·     │       │ ·     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │        │ ␛[2m·␛[0m      │   4 │     6 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m 3␛[0m␛[2m ␛[0m│ Free LW5 │ LW   │ OTT                          │ ␛[1;32m•␛[0m     │ ·     │ ␛[1;32m•␛[0m     │ ·     │       │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │        │ ␛[2m·␛[0m      │   4 │     6 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m 4␛[0m␛[2m ␛[0m│ Free RW2 │ RW   │ BOS                          │       │ ·     │       │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │        │        │   4 │     5 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m 5␛[0m␛[2m ␛[0m│ Free D2  │ D    │ EDM                          │ ␛[1;32m•␛[0m     │ ·     │       │ ·     │ ␛[1;32m•␛[0m     │ ·      │ ␛[1;32m•␛[0m      │        │ ␛[2m·␛[0m      │   3 │     6 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m 6␛[0m␛[2m ␛[0m│ Free D7  │ D    │ EDM                          │ ␛[1;32m•␛[0m     │ ·     │       │ ·     │ ␛[1;32m•␛[0m     │ ·      │ ␛[1;32m•␛[0m      │        │ ␛[2m·␛[0m      │   3 │     6 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m 7␛[0m␛[2m ␛[0m│ Free LW2 │ LW   │ DET                          │ ␛[1;32m•␛[0m     │ ·     │ ␛[1;32m•␛[0m     │ ·     │       │ ␛[1;32m•␛[0m      │        │        │ ␛[2m·␛[0m      │   3 │     5 │   │   │     │     │ ␛[31mOUT␛[0m │
+│␛[2m ␛[0m␛[2m 8␛[0m␛[2m ␛[0m│ Free D3  │ D    │ CBJ                          │ ␛[1;32m•␛[0m     │ ·     │ ␛[1;32m•␛[0m     │ ·     │       │        │ ␛[1;32m•␛[0m      │        │ ␛[2m·␛[0m      │   3 │     5 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m 9␛[0m␛[2m ␛[0m│ Free C4  │ C    │ CGY                          │ ␛[1;32m•␛[0m     │ ·     │       │ ·     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │        │        │ ␛[2m·␛[0m      │   3 │     5 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m10␛[0m␛[2m ␛[0m│ Free LW4 │ LW   │ BOS                          │       │ ·     │       │ ·     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │        │        │   3 │     5 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m11␛[0m␛[2m ␛[0m│ Free C5  │ C    │ CGY                          │ ␛[1;32m•␛[0m     │ ·     │       │ ·     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │        │        │ ␛[2m·␛[0m      │   3 │     5 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m12␛[0m␛[2m ␛[0m│ Free LW1 │ LW   │ NSH                          │       │ ·     │       │       │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │        │ ␛[2m·␛[0m      │   3 │     4 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m13␛[0m␛[2m ␛[0m│ Free C3  │ C    │ NSH                          │       │ ·     │       │       │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │        │ ␛[2m·␛[0m      │   3 │     4 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m14␛[0m␛[2m ␛[0m│ Free RW3 │ RW   │ FLA                          │       │ ·     │       │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m     │ ␛[1;32m•␛[0m      │        │        │        │   3 │     4 │   │   │     │     │     │
+│␛[2m ␛[0m␛[2m15␛[0m␛[2m ␛[0m│ Free RW4 │ RW   │ COL                          │       │ ·     │       │ ␛[1;32m•␛[0m     │       │ ␛[1;32m•␛[0m      │ ␛[1;32m•␛[0m      │ ␛[2m·␛[0m      │ ␛[2m·␛[0m      │   3 │     4 │   │   │     │     │     │
+└────┴──────────┴──────┴──────────────────────────────┴───────┴───────┴───────┴───────┴───────┴────────┴────────┴────────┴────────┴─────┴───────┴───┴───┴─────┴─────┴─────┘
+? Show more candidates? [confirm, default=True]
+  > False
+[status] Fetching matchup dates...
+[fetch] fetch_week_dates()
+? Select matchup: [select, default='Matchup 1 (Oct 5 – Oct 11) (current)']
+    * Matchup 1 (Oct 5 – Oct 11) (current)
+    * Matchup 2 (Oct 12 – Oct 18)
+    * Matchup 3 (Oct 19 – Oct 25)
+    * Matchup 4 (Oct 26 – Nov 1)
+    * Matchup 5 (Nov 2 – Nov 8)
+    * Matchup 6 (Nov 9 – Nov 15)
+    * Matchup 7 (Nov 16 – Nov 22) (playoffs)
+    * Matchup 8 (Nov 23 – Nov 29) (playoffs)
+[end of script]

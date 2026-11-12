@@ -1,0 +1,857 @@
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: Blended (season + projection)
+    * Quit
+  > 'Players, rosters & draft'
+[status] Fetching rosters, free agents and draft...
+[fetch] fetch_roster_review()
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Compare players'
+? Player 1: [autocomplete, match_middle=True, style='<set>', validate='<set>']
+    * Alpha C1 (C, Alpha)
+    * Alpha C2 (C, Alpha)
+    * Alpha CW1 (C, Alpha)
+    * Alpha D1 (D, Alpha)
+    * Alpha D2 (D, Alpha)
+    * Alpha D3 (D, Alpha)
+    * Alpha G1 (G, Alpha)
+    * Alpha G2 (G, Alpha)
+    * Alpha LW1 (LW, Alpha)
+    * Alpha RW1 (RW, Alpha)
+    * Alpha RW2 (RW, Alpha)
+    * Bravo C1 (C, Bravo)
+    * Bravo C2 (C, Bravo)
+    * Bravo CW1 (C, Bravo)
+    * Bravo D1 (D, Bravo)
+    * Bravo D2 (D, Bravo)
+    * Bravo D3 (D, Bravo)
+    * Bravo G1 (G, Bravo)
+    * Bravo G2 (G, Bravo)
+    * Bravo RW1 (RW, Bravo)
+    * Bravo RW2 (RW, Bravo)
+    * Charlie C1 (C, Charlie)
+    * Charlie C2 (C, Charlie)
+    * Charlie CW1 (C, Charlie)
+    * Charlie D1 (D, Charlie)
+    * Charlie D2 (D, Charlie)
+    * Charlie D3 (D, Charlie)
+    * Charlie G1 (G, Charlie)
+    * Charlie G2 (G, Charlie)
+    * Charlie LW1 (LW, Charlie)
+    * Charlie RW1 (RW, Charlie)
+    * Charlie RW2 (RW, Charlie)
+    * Delta C1 (C, Delta)
+    * Delta C2 (C, Delta)
+    * Delta CW1 (C, Delta)
+    * Delta D1 (D, Delta)
+    * Delta D2 (D, Delta)
+    * Delta D3 (D, Delta)
+    * Delta G1 (G, Delta)
+    * Delta G2 (G, Delta)
+    * Delta LW1 (LW, Delta)
+    * Delta RW1 (RW, Delta)
+    * Delta RW2 (RW, Delta)
+    * Dropped C1 (C, FA)
+    * Dropped G1 (G, FA)
+    * Free C3 (C, FA)
+    * Free C4 (C, FA)
+    * Free C5 (C, FA)
+    * Free C6 (C, FA)
+    * Free CW1 (C, FA)
+    * Free CW2 (C, FA)
+    * Free CW3 (C, FA)
+    * Free CW4 (C, FA)
+    * Free CW5 (C, FA)
+    * Free D1 (D, FA)
+    * Free D10 (D, FA)
+    * Free D2 (D, FA)
+    * Free D3 (D, FA)
+    * Free D4 (D, FA)
+    * Free D5 (D, FA)
+    * Free D6 (D, FA)
+    * Free D7 (D, FA)
+    * Free D8 (D, FA)
+    * Free D9 (D, FA)
+    * Free G1 (G, FA)
+    * Free G2 (G, FA)
+    * Free G3 (G, FA)
+    * Free G4 (G, FA)
+    * Free G5 (G, FA)
+    * Free G6 (G, FA)
+    * Free G7 (G, FA)
+    * Free G8 (G, FA)
+    * Free LW1 (LW, FA)
+    * Free LW2 (LW, FA)
+    * Free LW3 (LW, FA)
+    * Free LW4 (LW, FA)
+    * Free LW5 (LW, FA)
+    * Free LW6 (LW, FA)
+    * Free RW1 (RW, FA)
+    * Free RW2 (RW, FA)
+    * Free RW3 (RW, FA)
+    * Free RW4 (RW, FA)
+    * Free RW5 (RW, FA)
+    * Twin (LW, Bravo)
+    * Twin (C, FA)
+    * Twin (C, FA) #908
+  > '' rejected: Pick a player
+  > 'nobody' rejected: Pick a player from the list
+  > 'Twin (LW, Bravo)'
+? Player 2: [autocomplete, match_middle=True, style='<set>', validate='<set>']
+    * Alpha C1 (C, Alpha)
+    * Alpha C2 (C, Alpha)
+    * Alpha CW1 (C, Alpha)
+    * Alpha D1 (D, Alpha)
+    * Alpha D2 (D, Alpha)
+    * Alpha D3 (D, Alpha)
+    * Alpha G1 (G, Alpha)
+    * Alpha G2 (G, Alpha)
+    * Alpha LW1 (LW, Alpha)
+    * Alpha RW1 (RW, Alpha)
+    * Alpha RW2 (RW, Alpha)
+    * Bravo C1 (C, Bravo)
+    * Bravo C2 (C, Bravo)
+    * Bravo CW1 (C, Bravo)
+    * Bravo D1 (D, Bravo)
+    * Bravo D2 (D, Bravo)
+    * Bravo D3 (D, Bravo)
+    * Bravo G1 (G, Bravo)
+    * Bravo G2 (G, Bravo)
+    * Bravo RW1 (RW, Bravo)
+    * Bravo RW2 (RW, Bravo)
+    * Charlie C1 (C, Charlie)
+    * Charlie C2 (C, Charlie)
+    * Charlie CW1 (C, Charlie)
+    * Charlie D1 (D, Charlie)
+    * Charlie D2 (D, Charlie)
+    * Charlie D3 (D, Charlie)
+    * Charlie G1 (G, Charlie)
+    * Charlie G2 (G, Charlie)
+    * Charlie LW1 (LW, Charlie)
+    * Charlie RW1 (RW, Charlie)
+    * Charlie RW2 (RW, Charlie)
+    * Delta C1 (C, Delta)
+    * Delta C2 (C, Delta)
+    * Delta CW1 (C, Delta)
+    * Delta D1 (D, Delta)
+    * Delta D2 (D, Delta)
+    * Delta D3 (D, Delta)
+    * Delta G1 (G, Delta)
+    * Delta G2 (G, Delta)
+    * Delta LW1 (LW, Delta)
+    * Delta RW1 (RW, Delta)
+    * Delta RW2 (RW, Delta)
+    * Dropped C1 (C, FA)
+    * Dropped G1 (G, FA)
+    * Free C3 (C, FA)
+    * Free C4 (C, FA)
+    * Free C5 (C, FA)
+    * Free C6 (C, FA)
+    * Free CW1 (C, FA)
+    * Free CW2 (C, FA)
+    * Free CW3 (C, FA)
+    * Free CW4 (C, FA)
+    * Free CW5 (C, FA)
+    * Free D1 (D, FA)
+    * Free D10 (D, FA)
+    * Free D2 (D, FA)
+    * Free D3 (D, FA)
+    * Free D4 (D, FA)
+    * Free D5 (D, FA)
+    * Free D6 (D, FA)
+    * Free D7 (D, FA)
+    * Free D8 (D, FA)
+    * Free D9 (D, FA)
+    * Free G1 (G, FA)
+    * Free G2 (G, FA)
+    * Free G3 (G, FA)
+    * Free G4 (G, FA)
+    * Free G5 (G, FA)
+    * Free G6 (G, FA)
+    * Free G7 (G, FA)
+    * Free G8 (G, FA)
+    * Free LW1 (LW, FA)
+    * Free LW2 (LW, FA)
+    * Free LW3 (LW, FA)
+    * Free LW4 (LW, FA)
+    * Free LW5 (LW, FA)
+    * Free LW6 (LW, FA)
+    * Free RW1 (RW, FA)
+    * Free RW2 (RW, FA)
+    * Free RW3 (RW, FA)
+    * Free RW4 (RW, FA)
+    * Free RW5 (RW, FA)
+    * Twin (LW, Bravo)
+    * Twin (C, FA)
+    * Twin (C, FA) #908
+  > 'Twin (LW, Bravo)' rejected: Already picked
+  > 'Alpha G1 (G, Alpha)' rejected: Can't mix skaters and goalies
+  > 'Twin (C, FA)'
+? Player 3 (Enter to finish): [autocomplete, match_middle=True, style='<set>', validate='<set>']
+    * Alpha C1 (C, Alpha)
+    * Alpha C2 (C, Alpha)
+    * Alpha CW1 (C, Alpha)
+    * Alpha D1 (D, Alpha)
+    * Alpha D2 (D, Alpha)
+    * Alpha D3 (D, Alpha)
+    * Alpha G1 (G, Alpha)
+    * Alpha G2 (G, Alpha)
+    * Alpha LW1 (LW, Alpha)
+    * Alpha RW1 (RW, Alpha)
+    * Alpha RW2 (RW, Alpha)
+    * Bravo C1 (C, Bravo)
+    * Bravo C2 (C, Bravo)
+    * Bravo CW1 (C, Bravo)
+    * Bravo D1 (D, Bravo)
+    * Bravo D2 (D, Bravo)
+    * Bravo D3 (D, Bravo)
+    * Bravo G1 (G, Bravo)
+    * Bravo G2 (G, Bravo)
+    * Bravo RW1 (RW, Bravo)
+    * Bravo RW2 (RW, Bravo)
+    * Charlie C1 (C, Charlie)
+    * Charlie C2 (C, Charlie)
+    * Charlie CW1 (C, Charlie)
+    * Charlie D1 (D, Charlie)
+    * Charlie D2 (D, Charlie)
+    * Charlie D3 (D, Charlie)
+    * Charlie G1 (G, Charlie)
+    * Charlie G2 (G, Charlie)
+    * Charlie LW1 (LW, Charlie)
+    * Charlie RW1 (RW, Charlie)
+    * Charlie RW2 (RW, Charlie)
+    * Delta C1 (C, Delta)
+    * Delta C2 (C, Delta)
+    * Delta CW1 (C, Delta)
+    * Delta D1 (D, Delta)
+    * Delta D2 (D, Delta)
+    * Delta D3 (D, Delta)
+    * Delta G1 (G, Delta)
+    * Delta G2 (G, Delta)
+    * Delta LW1 (LW, Delta)
+    * Delta RW1 (RW, Delta)
+    * Delta RW2 (RW, Delta)
+    * Dropped C1 (C, FA)
+    * Dropped G1 (G, FA)
+    * Free C3 (C, FA)
+    * Free C4 (C, FA)
+    * Free C5 (C, FA)
+    * Free C6 (C, FA)
+    * Free CW1 (C, FA)
+    * Free CW2 (C, FA)
+    * Free CW3 (C, FA)
+    * Free CW4 (C, FA)
+    * Free CW5 (C, FA)
+    * Free D1 (D, FA)
+    * Free D10 (D, FA)
+    * Free D2 (D, FA)
+    * Free D3 (D, FA)
+    * Free D4 (D, FA)
+    * Free D5 (D, FA)
+    * Free D6 (D, FA)
+    * Free D7 (D, FA)
+    * Free D8 (D, FA)
+    * Free D9 (D, FA)
+    * Free G1 (G, FA)
+    * Free G2 (G, FA)
+    * Free G3 (G, FA)
+    * Free G4 (G, FA)
+    * Free G5 (G, FA)
+    * Free G6 (G, FA)
+    * Free G7 (G, FA)
+    * Free G8 (G, FA)
+    * Free LW1 (LW, FA)
+    * Free LW2 (LW, FA)
+    * Free LW3 (LW, FA)
+    * Free LW4 (LW, FA)
+    * Free LW5 (LW, FA)
+    * Free LW6 (LW, FA)
+    * Free RW1 (RW, FA)
+    * Free RW2 (RW, FA)
+    * Free RW3 (RW, FA)
+    * Free RW4 (RW, FA)
+    * Free RW5 (RW, FA)
+    * Twin (LW, Bravo)
+    * Twin (C, FA)
+    * Twin (C, FA) #908
+  > 'Twin (C, FA) #908'
+? Player 4 (Enter to finish): [autocomplete, match_middle=True, style='<set>', validate='<set>']
+    * Alpha C1 (C, Alpha)
+    * Alpha C2 (C, Alpha)
+    * Alpha CW1 (C, Alpha)
+    * Alpha D1 (D, Alpha)
+    * Alpha D2 (D, Alpha)
+    * Alpha D3 (D, Alpha)
+    * Alpha G1 (G, Alpha)
+    * Alpha G2 (G, Alpha)
+    * Alpha LW1 (LW, Alpha)
+    * Alpha RW1 (RW, Alpha)
+    * Alpha RW2 (RW, Alpha)
+    * Bravo C1 (C, Bravo)
+    * Bravo C2 (C, Bravo)
+    * Bravo CW1 (C, Bravo)
+    * Bravo D1 (D, Bravo)
+    * Bravo D2 (D, Bravo)
+    * Bravo D3 (D, Bravo)
+    * Bravo G1 (G, Bravo)
+    * Bravo G2 (G, Bravo)
+    * Bravo RW1 (RW, Bravo)
+    * Bravo RW2 (RW, Bravo)
+    * Charlie C1 (C, Charlie)
+    * Charlie C2 (C, Charlie)
+    * Charlie CW1 (C, Charlie)
+    * Charlie D1 (D, Charlie)
+    * Charlie D2 (D, Charlie)
+    * Charlie D3 (D, Charlie)
+    * Charlie G1 (G, Charlie)
+    * Charlie G2 (G, Charlie)
+    * Charlie LW1 (LW, Charlie)
+    * Charlie RW1 (RW, Charlie)
+    * Charlie RW2 (RW, Charlie)
+    * Delta C1 (C, Delta)
+    * Delta C2 (C, Delta)
+    * Delta CW1 (C, Delta)
+    * Delta D1 (D, Delta)
+    * Delta D2 (D, Delta)
+    * Delta D3 (D, Delta)
+    * Delta G1 (G, Delta)
+    * Delta G2 (G, Delta)
+    * Delta LW1 (LW, Delta)
+    * Delta RW1 (RW, Delta)
+    * Delta RW2 (RW, Delta)
+    * Dropped C1 (C, FA)
+    * Dropped G1 (G, FA)
+    * Free C3 (C, FA)
+    * Free C4 (C, FA)
+    * Free C5 (C, FA)
+    * Free C6 (C, FA)
+    * Free CW1 (C, FA)
+    * Free CW2 (C, FA)
+    * Free CW3 (C, FA)
+    * Free CW4 (C, FA)
+    * Free CW5 (C, FA)
+    * Free D1 (D, FA)
+    * Free D10 (D, FA)
+    * Free D2 (D, FA)
+    * Free D3 (D, FA)
+    * Free D4 (D, FA)
+    * Free D5 (D, FA)
+    * Free D6 (D, FA)
+    * Free D7 (D, FA)
+    * Free D8 (D, FA)
+    * Free D9 (D, FA)
+    * Free G1 (G, FA)
+    * Free G2 (G, FA)
+    * Free G3 (G, FA)
+    * Free G4 (G, FA)
+    * Free G5 (G, FA)
+    * Free G6 (G, FA)
+    * Free G7 (G, FA)
+    * Free G8 (G, FA)
+    * Free LW1 (LW, FA)
+    * Free LW2 (LW, FA)
+    * Free LW3 (LW, FA)
+    * Free LW4 (LW, FA)
+    * Free LW5 (LW, FA)
+    * Free LW6 (LW, FA)
+    * Free RW1 (RW, FA)
+    * Free RW2 (RW, FA)
+    * Free RW3 (RW, FA)
+    * Free RW4 (RW, FA)
+    * Free RW5 (RW, FA)
+    * Twin (LW, Bravo)
+    * Twin (C, FA)
+    * Twin (C, FA) #908
+  > ''
+
+␛[1mPlayer comparison (per game ·         ␛[0m
+␛[1mpercentile within group) — stats:     ␛[0m
+␛[1mblended: 30% season / 70% projection  ␛[0m
+┏━━━┳━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mCat␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTwin (Bravo)␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTwin (FA)␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
+│␛[2m ␛[0m␛[2m1␛[0m␛[2m ␛[0m│ G   │ ␛[37;48;2;167;4;4m0.06 · 3␛[0m     │ ␛[37;48;2;41;83;41m0.28 · 66␛[0m │
+│␛[2m ␛[0m␛[2m2␛[0m␛[2m ␛[0m│ A   │ ␛[37;48;2;7;127;7m0.62 · 94␛[0m    │ ␛[37;48;2;86;47;47m0.34 · 39␛[0m │
+│␛[2m ␛[0m␛[2m3␛[0m␛[2m ␛[0m│ PPP │ ␛[37;48;2;75;52;52m0.12 · 43␛[0m    │ ␛[37;48;2;80;49;49m0.11 · 41␛[0m │
+│␛[2m ␛[0m␛[2m4␛[0m␛[2m ␛[0m│ HIT │ ␛[37;48;2;167;4;4m0.35 · 3␛[0m     │ ␛[37;48;2;70;55;55m1.08 · 46␛[0m │
+└───┴─────┴──────────────┴───────────┘
+
+␛[1mProfile summary — stats: blended: 30% season / 70%     ␛[0m
+␛[1mprojection                                             ␛[0m
+┏━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mMetric ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTwin (Bravo)    ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTwin (FA)        ␛[0m␛[1;36m ␛[0m┃
+┡━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│␛[2m ␛[0m␛[2m 1␛[0m␛[2m ␛[0m│ Pos     │ Left Wing        │ Center            │
+│␛[2m ␛[0m␛[2m 2␛[0m␛[2m ␛[0m│ Team    │ Bravo            │ FA                │
+│␛[2m ␛[0m␛[2m 3␛[0m␛[2m ␛[0m│ GP      │ 11               │ 7                 │
+│␛[2m ␛[0m␛[2m 4␛[0m␛[2m ␛[0m│ Score   │ ␛[37;48;2;103;38;38m-0.56␛[0m            │ ␛[37;48;2;64;58;58m-0.05␛[0m             │
+│␛[2m ␛[0m␛[2m 5␛[0m␛[2m ␛[0m│ Level   │ ␛[37;48;2;144;16;16m13␛[0m               │ ␛[37;48;2;68;56;56m47␛[0m                │
+│␛[2m ␛[0m␛[2m 6␛[0m␛[2m ␛[0m│ Peak    │ ␛[37;48;2;37;88;37m69␛[0m               │ ␛[37;48;2;53;68;53m56␛[0m                │
+│␛[2m ␛[0m␛[2m 7␛[0m␛[2m ␛[0m│ Breadth │ ␛[37;48;2;167;4;4m3␛[0m                │ ␛[37;48;2;83;48;48m40␛[0m                │
+│␛[2m ␛[0m␛[2m 8␛[0m␛[2m ␛[0m│ Spec    │ 66               │ 16                │
+│␛[2m ␛[0m␛[2m 9␛[0m␛[2m ␛[0m│ Elite   │ 1                │ 0                 │
+│␛[2m ␛[0m␛[2m10␛[0m␛[2m ␛[0m│ Holes   │ 2                │ 0                 │
+│␛[2m ␛[0m␛[2m11␛[0m␛[2m ␛[0m│ Type    │ Depth specialist │ Depth all-rounder │
+│␛[2m ␛[0m␛[2m12␛[0m␛[2m ␛[0m│ Best    │ A/PPP            │ G/HIT             │
+└────┴─────────┴──────────────────┴───────────────────┘
+␛[2mPercentile = rank of the per-game rate within the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G␛[0m␛[1;2m)␛[0m␛[2m of the ␛[0m␛[1;2;36m86␛[0m␛[2m-player pool ␛[0m␛[1;2m(␛[0m␛[1;2;36m100␛[0m␛[2m = best, inverted categories flipped␛[0m␛[1;2m)␛[0m␛[2m. Level = Score percentile within the group; Spec = Peak - Breadth, where Peak = mean ␛[0m
+␛[2mpercentile of the best ␛[0m␛[1;2;36m2␛[0m␛[2m categories and Breadth = mean of the rest; Elite = categories >= ␛[0m␛[1;2;36m90␛[0m␛[2m, Holes = categories ␛[0m␛[1;2m<␛[0m␛[2;39m= ␛[0m␛[1;2;36m25␛[0m␛[2;39m. Type = Elite ␛[0m␛[1;2;39m(␛[0m␛[2;39mLevel >= ␛[0m␛[1;2;36m90␛[0m␛[1;2;39m)␛[0m␛[2;39m ␛[0m␛[2;35m/␛[0m␛[2;39m Solid ␛[0m␛[1;2;39m(␛[0m␛[2;39m>= ␛[0m␛[1;2;36m60␛[0m␛[1;2;39m)␛[0m␛[2;39m ␛[0m␛[2;35m/␛[0m␛[2;39m Depth, + specialist ␛[0m␛[1;2;39m(␛[0m␛[2;39mSpec ␛[0m␛[1;2m>␛[0m␛[2m= ␛[0m␛[1;2;36m40␛[0m␛[1;2m)␛[0m␛[2m or all-rounder ␛[0m␛[1;2m(␛[0m␛[2mSpec <= ␛[0m␛[1;2;36m25␛[0m␛[1;2m)␛[0m␛[2m; shape, not ␛[0m
+␛[2mextra value.␛[0m
+␛[2mScore = mean over categories of the rank-based z of the per-game rate within the ␛[0m␛[1;2;36m86␛[0m␛[2m-player pool and the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G; stats: blended: ␛[0m␛[1;2;36m30␛[0m␛[2m% season ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m70␛[0m␛[2m% projection; blank under ␛[0m␛[1;2;36m6␛[0m␛[2m GP␛[0m␛[1;2m)␛[0m␛[2m. ESPN values as of today.␛[0m
+[status] Rendering figure...
+[figure] category_radar_figure
+    pcts = DataFrame ['float64', 'float64', 'float64', 'float64']
+    ,G,A,PPP,HIT
+    Twin (Bravo),3.3333333333333335,94.44444444444444,43.333333333333336,3.3333333333333335
+    Twin (FA),36.666666666666664,12.222222222222221,72.22222222222221,92.22222222222223
+    Twin (FA),65.55555555555556,38.88888888888889,41.11111111111111,45.55555555555556
+
+    title = 'Test League — category percentiles (blended stats, 2027)'
+Saved ␛[1mplots/player_radar_test_league.png␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Compare players'
+? Player 1: [autocomplete, match_middle=True, style='<set>', validate='<set>']
+    * Alpha C1 (C, Alpha)
+    * Alpha C2 (C, Alpha)
+    * Alpha CW1 (C, Alpha)
+    * Alpha D1 (D, Alpha)
+    * Alpha D2 (D, Alpha)
+    * Alpha D3 (D, Alpha)
+    * Alpha G1 (G, Alpha)
+    * Alpha G2 (G, Alpha)
+    * Alpha LW1 (LW, Alpha)
+    * Alpha RW1 (RW, Alpha)
+    * Alpha RW2 (RW, Alpha)
+    * Bravo C1 (C, Bravo)
+    * Bravo C2 (C, Bravo)
+    * Bravo CW1 (C, Bravo)
+    * Bravo D1 (D, Bravo)
+    * Bravo D2 (D, Bravo)
+    * Bravo D3 (D, Bravo)
+    * Bravo G1 (G, Bravo)
+    * Bravo G2 (G, Bravo)
+    * Bravo RW1 (RW, Bravo)
+    * Bravo RW2 (RW, Bravo)
+    * Charlie C1 (C, Charlie)
+    * Charlie C2 (C, Charlie)
+    * Charlie CW1 (C, Charlie)
+    * Charlie D1 (D, Charlie)
+    * Charlie D2 (D, Charlie)
+    * Charlie D3 (D, Charlie)
+    * Charlie G1 (G, Charlie)
+    * Charlie G2 (G, Charlie)
+    * Charlie LW1 (LW, Charlie)
+    * Charlie RW1 (RW, Charlie)
+    * Charlie RW2 (RW, Charlie)
+    * Delta C1 (C, Delta)
+    * Delta C2 (C, Delta)
+    * Delta CW1 (C, Delta)
+    * Delta D1 (D, Delta)
+    * Delta D2 (D, Delta)
+    * Delta D3 (D, Delta)
+    * Delta G1 (G, Delta)
+    * Delta G2 (G, Delta)
+    * Delta LW1 (LW, Delta)
+    * Delta RW1 (RW, Delta)
+    * Delta RW2 (RW, Delta)
+    * Dropped C1 (C, FA)
+    * Dropped G1 (G, FA)
+    * Free C3 (C, FA)
+    * Free C4 (C, FA)
+    * Free C5 (C, FA)
+    * Free C6 (C, FA)
+    * Free CW1 (C, FA)
+    * Free CW2 (C, FA)
+    * Free CW3 (C, FA)
+    * Free CW4 (C, FA)
+    * Free CW5 (C, FA)
+    * Free D1 (D, FA)
+    * Free D10 (D, FA)
+    * Free D2 (D, FA)
+    * Free D3 (D, FA)
+    * Free D4 (D, FA)
+    * Free D5 (D, FA)
+    * Free D6 (D, FA)
+    * Free D7 (D, FA)
+    * Free D8 (D, FA)
+    * Free D9 (D, FA)
+    * Free G1 (G, FA)
+    * Free G2 (G, FA)
+    * Free G3 (G, FA)
+    * Free G4 (G, FA)
+    * Free G5 (G, FA)
+    * Free G6 (G, FA)
+    * Free G7 (G, FA)
+    * Free G8 (G, FA)
+    * Free LW1 (LW, FA)
+    * Free LW2 (LW, FA)
+    * Free LW3 (LW, FA)
+    * Free LW4 (LW, FA)
+    * Free LW5 (LW, FA)
+    * Free LW6 (LW, FA)
+    * Free RW1 (RW, FA)
+    * Free RW2 (RW, FA)
+    * Free RW3 (RW, FA)
+    * Free RW4 (RW, FA)
+    * Free RW5 (RW, FA)
+    * Twin (LW, Bravo)
+    * Twin (C, FA)
+    * Twin (C, FA) #908
+  > 'Alpha G1 (G, Alpha)'
+? Player 2: [autocomplete, match_middle=True, style='<set>', validate='<set>']
+    * Alpha C1 (C, Alpha)
+    * Alpha C2 (C, Alpha)
+    * Alpha CW1 (C, Alpha)
+    * Alpha D1 (D, Alpha)
+    * Alpha D2 (D, Alpha)
+    * Alpha D3 (D, Alpha)
+    * Alpha G1 (G, Alpha)
+    * Alpha G2 (G, Alpha)
+    * Alpha LW1 (LW, Alpha)
+    * Alpha RW1 (RW, Alpha)
+    * Alpha RW2 (RW, Alpha)
+    * Bravo C1 (C, Bravo)
+    * Bravo C2 (C, Bravo)
+    * Bravo CW1 (C, Bravo)
+    * Bravo D1 (D, Bravo)
+    * Bravo D2 (D, Bravo)
+    * Bravo D3 (D, Bravo)
+    * Bravo G1 (G, Bravo)
+    * Bravo G2 (G, Bravo)
+    * Bravo RW1 (RW, Bravo)
+    * Bravo RW2 (RW, Bravo)
+    * Charlie C1 (C, Charlie)
+    * Charlie C2 (C, Charlie)
+    * Charlie CW1 (C, Charlie)
+    * Charlie D1 (D, Charlie)
+    * Charlie D2 (D, Charlie)
+    * Charlie D3 (D, Charlie)
+    * Charlie G1 (G, Charlie)
+    * Charlie G2 (G, Charlie)
+    * Charlie LW1 (LW, Charlie)
+    * Charlie RW1 (RW, Charlie)
+    * Charlie RW2 (RW, Charlie)
+    * Delta C1 (C, Delta)
+    * Delta C2 (C, Delta)
+    * Delta CW1 (C, Delta)
+    * Delta D1 (D, Delta)
+    * Delta D2 (D, Delta)
+    * Delta D3 (D, Delta)
+    * Delta G1 (G, Delta)
+    * Delta G2 (G, Delta)
+    * Delta LW1 (LW, Delta)
+    * Delta RW1 (RW, Delta)
+    * Delta RW2 (RW, Delta)
+    * Dropped C1 (C, FA)
+    * Dropped G1 (G, FA)
+    * Free C3 (C, FA)
+    * Free C4 (C, FA)
+    * Free C5 (C, FA)
+    * Free C6 (C, FA)
+    * Free CW1 (C, FA)
+    * Free CW2 (C, FA)
+    * Free CW3 (C, FA)
+    * Free CW4 (C, FA)
+    * Free CW5 (C, FA)
+    * Free D1 (D, FA)
+    * Free D10 (D, FA)
+    * Free D2 (D, FA)
+    * Free D3 (D, FA)
+    * Free D4 (D, FA)
+    * Free D5 (D, FA)
+    * Free D6 (D, FA)
+    * Free D7 (D, FA)
+    * Free D8 (D, FA)
+    * Free D9 (D, FA)
+    * Free G1 (G, FA)
+    * Free G2 (G, FA)
+    * Free G3 (G, FA)
+    * Free G4 (G, FA)
+    * Free G5 (G, FA)
+    * Free G6 (G, FA)
+    * Free G7 (G, FA)
+    * Free G8 (G, FA)
+    * Free LW1 (LW, FA)
+    * Free LW2 (LW, FA)
+    * Free LW3 (LW, FA)
+    * Free LW4 (LW, FA)
+    * Free LW5 (LW, FA)
+    * Free LW6 (LW, FA)
+    * Free RW1 (RW, FA)
+    * Free RW2 (RW, FA)
+    * Free RW3 (RW, FA)
+    * Free RW4 (RW, FA)
+    * Free RW5 (RW, FA)
+    * Twin (LW, Bravo)
+    * Twin (C, FA)
+    * Twin (C, FA) #908
+  > 'Bravo G2 (G, Bravo)'
+? Player 3 (Enter to finish): [autocomplete, match_middle=True, style='<set>', validate='<set>']
+    * Alpha C1 (C, Alpha)
+    * Alpha C2 (C, Alpha)
+    * Alpha CW1 (C, Alpha)
+    * Alpha D1 (D, Alpha)
+    * Alpha D2 (D, Alpha)
+    * Alpha D3 (D, Alpha)
+    * Alpha G1 (G, Alpha)
+    * Alpha G2 (G, Alpha)
+    * Alpha LW1 (LW, Alpha)
+    * Alpha RW1 (RW, Alpha)
+    * Alpha RW2 (RW, Alpha)
+    * Bravo C1 (C, Bravo)
+    * Bravo C2 (C, Bravo)
+    * Bravo CW1 (C, Bravo)
+    * Bravo D1 (D, Bravo)
+    * Bravo D2 (D, Bravo)
+    * Bravo D3 (D, Bravo)
+    * Bravo G1 (G, Bravo)
+    * Bravo G2 (G, Bravo)
+    * Bravo RW1 (RW, Bravo)
+    * Bravo RW2 (RW, Bravo)
+    * Charlie C1 (C, Charlie)
+    * Charlie C2 (C, Charlie)
+    * Charlie CW1 (C, Charlie)
+    * Charlie D1 (D, Charlie)
+    * Charlie D2 (D, Charlie)
+    * Charlie D3 (D, Charlie)
+    * Charlie G1 (G, Charlie)
+    * Charlie G2 (G, Charlie)
+    * Charlie LW1 (LW, Charlie)
+    * Charlie RW1 (RW, Charlie)
+    * Charlie RW2 (RW, Charlie)
+    * Delta C1 (C, Delta)
+    * Delta C2 (C, Delta)
+    * Delta CW1 (C, Delta)
+    * Delta D1 (D, Delta)
+    * Delta D2 (D, Delta)
+    * Delta D3 (D, Delta)
+    * Delta G1 (G, Delta)
+    * Delta G2 (G, Delta)
+    * Delta LW1 (LW, Delta)
+    * Delta RW1 (RW, Delta)
+    * Delta RW2 (RW, Delta)
+    * Dropped C1 (C, FA)
+    * Dropped G1 (G, FA)
+    * Free C3 (C, FA)
+    * Free C4 (C, FA)
+    * Free C5 (C, FA)
+    * Free C6 (C, FA)
+    * Free CW1 (C, FA)
+    * Free CW2 (C, FA)
+    * Free CW3 (C, FA)
+    * Free CW4 (C, FA)
+    * Free CW5 (C, FA)
+    * Free D1 (D, FA)
+    * Free D10 (D, FA)
+    * Free D2 (D, FA)
+    * Free D3 (D, FA)
+    * Free D4 (D, FA)
+    * Free D5 (D, FA)
+    * Free D6 (D, FA)
+    * Free D7 (D, FA)
+    * Free D8 (D, FA)
+    * Free D9 (D, FA)
+    * Free G1 (G, FA)
+    * Free G2 (G, FA)
+    * Free G3 (G, FA)
+    * Free G4 (G, FA)
+    * Free G5 (G, FA)
+    * Free G6 (G, FA)
+    * Free G7 (G, FA)
+    * Free G8 (G, FA)
+    * Free LW1 (LW, FA)
+    * Free LW2 (LW, FA)
+    * Free LW3 (LW, FA)
+    * Free LW4 (LW, FA)
+    * Free LW5 (LW, FA)
+    * Free LW6 (LW, FA)
+    * Free RW1 (RW, FA)
+    * Free RW2 (RW, FA)
+    * Free RW3 (RW, FA)
+    * Free RW4 (RW, FA)
+    * Free RW5 (RW, FA)
+    * Twin (LW, Bravo)
+    * Twin (C, FA)
+    * Twin (C, FA) #908
+  > 'Delta G2 (G, Delta)'
+? Player 4 (Enter to finish): [autocomplete, match_middle=True, style='<set>', validate='<set>']
+    * Alpha C1 (C, Alpha)
+    * Alpha C2 (C, Alpha)
+    * Alpha CW1 (C, Alpha)
+    * Alpha D1 (D, Alpha)
+    * Alpha D2 (D, Alpha)
+    * Alpha D3 (D, Alpha)
+    * Alpha G1 (G, Alpha)
+    * Alpha G2 (G, Alpha)
+    * Alpha LW1 (LW, Alpha)
+    * Alpha RW1 (RW, Alpha)
+    * Alpha RW2 (RW, Alpha)
+    * Bravo C1 (C, Bravo)
+    * Bravo C2 (C, Bravo)
+    * Bravo CW1 (C, Bravo)
+    * Bravo D1 (D, Bravo)
+    * Bravo D2 (D, Bravo)
+    * Bravo D3 (D, Bravo)
+    * Bravo G1 (G, Bravo)
+    * Bravo G2 (G, Bravo)
+    * Bravo RW1 (RW, Bravo)
+    * Bravo RW2 (RW, Bravo)
+    * Charlie C1 (C, Charlie)
+    * Charlie C2 (C, Charlie)
+    * Charlie CW1 (C, Charlie)
+    * Charlie D1 (D, Charlie)
+    * Charlie D2 (D, Charlie)
+    * Charlie D3 (D, Charlie)
+    * Charlie G1 (G, Charlie)
+    * Charlie G2 (G, Charlie)
+    * Charlie LW1 (LW, Charlie)
+    * Charlie RW1 (RW, Charlie)
+    * Charlie RW2 (RW, Charlie)
+    * Delta C1 (C, Delta)
+    * Delta C2 (C, Delta)
+    * Delta CW1 (C, Delta)
+    * Delta D1 (D, Delta)
+    * Delta D2 (D, Delta)
+    * Delta D3 (D, Delta)
+    * Delta G1 (G, Delta)
+    * Delta G2 (G, Delta)
+    * Delta LW1 (LW, Delta)
+    * Delta RW1 (RW, Delta)
+    * Delta RW2 (RW, Delta)
+    * Dropped C1 (C, FA)
+    * Dropped G1 (G, FA)
+    * Free C3 (C, FA)
+    * Free C4 (C, FA)
+    * Free C5 (C, FA)
+    * Free C6 (C, FA)
+    * Free CW1 (C, FA)
+    * Free CW2 (C, FA)
+    * Free CW3 (C, FA)
+    * Free CW4 (C, FA)
+    * Free CW5 (C, FA)
+    * Free D1 (D, FA)
+    * Free D10 (D, FA)
+    * Free D2 (D, FA)
+    * Free D3 (D, FA)
+    * Free D4 (D, FA)
+    * Free D5 (D, FA)
+    * Free D6 (D, FA)
+    * Free D7 (D, FA)
+    * Free D8 (D, FA)
+    * Free D9 (D, FA)
+    * Free G1 (G, FA)
+    * Free G2 (G, FA)
+    * Free G3 (G, FA)
+    * Free G4 (G, FA)
+    * Free G5 (G, FA)
+    * Free G6 (G, FA)
+    * Free G7 (G, FA)
+    * Free G8 (G, FA)
+    * Free LW1 (LW, FA)
+    * Free LW2 (LW, FA)
+    * Free LW3 (LW, FA)
+    * Free LW4 (LW, FA)
+    * Free LW5 (LW, FA)
+    * Free LW6 (LW, FA)
+    * Free RW1 (RW, FA)
+    * Free RW2 (RW, FA)
+    * Free RW3 (RW, FA)
+    * Free RW4 (RW, FA)
+    * Free RW5 (RW, FA)
+    * Twin (LW, Bravo)
+    * Twin (C, FA)
+    * Twin (C, FA) #908
+  > 'Free G1 (G, FA)'
+
+␛[1mPlayer comparison (per game · percentile within group) —     ␛[0m
+␛[1mstats: blended: 30% season / 70% projection                  ␛[0m
+┏━━━┳━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mCat␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mAlpha G1  ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mBravo G2 †␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mDelta G2␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mFree G1   ␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━┩
+│␛[2m ␛[0m␛[2m1␛[0m␛[2m ␛[0m│ GAA │ ␛[37;48;2;28;100;28m2.58 · 77␛[0m  │ ␛[37;48;2;12;120;12m2.37 · 90␛[0m  │          │ ␛[37;48;2;106;36;36m2.99 · 30␛[0m  │
+│␛[2m ␛[0m␛[2m2␛[0m␛[2m ␛[0m│ SV% │ ␛[37;48;2;36;90;36m0.912 · 70␛[0m │ ␛[37;48;2;24;105;24m0.912 · 80␛[0m │          │ ␛[37;48;2;75;52;52m0.906 · 43␛[0m │
+└───┴─────┴────────────┴────────────┴──────────┴────────────┘
+
+␛[1mProfile summary — stats: blended: 30% season / 70% projection␛[0m
+┏━━━━┳━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mMetric ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mAlpha G1␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mBravo G2 †␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mDelta G2␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mFree G1␛[0m␛[1;36m ␛[0m┃
+┡━━━━╇━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━┩
+│␛[2m ␛[0m␛[2m 1␛[0m␛[2m ␛[0m│ Pos     │ Goalie   │ Goalie     │ Goalie   │ Goalie  │
+│␛[2m ␛[0m␛[2m 2␛[0m␛[2m ␛[0m│ Team    │ Alpha    │ Bravo      │ Delta    │ FA      │
+│␛[2m ␛[0m␛[2m 3␛[0m␛[2m ␛[0m│ GP      │ 21       │ 24         │ 0        │ 13      │
+│␛[2m ␛[0m␛[2m 4␛[0m␛[2m ␛[0m│ Score   │ ␛[37;48;2;35;91;35m0.63␛[0m     │ ␛[37;48;2;18;113;18m1.06␛[0m       │          │ ␛[37;48;2;87;46;46m-0.35␛[0m   │
+│␛[2m ␛[0m␛[2m 5␛[0m␛[2m ␛[0m│ Level   │ ␛[37;48;2;24;105;24m80␛[0m       │ ␛[37;48;2;16;115;16m87␛[0m         │          │ ␛[37;48;2;83;48;48m40␛[0m      │
+│␛[2m ␛[0m␛[2m 6␛[0m␛[2m ␛[0m│ Peak    │ ␛[37;48;2;32;95;32m73␛[0m       │ ␛[37;48;2;18;112;18m85␛[0m         │          │ ␛[37;48;2;91;44;44m37␛[0m      │
+│␛[2m ␛[0m␛[2m 7␛[0m␛[2m ␛[0m│ Breadth │          │            │          │         │
+│␛[2m ␛[0m␛[2m 8␛[0m␛[2m ␛[0m│ Spec    │          │            │          │         │
+│␛[2m ␛[0m␛[2m 9␛[0m␛[2m ␛[0m│ Elite   │ 0        │ 1          │          │ 0       │
+│␛[2m ␛[0m␛[2m10␛[0m␛[2m ␛[0m│ Holes   │ 0        │ 0          │          │ 0       │
+│␛[2m ␛[0m␛[2m11␛[0m␛[2m ␛[0m│ Type    │ Solid    │ Solid      │          │ Depth   │
+│␛[2m ␛[0m␛[2m12␛[0m␛[2m ␛[0m│ Best    │ GAA/SV%  │ GAA/SV%    │          │ SV%/GAA │
+└────┴─────────┴──────────┴────────────┴──────────┴─────────┘
+␛[2mPercentile = rank of the per-game rate within the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G␛[0m␛[1;2m)␛[0m␛[2m of the ␛[0m␛[1;2;36m86␛[0m␛[2m-player pool ␛[0m␛[1;2m(␛[0m␛[1;2;36m100␛[0m␛[2m = best, inverted categories flipped␛[0m␛[1;2m)␛[0m␛[2m. Level = Score percentile within the group; Spec = Peak - Breadth, where Peak = mean ␛[0m
+␛[2mpercentile of the best ␛[0m␛[1;2;36m2␛[0m␛[2m categories and Breadth = mean of the rest; Elite = categories >= ␛[0m␛[1;2;36m90␛[0m␛[2m, Holes = categories ␛[0m␛[1;2m<␛[0m␛[2;39m= ␛[0m␛[1;2;36m25␛[0m␛[2;39m. Type = Elite ␛[0m␛[1;2;39m(␛[0m␛[2;39mLevel >= ␛[0m␛[1;2;36m90␛[0m␛[1;2;39m)␛[0m␛[2;39m ␛[0m␛[2;35m/␛[0m␛[2;39m Solid ␛[0m␛[1;2;39m(␛[0m␛[2;39m>= ␛[0m␛[1;2;36m60␛[0m␛[1;2;39m)␛[0m␛[2;39m ␛[0m␛[2;35m/␛[0m␛[2;39m Depth, + specialist ␛[0m␛[1;2;39m(␛[0m␛[2;39mSpec ␛[0m␛[1;2m>␛[0m␛[2m= ␛[0m␛[1;2;36m40␛[0m␛[1;2m)␛[0m␛[2m or all-rounder ␛[0m␛[1;2m(␛[0m␛[2mSpec <= ␛[0m␛[1;2;36m25␛[0m␛[1;2m)␛[0m␛[2m; shape, not ␛[0m
+␛[2mextra value.␛[0m
+␛[2mScore = mean over categories of the rank-based z of the per-game rate within the ␛[0m␛[1;2;36m86␛[0m␛[2m-player pool and the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G; stats: blended: ␛[0m␛[1;2;36m30␛[0m␛[2m% season ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m70␛[0m␛[2m% projection; blank under ␛[0m␛[1;2;36m6␛[0m␛[2m GP␛[0m␛[1;2m)␛[0m␛[2m. ESPN values as of today.␛[0m
+␛[2m† = no ESPN projection: rated on season stats alone.␛[0m
+[status] Rendering figure...
+[figure] category_radar_figure
+    pcts = DataFrame ['float64', 'float64']
+    ,GAA,SV%
+    Alpha G1,76.66666666666667,70.0
+    Bravo G2 †,90.0,80.0
+    Delta G2,,
+    Free G1,30.0,43.333333333333336
+
+    title = 'Test League — category percentiles (blended stats, 2027)'
+Saved ␛[1mplots/player_radar_test_league.png␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+[end of script]
