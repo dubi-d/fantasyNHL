@@ -8,7 +8,7 @@ from ..analysis import PreviewPlayer, StatBasis, has_season_games, round_robin
 from .model import BAD, EVEN, GOOD, WARN, WARNING, Note, Tone, diverging, heat, note
 
 if TYPE_CHECKING:
-    from ..espn_data import LeagueData
+    from ..sources.espn import LeagueData
 
 RESULT_TONES = {"W": GOOD, "L": BAD, "T": EVEN}
 

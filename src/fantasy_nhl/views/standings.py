@@ -26,7 +26,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-    from ..espn_data import LeagueData
+    from ..sources.espn import LeagueData
 
 
 def _no_completed_weeks() -> View:

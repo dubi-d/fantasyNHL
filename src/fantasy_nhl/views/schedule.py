@@ -19,7 +19,7 @@ from ..config import ScheduleCalibration
 from .model import INFO, FigureBlock, TableView, Tone, View, column_tones, heat, note
 
 if TYPE_CHECKING:
-    from ..espn_data import CalibrationData, LeagueData, ScheduleData
+    from ..sources.espn import CalibrationData, LeagueData, ScheduleData
 
 SCOPE_LABELS = {"full": "full season", "remaining": "remaining matchups",
                 "playoffs": "playoffs"}

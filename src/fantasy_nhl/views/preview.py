@@ -26,7 +26,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-    from ..espn_data import LeagueData, PreviewData
+    from ..sources.espn import LeagueData, PreviewData
 
 
 def _pair_tones(home_raw: float, away_raw: float, inverted: bool,

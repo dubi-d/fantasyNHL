@@ -506,8 +506,16 @@ calibration.yaml             # stored schedule-scoring calibrations (auto-manage
 pyproject.toml               # package metadata, dependencies, CLI entrypoint
 src/fantasy_nhl/
   config.py                  # YAML loading into LeagueConfig/Category dataclasses
-  espn_data.py               # ESPN API access: scores, rosters, draft, ownership, NHL schedule, settings
-  analysis.py                # pure logic: round-robin tables, predictions, lineup seats, draft/roster value
+  sources/espn/              # ESPN API access (public names re-exported by the package)
+    league.py                #   the league session: weekly scores, results, fetch caches
+    calendar.py              #   NHL schedule mapped onto ESPN's fantasy calendar
+    players.py               #   rosters, saved lineups, free agents, player info
+    preview.py, review.py, calibration.py   # the fetches behind those tools
+  analysis/                  # pure logic (all names re-exported by the package)
+    models.py                #   player/draft records, position groups
+    rates.py, ranking.py     #   per-game rates and their blend; rank statistics
+    standings.py, seats.py, schedule.py, preview.py
+    draft.py, outlook.py, values.py, review.py
   plots.py                   # matplotlib figures (power rankings, schedule grids, player profiles)
   views/                     # what each tool shows, independent of the frontend
     model.py                 #   View = ordered blocks: tables with cell tones, notes, text, figures
@@ -547,8 +555,8 @@ prompts, fetches and prints.
   replays answers when the user steps back with ESC, so keep the code
   between yields free of side effects and never call `.ask()` directly —
   `prompts.ask` is what makes ESC/Ctrl-C work. Keep computation in
-  `analysis.py` (pure functions, no API calls) and data fetching in
-  `espn_data.py`. Anything that rates a player takes a `StatBasis` (the
+  `analysis/` (pure functions, no API calls) and data fetching in
+  `sources/espn/`. Anything that rates a player takes a `StatBasis` (the
   tool builds it with `_stat_basis` from the *Player stats* setting) and
   gets rates from `analysis.player_rate`.
 - **Adding a league:** append an entry under `leagues:` in `config.yaml` and

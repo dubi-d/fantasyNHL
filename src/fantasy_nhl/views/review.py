@@ -27,7 +27,7 @@ from .common import NO_PROJECTION_NOTE, basis_label
 from .model import INFO, Note, note
 
 if TYPE_CHECKING:
-    from ..espn_data import LeagueData, RosterReviewData
+    from ..sources.espn import LeagueData, RosterReviewData
 
 
 @dataclass

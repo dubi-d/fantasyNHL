@@ -8,7 +8,7 @@ from .common import RESULT_TONES, ranked, round_robin_week
 from .model import HEADING, TableView, TextBlock, View, column_tones, diverging, note
 
 if TYPE_CHECKING:
-    from ..espn_data import LeagueData
+    from ..sources.espn import LeagueData
 
 # points awarded for a real matchup result ("NA" -> no luck value yet)
 RESULT_PTS = {"W": 2, "T": 1, "L": 0}

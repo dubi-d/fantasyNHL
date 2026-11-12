@@ -7,16 +7,14 @@ import pytest
 import fantasy_nhl
 
 ROOT = Path(fantasy_nhl.__file__).parent
-SOURCES = {"espn_data", "sources"}
 TERMINAL = {"rich", "questionary", "prompt_toolkit"}
 # layer -> what its modules must not import (package parts or libraries)
 FORBIDDEN = {
-    "analysis": SOURCES | TERMINAL | {"views", "cli", "plots", "espn_api",
-                                      "matplotlib"},
-    "espn_data": TERMINAL | {"views", "cli", "plots", "matplotlib"},
+    "analysis": TERMINAL | {"sources", "views", "cli", "plots", "espn_api",
+                            "matplotlib"},
     "sources": TERMINAL | {"views", "cli", "plots", "matplotlib"},
-    "views": SOURCES | TERMINAL | {"cli", "plots", "espn_api", "matplotlib"},
-    "plots": SOURCES | TERMINAL | {"views", "cli", "espn_api"},
+    "views": TERMINAL | {"sources", "cli", "plots", "espn_api", "matplotlib"},
+    "plots": TERMINAL | {"sources", "views", "cli", "espn_api"},
 }
 
 

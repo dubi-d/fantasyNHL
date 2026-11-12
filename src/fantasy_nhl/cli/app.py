@@ -5,7 +5,7 @@ from typing import Any, Callable
 import questionary
 
 from ..config import LeagueConfig, load_config
-from ..espn_data import fetch_league_data
+from ..sources.espn import fetch_league_data
 from .display import console
 from .prompts import BACK, Ask, Do, ask
 from .tools import TOOLS

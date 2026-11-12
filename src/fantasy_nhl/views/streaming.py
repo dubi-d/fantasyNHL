@@ -49,7 +49,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-    from ..espn_data import PreviewData
+    from ..sources.espn import PreviewData
 
 ROSTER = "roster"
 SLOTS = "slots"

@@ -11,8 +11,11 @@ import numpy as np
 import pytest
 from espn_api.hockey import League
 
-from fantasy_nhl import espn_data
 from fantasy_nhl.config import LeagueConfig
+from fantasy_nhl.sources import espn
+from fantasy_nhl.sources.espn import calendar as espn_calendar
+from fantasy_nhl.sources.espn import players as espn_players
+from fantasy_nhl.sources.espn import preview as espn_preview
 
 
 @pytest.fixture
@@ -40,7 +43,7 @@ def _html(periods, year=2027, script=False):
 
 
 def _parse(html, year=2027, period_type_id=2):
-    return espn_data._season_periods(espn_data._app_constants(html), year,
+    return espn_calendar._season_periods(espn_calendar._app_constants(html), year,
                                     period_type_id)
 
 
@@ -59,7 +62,7 @@ def _league() -> League:
 
 
 def _data(league):
-    return espn_data.LeagueData(
+    return espn.LeagueData(
         config=LeagueConfig("Test", 42, 2027, "", ""), team_names=[],
         current_week=1, weekly_cat_scores=np.zeros((0, 0, 1)),
         weekly_results=[], total_weeks=25, regular_weeks=22,
@@ -87,7 +90,7 @@ def test_daily_lineups_use_selected_team_and_exact_requested_dates():
             {"id": 7, "roster": {"entries": [_entry(99, 0)]}},
             {"id": 42, "roster": {"entries": [_entry(11, slot), _entry(12, 5)]}}]}
     data, request = _lineup_data([response(3, 0), response(4, 7)])
-    assert espn_data.fetch_daily_lineup_slots(data, 1, [3, 4, 3]) == {
+    assert espn.fetch_daily_lineup_slots(data, 1, [3, 4, 3]) == {
         3: {11: "Center", 12: "Goalie"}, 4: {11: "Bench", 12: "Goalie"}}
     assert [c.kwargs for c in request.call_args_list] == [
         {"params": {"view": "mRoster", "scoringPeriodId": d}} for d in [3, 4]]
@@ -106,7 +109,7 @@ def test_daily_lineups_use_selected_team_and_exact_requested_dates():
 ])
 def test_missing_or_wrong_date_lineup_stays_unknown(response):
     data, _ = _lineup_data([response])
-    assert espn_data.fetch_daily_lineup_slots(data, 1, [3]) == {3: {}}
+    assert espn.fetch_daily_lineup_slots(data, 1, [3]) == {3: {}}
 
 
 def test_daily_lineup_skips_missing_identity_and_unrecognized_slots():
@@ -118,18 +121,18 @@ def test_daily_lineup_skips_missing_identity_and_unrecognized_slots():
     ]
     data, _ = _lineup_data([{"scoringPeriodId": 3, "teams": [
         {"id": 42, "roster": {"entries": entries}}]}])
-    assert espn_data.fetch_daily_lineup_slots(data, 1, [3]) == {3: {4: "IR", 5: "Util"}}
+    assert espn.fetch_daily_lineup_slots(data, 1, [3]) == {3: {4: "IR", 5: "Util"}}
 
 
 def test_no_lineup_requests_for_empty_dates_and_request_errors_propagate():
     data, request = _lineup_data([])
-    assert espn_data.fetch_daily_lineup_slots(data, 1, []) == {}
+    assert espn.fetch_daily_lineup_slots(data, 1, []) == {}
     request.assert_not_called()
     request.side_effect = RuntimeError("request failed")
     with pytest.raises(RuntimeError, match="request failed"):
-        espn_data.fetch_daily_lineup_slots(data, 1, [3])
+        espn.fetch_daily_lineup_slots(data, 1, [3])
     with pytest.raises(ValueError, match="no live ESPN session"):
-        espn_data.fetch_daily_lineup_slots(_data(None), 1, [3])
+        espn.fetch_daily_lineup_slots(_data(None), 1, [3])
 
 
 def _roster_member(player_id, slot, injury="ACTIVE", eligible=None):
@@ -145,26 +148,26 @@ def test_ir_roster_is_display_only_and_independent_of_injury_status():
     bench = _roster_member(3, "Bench", "OUT")
     data, request = _lineup_data([])
     data.espn_league.teams[1].roster = [assigned, active, bench]
-    ir = espn_data.fetch_ir_roster(data, 1)
+    ir = espn.fetch_ir_roster(data, 1)
     assert [(p.player_id, p.injury, p.lineup_slot, p.team_row) for p in ir] == [
         (1, "ACTIVE", "IR", 1)]
     assert ir[0].eligible_slots == []  # no active eligibility needed for display
     assert ir[0].position == "Center"
     data.espn_league.teams[0].roster = []
-    previews = espn_data._preview_rosters(data.espn_league, 2027, {"Center": 1})
+    previews = espn_players._preview_rosters(data.espn_league, 2027, {"Center": 1})
     assert [p.player_id for p in previews[1]] == [2, 3]
     assert [p.injury for p in previews[1]] == ["INJURY_RESERVE", "OUT"]
-    assert espn_data.fetch_ir_roster(data, 0) == []
+    assert espn.fetch_ir_roster(data, 0) == []
     request.assert_not_called()
 
 
 def test_preview_player_identity_and_ir_missing_session():
-    p = espn_data._preview_player(_roster_member(123, "Center"), 2027, {"Center": 1})
+    p = espn_players._preview_player(_roster_member(123, "Center"), 2027, {"Center": 1})
     assert p.player_id == 123
     assert p.eligible_slots == ["Center"]
-    assert espn_data._preview_player(_roster_member(123, "Center"), 2027, {}) is None
+    assert espn_players._preview_player(_roster_member(123, "Center"), 2027, {}) is None
     with pytest.raises(ValueError, match="no live ESPN session"):
-        espn_data.fetch_ir_roster(_data(None), 0)
+        espn.fetch_ir_roster(_data(None), 0)
 
 
 def test_2027_playoffs_follow_extended_matchup(monkeypatch, calendar_2027):
@@ -172,18 +175,18 @@ def test_2027_playoffs_follow_extended_matchup(monkeypatch, calendar_2027):
                                    p["scoringPeriodEnd"] + 1))
                for p in calendar_2027}
     fetch = Mock(return_value=periods)
-    monkeypatch.setattr(espn_data, "_fetch_season_periods", fetch, raising=False)
+    monkeypatch.setattr(espn_calendar, "_fetch_season_periods", fetch, raising=False)
     data = _data(_league())
-    dates = espn_data.fetch_week_dates(data)
+    dates = espn.fetch_week_dates(data)
     assert dates[19] == (date(2027, 2, 1), date(2027, 2, 14))
     assert dates[22] == (date(2027, 3, 1), date(2027, 3, 7))
     assert dates[23] == (date(2027, 3, 8), date(2027, 3, 14))
     assert dates[24] == (date(2027, 3, 15), date(2027, 3, 21))
     assert dates[25] == (date(2027, 3, 22), date(2027, 3, 28))
     assert len(dates) == 25  # NHL weeks beyond the fantasy season stay excluded.
-    schedule = espn_data.fetch_schedule_data(data)
+    schedule = espn.fetch_schedule_data(data)
     assert [p for ps in schedule.week_periods.values() for p in ps] == list(range(1, 182))
-    assert espn_data.fetch_week_dates(data) is dates
+    assert espn.fetch_week_dates(data) is dates
     fetch.assert_called_once_with(2027, 2)
     assert data.espn_league is not None
     cast(Mock, data.espn_league._get_all_pro_schedule).assert_called_once()
@@ -217,8 +220,8 @@ def test_unknown_period_type_is_rejected(calendar_2027):
 
 def test_public_calendar_request_has_timeout_and_no_cookies(monkeypatch, calendar_2027):
     request = Mock(return_value=BytesIO(_html(calendar_2027).encode()))
-    monkeypatch.setattr(espn_data, "urlopen", request)
-    assert espn_data._fetch_season_periods(2027, 2)[23] == list(range(161, 168))
+    monkeypatch.setattr(espn_calendar, "urlopen", request)
+    assert espn_calendar._fetch_season_periods(2027, 2)[23] == list(range(161, 168))
     args, kwargs = request.call_args
     assert args[0].full_url.endswith("schedule?seasonId=2027")
     assert not args[0].has_header("Cookie")
@@ -226,9 +229,9 @@ def test_public_calendar_request_has_timeout_and_no_cookies(monkeypatch, calenda
 
 
 def test_public_calendar_timeout_is_explained(monkeypatch):
-    monkeypatch.setattr(espn_data, "urlopen", Mock(side_effect=TimeoutError))
+    monkeypatch.setattr(espn_calendar, "urlopen", Mock(side_effect=TimeoutError))
     with pytest.raises(ValueError, match="Unable to load ESPN season calendar"):
-        espn_data._fetch_season_periods(2027, 2)
+        espn_calendar._fetch_season_periods(2027, 2)
 
 
 @pytest.mark.parametrize("periods", [[],
@@ -259,25 +262,25 @@ def test_archived_season_uses_its_own_calendar(
               'weekly:true,periods:[{id:1,scoringPeriodStart:1,'
               'scoringPeriodEnd:14}]}]}]}});')
     read = Mock(side_effect=[html, bundle, source])
-    monkeypatch.setattr(espn_data, "_read_calendar_resource", read)
-    assert espn_data._fetch_season_periods(year, 2) == {1: list(range(1, 15))}
+    monkeypatch.setattr(espn_calendar, "_read_calendar_resource", read)
+    assert espn_calendar._fetch_season_periods(year, 2) == {1: list(range(1, 15))}
     assert [call.args[0] for call in read.call_args_list] == [
         f"https://fantasy.espn.com/hockey/league/schedule?seasonId={year}",
         main_url, base + f"webpack/{name}-{digest}.js"]
 
 
 def test_missing_archive_does_not_use_current_season(monkeypatch, calendar_2027):
-    monkeypatch.setattr(espn_data, "_read_calendar_resource",
+    monkeypatch.setattr(espn_calendar, "_read_calendar_resource",
                         Mock(return_value=_html(calendar_2027)))
     with pytest.raises(ValueError, match="ESPN archived calendar for 2026"):
-        espn_data._fetch_season_periods(2026, 2)
+        espn_calendar._fetch_season_periods(2026, 2)
 
 
 def test_calendar_resources_are_restricted_to_public_espn(monkeypatch):
     request = Mock()
-    monkeypatch.setattr(espn_data, "urlopen", request)
+    monkeypatch.setattr(espn_calendar, "urlopen", request)
     with pytest.raises(ValueError, match="Unexpected ESPN calendar resource"):
-        espn_data._read_calendar_resource("https://example.com/calendar.js")
+        espn_calendar._read_calendar_resource("https://example.com/calendar.js")
     request.assert_not_called()
 
 
@@ -288,32 +291,32 @@ def test_league_matchups_combine_base_periods():
     league.matchup_ids = {}  # archived seasons need no scored-day history.
     dates = {p: date(2027, 1, 4) + timedelta(days=p - 1) for p in range(1, 36)}
     base = {w: list(range((w - 1) * 7 + 1, w * 7 + 1)) for w in range(1, 6)}
-    result = espn_data._week_scoring_periods(league, dates, base)
+    result = espn_calendar._week_scoring_periods(league, dates, base)
     assert result == {1: list(range(1, 8)), 2: list(range(8, 22)),
                       3: list(range(22, 36))}
 
 
 def test_missing_base_period_fails_instead_of_guessing():
     with pytest.raises(ValueError, match="ESPN.*calendar"):
-        espn_data._week_scoring_periods(_league(), {1: date(2026, 9, 29)}, {})
+        espn_calendar._week_scoring_periods(_league(), {1: date(2026, 9, 29)}, {})
 
 
 def test_fetch_failure_does_not_cache_guessed_dates(monkeypatch):
-    monkeypatch.setattr(espn_data, "_fetch_season_periods",
+    monkeypatch.setattr(espn_calendar, "_fetch_season_periods",
                         Mock(side_effect=ValueError("ESPN calendar unavailable")))
     data = _data(_league())
     with pytest.raises(ValueError, match="ESPN calendar"):
-        espn_data.fetch_week_dates(data)
+        espn.fetch_week_dates(data)
     assert data.schedule is None
     assert data.week_dates is None
 
 
 def test_game_starts_by_period_and_team():
     start = datetime(2026, 10, 19, 19, tzinfo=ZoneInfo("America/New_York"))
-    starts = espn_data._game_starts({
+    starts = espn_calendar._game_starts({
         1: {"21": [{"date": start.timestamp() * 1000}], "22": []},
         -99: {"21": [{"date": 0}]}})  # unknown NHL team id
-    assert starts == {21: {espn_data.PRO_TEAM_MAP[1]: start}}
+    assert starts == {21: {espn_calendar.PRO_TEAM_MAP[1]: start}}
 
 
 @pytest.mark.parametrize("started,counted", [(False, [20]), (True, [20, 21])])
@@ -323,18 +326,18 @@ def test_preview_predicts_today_until_games_start(monkeypatch, started, counted)
     league = SimpleNamespace(scoringPeriodId=21, teams=[],
                              scoreboard=lambda week: [])
     data = _data(cast(League, league))
-    data.schedule = espn_data.ScheduleData(
+    data.schedule = espn.ScheduleData(
         playing_by_period={21: {"Boston Bruins"}},
         period_dates={p: date(2026, 10, p - 2) for p in (20, 21, 22)},
         week_periods={1: [20, 21, 22]},
         game_starts={21: {"Boston Bruins": start}})
     actual = Mock(return_value=({}, {}))
-    monkeypatch.setattr(espn_data, "_actual_games", actual)
-    monkeypatch.setattr(espn_data, "_blend_weight", lambda league: 0.0)
-    monkeypatch.setattr(espn_data, "_fetch_roster_settings",
+    monkeypatch.setattr(espn_preview, "_actual_games", actual)
+    monkeypatch.setattr(espn_preview, "_blend_weight", lambda league: 0.0)
+    monkeypatch.setattr(espn_preview, "_fetch_roster_settings",
                         lambda league: ({}, None))
-    monkeypatch.setattr(espn_data, "_preview_rosters", lambda *args: [])
-    preview = espn_data.fetch_preview_data(data, 1)
+    monkeypatch.setattr(espn_preview, "_preview_rosters", lambda *args: [])
+    preview = espn.fetch_preview_data(data, 1)
     assert preview.remaining_periods == [21, 22]
     assert preview.started_today == ({"Boston Bruins"} if started else set())
     assert actual.call_args.args[2] == counted
