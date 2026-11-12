@@ -14,6 +14,7 @@ from fantasy_nhl.analysis import (
     DraftPick,
     PreviewPlayer,
     RosterPlayer,
+    StatBasis,
     TransactionCounts,
     acquisition_summary,
     average_points,
@@ -30,6 +31,8 @@ from fantasy_nhl.analysis import (
     draft_value_grid,
     drafted_rosters,
     effective_games,
+    has_projection,
+    has_season_games,
     lineup_game_counts,
     luck,
     market_gaps,
@@ -41,6 +44,7 @@ from fantasy_nhl.analysis import (
     open_seat_counts,
     percentile_ranks,
     pick_weekly_awards,
+    player_rate,
     player_table,
     player_value_scores,
     player_values,
@@ -67,6 +71,9 @@ CATEGORIES = [
     Category("A"),
     Category("GAA", inverted=True),
 ]
+
+# blended stats once the season is over: season rates, projection fallback
+FULL = StatBasis.blended(1.0)
 
 
 class TestLineupGameCounts:
@@ -462,6 +469,48 @@ class TestBlendedPerGame:
         assert blended_per_game(player, "G", 0.5) is None
 
 
+class TestStatBasis:
+    def test_min_games(self):
+        # blended: the calendar-scaled rule; season-only: at least one game
+        assert StatBasis.blended(0.0).min_games == 0
+        assert StatBasis.season(0.0).min_games == 1
+        assert StatBasis.blended(0.244).min_games == 5
+        assert StatBasis.season(0.244).min_games == 5
+        assert StatBasis.season(1.0).min_games == MIN_SCORE_GAMES
+
+
+class TestPlayerRate:
+    PLAYER = TestBlendedPerGame.PLAYER  # season 0.5 G/game, projected 0.25
+
+    def test_blended_matches_blended_per_game(self):
+        assert player_rate(self.PLAYER, "G", StatBasis.blended(0.5)) == \
+            blended_per_game(self.PLAYER, "G", 0.5)
+
+    def test_season_only_ignores_projection(self):
+        for fraction in (0.0, 0.1, 1.0):
+            assert player_rate(self.PLAYER, "G",
+                               StatBasis.season(fraction)) == 0.5
+
+    def test_season_only_never_falls_back(self):
+        rookie = PreviewPlayer("R", "Boston Bruins", ["Center"],
+                               projected_stats={"GP": 80, "G": 20})
+        assert player_rate(rookie, "G", StatBasis.season(0.5)) is None
+        assert player_rate(rookie, "G", StatBasis.blended(0.5)) == 0.25
+        assert has_projection(rookie) and not has_season_games(rookie)
+        assert has_season_games(self.PLAYER)
+
+    def test_ratio(self):
+        goalie = PreviewPlayer("G", "Boston Bruins", ["Goalie"],
+                               season_stats={"GS": 10, "GAA": 3.0},
+                               projected_stats={"GS": 50, "GAA": 2.0})
+        assert player_rate(goalie, "GAA", StatBasis.season(0.5)) == 3.0
+        assert player_rate(goalie, "GAA", StatBasis.blended(0.5)) == 2.5
+        # ESPN's placeholder ratio of a goalie without starts is no rate
+        goalie.season_stats = {"GS": 0, "GAA": 0.0}
+        assert player_rate(goalie, "GAA", StatBasis.season(0.5)) is None
+        assert player_rate(goalie, "GAA", StatBasis.blended(0.5)) == 2.0
+
+
 class TestPreviewWeek:
     CATEGORIES = [Category("G"), Category("GAA", inverted=True)]
     SLOTS = {"Center": 1, "Goalie": 1}
@@ -481,7 +530,7 @@ class TestPreviewWeek:
     def test_completed_week_returns_actual(self, players):
         actual = np.array([7.0, 3.5])
         games, totals = preview_week(players, self.SLOTS, self.PLAYING,
-                                     [], actual, self.CATEGORIES, 1.0,
+                                     [], actual, self.CATEGORIES, FULL,
                                      actual_games=5, actual_goalie_games=3)
         assert games == 5  # taken from actual games, not the roster replay
         assert totals == pytest.approx([7.0, 3.5])
@@ -489,7 +538,7 @@ class TestPreviewWeek:
     def test_future_week_pure_prediction(self, players):
         games, totals = preview_week(players, self.SLOTS, self.PLAYING,
                                      [1, 2, 3], np.zeros(2),
-                                     self.CATEGORIES, 1.0)
+                                     self.CATEGORIES, FULL)
         assert games == 6
         # skater: 0.5 G/game * 3 games; goalie GAA: his own average
         assert totals == pytest.approx([1.5, 2.0])
@@ -498,7 +547,7 @@ class TestPreviewWeek:
         # day 1-2 elapsed (actual: 2 G, GAA 3.5, 4 games), day 3 predicted
         actual = np.array([2.0, 3.5])
         games, totals = preview_week(players, self.SLOTS, self.PLAYING,
-                                     [3], actual, self.CATEGORIES, 1.0,
+                                     [3], actual, self.CATEGORIES, FULL,
                                      actual_games=4, actual_goalie_games=2)
         assert games == 6
         # G: 2 + 0.5 * 1; GAA: (3.5 * 2 + 2.0 * 1) / 3
@@ -508,13 +557,13 @@ class TestPreviewWeek:
         # ESPN reports GAA inf before the first goalie game of the week
         actual = np.array([0.0, np.inf])
         _, totals = preview_week(players, self.SLOTS, self.PLAYING,
-                                 [1], actual, self.CATEGORIES, 1.0)
+                                 [1], actual, self.CATEGORIES, FULL)
         assert totals[1] == pytest.approx(2.0)
 
     def test_ratio_ignores_skater_stats(self, players):
         # the skater's bogus GAA=99 must not contaminate the goalie average
         _, totals = preview_week(players, self.SLOTS, self.PLAYING,
-                                 [1], np.zeros(2), self.CATEGORIES, 1.0)
+                                 [1], np.zeros(2), self.CATEGORIES, FULL)
         assert totals[1] == pytest.approx(2.0)
 
     def test_ratio_multiple_goalies_weighted_by_games(self):
@@ -528,15 +577,33 @@ class TestPreviewWeek:
         playing = {1: {"Boston Bruins", "Dallas Stars"}, 2: {"Boston Bruins"}}
         _, totals = preview_week(players, {"Goalie": 2}, playing,
                                  [1, 2], np.zeros(2),
-                                 self.CATEGORIES, 1.0)
+                                 self.CATEGORIES, FULL)
         assert totals[1] == pytest.approx((2.0 * 2 + 3.0 * 1) / 3)
 
     def test_projection_blend_weight(self, players):
         players[0].projected_stats = {"GP": 10, "G": 10}  # 1.0 G/game
         _, totals = preview_week(players, self.SLOTS, self.PLAYING,
-                                 [1], np.zeros(2), self.CATEGORIES, 0.5)
+                                 [1], np.zeros(2), self.CATEGORIES,
+                                 StatBasis.blended(0.5))
         # blended rate (0.5 + 1.0) / 2 = 0.75 over one game
         assert totals[0] == pytest.approx(0.75)
+
+    def test_season_only_predicts_from_season_rates_alone(self, players):
+        players[0].projected_stats = {"GP": 10, "G": 10}
+        players[1].projected_stats = {"GS": 10, "GAA": 4.0}
+        _, totals = preview_week(players, self.SLOTS, self.PLAYING,
+                                 [1], np.zeros(2), self.CATEGORIES,
+                                 StatBasis.season(0.5))
+        assert totals == pytest.approx([0.5, 2.0])
+
+    def test_season_only_unplayed_player_predicts_nothing(self):
+        rookie = [PreviewPlayer("Rookie", "Boston Bruins", ["Center"],
+                                projected_stats={"GP": 10, "G": 10})]
+        args = (rookie, self.SLOTS, self.PLAYING, [1], np.zeros(2),
+                self.CATEGORIES)
+        games, totals = preview_week(*args, StatBasis.season(0.5))
+        assert games == 1 and totals[0] == 0.0
+        assert preview_week(*args, StatBasis.blended(0.5))[1][0] == 1.0
 
 
 class TestOpenSeatCounts:
@@ -1255,7 +1322,7 @@ class TestPlayerValueScores:
     def test_skaters_and_goalies_scored_within_their_group(self):
         players = [_skater(1, "Hi", 10), _skater(2, "Lo", 0),
                    _goalie(3, "Wall", 2.0), _goalie(4, "Sieve", 4.0)]
-        scores = player_value_scores(players, REVIEW_CATS, blend_weight=1.0)
+        scores = player_value_scores(players, REVIEW_CATS, FULL)
         assert scores[0] == pytest.approx(HALF)
         assert scores[1] == pytest.approx(-HALF)
         # lower GAA is better -> inverted flip
@@ -1265,7 +1332,7 @@ class TestPlayerValueScores:
     def test_no_games_gives_none_and_constant_gives_zero(self):
         players = [_skater(1, "A", 5), _skater(2, "B", 5),
                    _skater(3, "Nope", 0, gp=0)]
-        scores = player_value_scores(players, REVIEW_CATS, blend_weight=1.0)
+        scores = player_value_scores(players, REVIEW_CATS, FULL)
         assert scores[0] == pytest.approx(0.0) and scores[1] == pytest.approx(0.0)
         assert scores[2] is None
 
@@ -1278,7 +1345,7 @@ class TestPlayerValueScores:
                         season_stats={"G": 2, "DEF": 4, "GP": GP}),
                 _skater(4, "D2", 0, eligible_slots=["Defense"],
                         season_stats={"G": 0, "DEF": 0, "GP": GP})]
-        scores = player_value_scores(forwards + dmen, cats, 1.0)
+        scores = player_value_scores(forwards + dmen, cats, FULL)
         # forwards: DEF constant (0) -> 0; G decides
         assert scores[0] == pytest.approx(HALF / 2)
         assert scores[1] == pytest.approx(-HALF / 2)
@@ -1291,9 +1358,9 @@ class TestPlayerValueScores:
         cats = [Category("G")]
         players = [_skater(1, "Runaway", 1000), _skater(2, "Good", 10),
                    _skater(3, "Meh", 5)]
-        capped = player_value_scores(players, cats, 1.0)
+        capped = player_value_scores(players, cats, FULL)
         players[0].season_stats["G"] = 11
-        modest = player_value_scores(players, cats, 1.0)
+        modest = player_value_scores(players, cats, FULL)
         assert capped == pytest.approx(modest)
         assert capped[0] > capped[1] > capped[2]
         assert capped[1] == pytest.approx(0.0)  # median
@@ -1303,13 +1370,32 @@ class TestPlayerValueScores:
                          projected_stats={"G": 20, "GP": 10})
         vet = _skater(2, "Vet", 10, projected_stats={"G": 5, "GP": 10})
         # preseason: nobody has games, projections rank everyone
-        scores = player_value_scores([rookie, vet], REVIEW_CATS, 0.0)
+        scores = player_value_scores([rookie, vet], REVIEW_CATS,
+                                     StatBasis.blended(0.0))
         assert scores[0] == pytest.approx(HALF)
         assert scores[1] == pytest.approx(-HALF)
         # season over: no games -> no Score, however good the projection
-        scores = player_value_scores([rookie, vet], REVIEW_CATS, 1.0)
+        scores = player_value_scores([rookie, vet], REVIEW_CATS, FULL)
         assert scores[0] is None
         assert scores[1] == pytest.approx(0.0)  # alone in his group
+
+    def test_season_only_ignores_projections(self):
+        cats = [Category("G")]
+        cold = _skater(1, "Cold", 1, gp=10, projected_stats={"G": 50, "GP": 50})
+        hot = _skater(2, "Hot", 5, gp=10, projected_stats={"G": 5, "GP": 50})
+        rookie = _skater(3, "Rookie", 0, gp=0,
+                         projected_stats={"G": 60, "GP": 60})
+        pool = [cold, hot, rookie]
+        # early season: the blend still ranks by the projection
+        blended = player_value_scores(pool, cats, StatBasis.blended(0.1))
+        assert blended[0] > blended[1] and blended[2] is None
+        season = player_value_scores(pool, cats, StatBasis.season(0.1))
+        assert season[1] > season[0] and season[2] is None
+        # preseason: blended scores the projection, season-only has nothing
+        assert player_value_scores(pool, cats,
+                                   StatBasis.blended(0.0))[2] is not None
+        assert player_value_scores([rookie], cats,
+                                   StatBasis.season(0.0)) == [None]
 
     def test_min_games_scales_with_season_fraction(self):
         assert min_season_games(0.0) == 0
@@ -1317,10 +1403,11 @@ class TestPlayerValueScores:
         assert min_season_games(1.0) == MIN_SCORE_GAMES
         few = _skater(1, "Few", 3, gp=MIN_SCORE_GAMES - 1)
         enough = _skater(2, "Enough", 3, gp=MIN_SCORE_GAMES)
-        scores = player_value_scores([few, enough], REVIEW_CATS, 1.0)
+        scores = player_value_scores([few, enough], REVIEW_CATS, FULL)
         assert scores[0] is None and scores[1] is not None
         # a quarter into the season the same player has played enough
-        scores = player_value_scores([few, enough], REVIEW_CATS, 0.25)
+        scores = player_value_scores([few, enough], REVIEW_CATS,
+                                     StatBasis.blended(0.25))
         assert None not in scores
 
     def test_goalie_placeholder_ratio_without_starts_ignored(self):
@@ -1329,12 +1416,13 @@ class TestPlayerValueScores:
         bench = _goalie(1, "Bench", 0.0, gs=0)
         good = _goalie(2, "Good", 2.5)
         bad = _goalie(3, "Bad", 3.5)
-        scores = player_value_scores([bench, good, bad], REVIEW_CATS, 1.0)
+        scores = player_value_scores([bench, good, bad], REVIEW_CATS, FULL)
         assert scores[0] is None
         assert scores[1] > scores[2]
 
     def test_empty(self):
-        assert player_value_scores([], REVIEW_CATS, 0.5) == []
+        assert player_value_scores([], REVIEW_CATS,
+                                   StatBasis.blended(0.5)) == []
 
 
 PROFILE_CATS = [Category("G"), Category("A"), Category("HIT"), Category("BLK"),
@@ -1355,7 +1443,7 @@ class TestCategoryProfiles:
             _goalie(5, "Wall", 2.0), _goalie(6, "Sieve", 4.0)]
 
     def test_percentiles_within_group_and_inverted(self):
-        _, pcts, _ = category_profiles(self.POOL, PROFILE_CATS, 1.0)
+        _, pcts, _ = category_profiles(self.POOL, PROFILE_CATS, FULL)
         assert list(pcts.index) == [1, 2, 3, 4, 5, 6]
         assert list(pcts.loc[1, ["G", "A", "HIT", "BLK"]]) == [
             12.5, 12.5, 87.5, 87.5]
@@ -1364,7 +1452,7 @@ class TestCategoryProfiles:
         assert pcts.loc[5, "GAA"] == 75.0 and pcts.loc[6, "GAA"] == 25.0
 
     def test_peak_breadth_and_type(self):
-        _, _, summary = category_profiles(self.POOL, PROFILE_CATS, 1.0)
+        _, _, summary = category_profiles(self.POOL, PROFILE_CATS, FULL)
         banger, star = summary.loc[1], summary.loc[2]
         assert (banger["Peak"], banger["Breadth"], banger["Spec"]) == (
             87.5, 12.5, 75.0)
@@ -1377,12 +1465,12 @@ class TestCategoryProfiles:
         assert summary.loc[4, "Type"].startswith("Depth")
 
     def test_score_matches_player_value_scores(self):
-        _, _, summary = category_profiles(self.POOL, PROFILE_CATS, 1.0)
-        expected = player_value_scores(self.POOL, PROFILE_CATS, 1.0)
+        _, _, summary = category_profiles(self.POOL, PROFILE_CATS, FULL)
+        expected = player_value_scores(self.POOL, PROFILE_CATS, FULL)
         assert list(summary["Score"]) == pytest.approx(expected)
 
     def test_no_spec_with_at_most_two_categories(self):
-        _, _, summary = category_profiles(self.POOL, PROFILE_CATS, 1.0)
+        _, _, summary = category_profiles(self.POOL, PROFILE_CATS, FULL)
         goalie = summary.loc[5]
         assert goalie["Group"] == "G" and goalie["Peak"] == 75.0
         assert pd.isna(goalie["Breadth"]) and pd.isna(goalie["Spec"])
@@ -1391,13 +1479,13 @@ class TestCategoryProfiles:
 
     def test_elite_counts_top_decile(self):
         pool = [_skater(i, str(i), i) for i in range(10)]
-        _, pcts, summary = category_profiles(pool, [Category("G")], 1.0)
+        _, pcts, summary = category_profiles(pool, [Category("G")], FULL)
         assert pcts.loc[9, "G"] == 95.0
         assert list(summary["Elite"]) == [0] * 9 + [1]
 
     def test_short_sample_left_blank(self):
         pool = self.POOL + [_profiled(7, "Callup", 9, 9, 50, 50, gp=3)]
-        rates, pcts, summary = category_profiles(pool, PROFILE_CATS, 1.0)
+        rates, pcts, summary = category_profiles(pool, PROFILE_CATS, FULL)
         assert rates.loc[7].isna().all() and pcts.loc[7].isna().all()
         assert pd.isna(summary.loc[7, "Peak"]) and pd.isna(summary.loc[7, "Elite"])
         assert pd.isna(summary.loc[7, "Level"])
@@ -1424,8 +1512,19 @@ class TestCategoryProfiles:
         assert pd.isna(totals.loc[1, "GAA"]) and totals.loc[3, "GAA"] == 2.5
         assert totals.loc[2].isna().all() and pd.isna(totals.loc[3, "G"])
 
+    def test_season_only_profile_uses_season_rates(self):
+        cold = _skater(1, "Cold", 1, gp=10, projected_stats={"G": 50, "GP": 50})
+        hot = _skater(2, "Hot", 5, gp=10, projected_stats={"G": 5, "GP": 50})
+        rookie = _skater(3, "Rookie", 0, gp=0,
+                         projected_stats={"G": 60, "GP": 60})
+        rates, pcts, summary = category_profiles(
+            [cold, hot, rookie], [Category("G")], StatBasis.season(0.1))
+        assert list(rates["G"].dropna()) == pytest.approx([0.1, 0.5])
+        assert pcts.loc[2, "G"] == 75.0 and pcts.loc[1, "G"] == 25.0
+        assert pd.isna(rates.loc[3, "G"]) and pd.isna(summary.loc[3, "Score"])
+
     def test_empty(self):
-        rates, pcts, summary = category_profiles([], PROFILE_CATS, 1.0)
+        rates, pcts, summary = category_profiles([], PROFILE_CATS, FULL)
         assert rates.empty and pcts.empty and summary.empty
 
 
@@ -1442,7 +1541,7 @@ class TestPlayerValues:
         # Crowd darling with weak stats vs unknown with strong stats
         pool = [_skater(1, "Hype", 0, pct_owned=90.0),
                 _skater(2, "Gem", 10, pct_owned=10.0)]
-        values = player_values(pool, REVIEW_CATS, 1.0)
+        values = player_values(pool, REVIEW_CATS, FULL)
         assert list(values.index) == [1, 2]
         assert values.loc[1, "Gap"] > 0 > values.loc[2, "Gap"]
         assert values.loc[2, "ScorePct"] == 100.0
@@ -1451,12 +1550,24 @@ class TestPlayerValues:
         pool = [_skater(1, "F", 10, pct_owned=50.0),
                 _skater(2, "D", 1, pct_owned=99.0, eligible_slots=["Defense"]),
                 _goalie(3, "G", 3.0, pct_owned=1.0)]
-        values = player_values(pool, REVIEW_CATS, 1.0)
+        values = player_values(pool, REVIEW_CATS, FULL)
         assert list(values["Group"]) == ["F", "D", "G"]
         # alone in its group: every percentile is 100, Gap 0
         assert list(values["ScorePct"]) == [100.0] * 3
         assert list(values["OwnPct"]) == [100.0] * 3
         assert list(values["Gap"]) == [0.0] * 3
+
+    def test_no_projection_flag(self):
+        pool = [_skater(1, "Projected", 5, projected_stats={"G": 5, "GP": 10}),
+                _skater(2, "Unprojected", 3),
+                _skater(3, "Unplayed", 0, gp=0)]
+        # a blended Score resting on season stats alone; no Score, no flag
+        values = player_values(pool, REVIEW_CATS, FULL)
+        assert list(values["NoProj"]) == [False, True, False]
+        assert values["NoProj"].dtype == bool
+        # season-only stats never use a projection: nothing to flag
+        season = player_values(pool, REVIEW_CATS, StatBasis.season(1.0))
+        assert not season["NoProj"].any()
 
 
 class TestRosterReviewTables:
@@ -1477,7 +1588,7 @@ class TestRosterReviewTables:
 
     def values(self, rosters, extra=()):
         pool = [p for r in rosters for p in r] + list(extra)
-        return player_values(pool, REVIEW_CATS, 1.0)
+        return player_values(pool, REVIEW_CATS, FULL)
 
     def test_player_table_columns(self):
         rosters = self.rosters()
@@ -1487,9 +1598,12 @@ class TestRosterReviewTables:
         assert list(table["GP"]) == [GP, GP, GP]
         assert table.loc[1, "Injury"] == "OUT"
         assert table["Score"].dtype == float
+        # the fixture players have no projections
+        assert table["NoProj"].dtype == bool and table["NoProj"].all()
         fa = _skater(9, "FA", 1)
-        assert player_table([fa], self.values(rosters), self.TEAMS)\
-            .loc[0, "Team"] == "FA"
+        outside = player_table([fa], self.values(rosters), self.TEAMS)
+        assert outside.loc[0, "Team"] == "FA"
+        assert not outside.loc[0, "NoProj"]  # not in the pool: no Score
 
     def test_roster_origins(self):
         rosters = self.rosters()
@@ -1527,6 +1641,7 @@ class TestRosterReviewTables:
         assert by.loc["B1", "NowOn"] is None
         assert by.loc["A1", "GP"] == GP
         assert list(table["Overall"]) == [1, 2, 3, 4]
+        assert table["NoProj"].all()
 
     def test_draft_return_unplayed_pick_is_a_full_bust(self):
         rosters = self.rosters()
@@ -1560,6 +1675,7 @@ class TestRosterReviewTables:
         assert pd.isna(table.loc[0, "Return"])
         assert pd.isna(table.loc[0, "Score"])
         assert pd.isna(table.loc[0, "GP"])
+        assert not table.loc[0, "NoProj"]
 
     def test_acquisition_summary_groups_by_team_row(self):
         rosters = self.rosters()

@@ -686,6 +686,15 @@ def _stat_games(stats: dict[str, float]) -> float:
     return stats.get("GP") or stats.get("GS") or 0
 
 
+def _split_per_game(stats: dict[str, float], stat: str) -> float | None:
+    games = _stat_games(stats)
+    return stats.get(stat, 0.0) / games if games else None
+
+
+def _split_ratio(stats: dict[str, float], stat: str) -> float | None:
+    return stats.get(stat) if _stat_games(stats) else None
+
+
 def blended_per_game(player: PreviewPlayer, stat: str,
                      weight: float) -> float | None:
     """
@@ -695,11 +704,8 @@ def blended_per_game(player: PreviewPlayer, stat: str,
     :param weight: weight of the current-season rate (0 = projection only)
     :return: blended per-game rate, or None if neither split has games
     """
-    def rate(stats: dict[str, float]) -> float | None:
-        games = _stat_games(stats)
-        return stats.get(stat, 0.0) / games if games else None
-
-    return _blend(rate(player.season_stats), rate(player.projected_stats), weight)
+    return _blend(_split_per_game(player.season_stats, stat),
+                  _split_per_game(player.projected_stats, stat), weight)
 
 
 def blended_ratio(player: PreviewPlayer, stat: str,
@@ -707,18 +713,65 @@ def blended_ratio(player: PreviewPlayer, stat: str,
     """Blend a ratio stat (e.g. GAA) directly, ignoring splits without
     games (ESPN reports placeholder ratios for goalies with no starts);
     None if neither split has games and the stat."""
-    def value(stats: dict[str, float]) -> float | None:
-        return stats.get(stat) if _stat_games(stats) else None
+    return _blend(_split_ratio(player.season_stats, stat),
+                  _split_ratio(player.projected_stats, stat), weight)
 
-    return _blend(value(player.season_stats), value(player.projected_stats),
-                  weight)
+
+def _player_rate(player: PreviewPlayer, stat: str,
+                 weight: float) -> float | None:
+    if stat in RATIO_CATEGORIES:
+        return blended_ratio(player, stat, weight)
+    return blended_per_game(player, stat, weight)
+
+
+@dataclass(frozen=True)
+class StatBasis:
+    """Which player stats a rate is built from: season stats blended with
+    ESPN's projection by the elapsed share of the season, or the season
+    stats alone."""
+    season_only: bool
+    season_fraction: float  # share of the season elapsed (0..1)
+
+    @classmethod
+    def blended(cls, season_fraction: float) -> "StatBasis":
+        return cls(False, season_fraction)
+
+    @classmethod
+    def season(cls, season_fraction: float) -> "StatBasis":
+        return cls(True, season_fraction)
+
+    @property
+    def min_games(self) -> int:
+        """Season games a player needs for a Score (see min_season_games);
+        season stats alone need at least one game."""
+        required = min_season_games(self.season_fraction)
+        return max(required, 1) if self.season_only else required
+
+
+def has_projection(player: PreviewPlayer) -> bool:
+    return bool(_stat_games(player.projected_stats))
+
+
+def has_season_games(player: PreviewPlayer) -> bool:
+    return bool(_stat_games(player.season_stats))
+
+
+def player_rate(player: PreviewPlayer, stat: str,
+                basis: StatBasis) -> float | None:
+    """Per-game rate of a stat (ratio categories: the ratio itself) on the
+    given basis. Blended falls back to whichever of season and projection
+    exists; season-only never uses the projection (None without games)."""
+    if not basis.season_only:
+        return _player_rate(player, stat, basis.season_fraction)
+    split = _split_ratio if stat in RATIO_CATEGORIES else _split_per_game
+    return split(player.season_stats, stat)
 
 
 def preview_week(players: list[PreviewPlayer], slot_counts: dict[str, int],
                  playing_by_period: dict[int, set[str]],
                  remaining_periods: list[int],
                  actual_scores: np.ndarray, categories: list[Category],
-                 blend_weight: float, actual_games: int = 0,
+                 basis: StatBasis, actual_games: int = 0,
                  actual_goalie_games: int = 0) -> tuple[int, np.ndarray]:
     """
     Playable games and predicted final category scores of one team's matchup
@@ -733,7 +786,7 @@ def preview_week(players: list[PreviewPlayer], slot_counts: dict[str, int],
     :param remaining_periods: the scoring periods that still have to be predicted
     :param actual_scores: accumulated real category scores so far (config order)
     :param categories: category definitions
-    :param blend_weight: weight of current-season rates vs projections
+    :param basis: stats the per-game rates of the remaining days come from
     :param actual_games: player games actually counted on the elapsed days
     :param actual_goalie_games: goalie games actually counted on the elapsed days
     :return: (actual plus playable remaining games, predicted category scores)
@@ -754,7 +807,7 @@ def preview_week(players: list[PreviewPlayer], slot_counts: dict[str, int],
             for player, n, goalie in zip(players, remaining, is_goalie):
                 if not (goalie and n):
                     continue
-                value = blended_ratio(player, cat.name, blend_weight)
+                value = player_rate(player, cat.name, basis)
                 if value is None:
                     continue
                 weighted += value * n
@@ -762,7 +815,7 @@ def preview_week(players: list[PreviewPlayer], slot_counts: dict[str, int],
             totals[i] = weighted / goalie_games if goalie_games else actual_scores[i]
         else:
             totals[i] = actual_scores[i] + sum(
-                (blended_per_game(player, cat.name, blend_weight) or 0.0) * n
+                (player_rate(player, cat.name, basis) or 0.0) * n
                 for player, n in zip(players, remaining))
     return games, totals
 
@@ -885,13 +938,6 @@ def _pace_weight(player: PreviewPlayer, blend_weight: float) -> float:
     else 0 (projections only)."""
     games = _stat_games(player.season_stats)
     return blend_weight if games >= min_season_games(blend_weight) else 0.0
-
-
-def _player_rate(player: PreviewPlayer, stat: str,
-                 weight: float) -> float | None:
-    if stat in RATIO_CATEGORIES:
-        return blended_ratio(player, stat, weight)
-    return blended_per_game(player, stat, weight)
 
 
 def replacement_rates(players: list[PreviewPlayer],
@@ -1093,40 +1139,40 @@ def min_season_games(blend_weight: float) -> int:
 
 
 def player_value_scores(players: list[PreviewPlayer], categories: list[Category],
-                        blend_weight: float) -> list[float | None]:
+                        basis: StatBasis) -> list[float | None]:
     """
     Stat-based value of every player in a pool: the mean, over categories,
-    of the normal quantile of the player's percentile rank in the blended
-    per-game rate of that category, within the pool and within the
+    of the normal quantile of the player's percentile rank in the per-game
+    rate of that category (see player_rate), within the pool and within the
     player's position group - forwards and defensemen separately over the
     skater categories, goalies over the goalie categories - with inverted
     categories flipped so higher is always better. Grouping by position
     keeps defense-only categories (DEF, BLK) from inflating every
     defenseman relative to forwards; ranking (rather than z-scoring the
     raw rates) keeps one runaway category from dominating the score.
-    Players with fewer season games than min_season_games(blend_weight)
-    get no Score: too few games for a rate, and falling back to the
-    projection would credit them for games they did not play.
+    Players with fewer season games than basis.min_games get no Score: too
+    few games for a rate, and falling back to the projection would credit
+    them for games they did not play.
 
     :return: one score per player (None without enough games)
     """
     pct = category_percentiles(
-        category_rates(players, categories, blend_weight),
+        category_rates(players, categories, basis),
         [position_group(p) for p in players], categories)
     scores = _rank_z(pct).mean(axis=1)
     return [None if pd.isna(s) else float(s) for s in scores]
 
 
 def category_rates(players: list[PreviewPlayer], categories: list[Category],
-                   blend_weight: float) -> pd.DataFrame:
+                   basis: StatBasis) -> pd.DataFrame:
     """
-    Blended per-game rate (ratio categories: blended ratio) of every player
-    in every category of his kind (skater or goalie categories), one row
-    per player in input order, one column per category name. NaN for the
-    other kind's categories and for players with fewer season games than
-    min_season_games(blend_weight).
+    Per-game rate (ratio categories: the ratio; see player_rate) of every
+    player in every category of his kind (skater or goalie categories), one
+    row per player in input order, one column per category name. NaN for
+    the other kind's categories and for players with fewer season games
+    than basis.min_games.
     """
-    required = min_season_games(blend_weight)
+    required = basis.min_games
     names = [cat.name for cat in categories]
     rates = pd.DataFrame(np.nan, index=range(len(players)), columns=names)
     for i, player in enumerate(players):
@@ -1136,10 +1182,7 @@ def category_rates(players: list[PreviewPlayer], categories: list[Category],
         for cat in categories:
             if (cat.name in GOALIE_CATEGORIES) != is_goalie:
                 continue
-            if cat.name in RATIO_CATEGORIES:
-                value = blended_ratio(player, cat.name, blend_weight)
-            else:
-                value = blended_per_game(player, cat.name, blend_weight)
+            value = player_rate(player, cat.name, basis)
             if value is not None:
                 rates.loc[i, cat.name] = value
     return rates
@@ -1206,7 +1249,7 @@ def _player_type(level: float, spec: float) -> str:
 
 
 def category_profiles(pool: list[PreviewPlayer], categories: list[Category],
-                      blend_weight: float
+                      basis: StatBasis
                       ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Per-category strength of every player in a pool, within his position
@@ -1221,7 +1264,7 @@ def category_profiles(pool: list[PreviewPlayer], categories: list[Category],
     """
     index = pd.Index([p.player_id for p in pool], name="player_id")
     groups = [position_group(p) for p in pool]
-    rates = category_rates(pool, categories, blend_weight)
+    rates = category_rates(pool, categories, basis)
     pct = category_percentiles(rates, groups, categories)
     scores = _rank_z(pct).mean(axis=1)
     levels = pd.Series(np.nan, index=scores.index)
@@ -1268,15 +1311,16 @@ def percentile_ranks(values: Iterable[float | None]) -> list[float | None]:
 
 
 def player_values(pool: list[RosterPlayer], categories: list[Category],
-                  blend_weight: float) -> pd.DataFrame:
+                  basis: StatBasis) -> pd.DataFrame:
     """
     Value table of a player pool indexed by player id: position Group,
     Score (see player_value_scores), percentile ranks of roster% (OwnPct)
-    and Score (ScorePct) within the pool's position group, and
+    and Score (ScorePct) within the pool's position group,
     Gap = OwnPct - ScorePct (positive: the crowd rosters the player more
-    than the stats justify).
+    than the stats justify), and NoProj: a blended Score that rests on
+    season stats alone because ESPN has no projection for the player.
     """
-    scores = player_value_scores(pool, categories, blend_weight)
+    scores = player_value_scores(pool, categories, basis)
     table = pd.DataFrame({
         "Group": [position_group(p) for p in pool],
         "Score": pd.array(scores, dtype=float),
@@ -1291,6 +1335,9 @@ def player_values(pool: list[RosterPlayer], categories: list[Category],
             table.loc[members, "OwnPct"] = pd.array(
                 percentile_ranks(table.loc[members, "OwnPct"]), dtype=float)
     table["Gap"] = table["OwnPct"] - table["ScorePct"]
+    table["NoProj"] = [
+        not basis.season_only and score is not None and not has_projection(p)
+        for p, score in zip(pool, scores)]
     return table
 
 
@@ -1312,11 +1359,12 @@ def _player_row(player: RosterPlayer, values: pd.DataFrame,
         "Score": None if value is None else value["Score"],
         "Gap": None if value is None else value["Gap"],
         "Injury": player.injury,
+        "NoProj": False if value is None else bool(value["NoProj"]),
     }
 
 
 _PLAYER_COLUMNS = ["Player", "Pos", "TeamRow", "Team", "Slot", "Acq", "GP",
-                   "Own%", "Chg", "Score", "Gap", "Injury"]
+                   "Own%", "Chg", "Score", "Gap", "Injury", "NoProj"]
 
 
 def player_table(players: Iterable[RosterPlayer], values: pd.DataFrame,
@@ -1324,7 +1372,8 @@ def player_table(players: Iterable[RosterPlayer], values: pd.DataFrame,
     """One row per player with ownership, origin and value columns."""
     rows = [_player_row(p, values, team_names) for p in players]
     return pd.DataFrame(rows, columns=_PLAYER_COLUMNS).astype(
-        {"Own%": float, "Chg": float, "Score": float, "Gap": float})
+        {"Own%": float, "Chg": float, "Score": float, "Gap": float,
+         "NoProj": bool})
 
 
 def roster_origins(rosters: list[list[RosterPlayer]], values: pd.DataFrame,
@@ -1395,11 +1444,13 @@ def draft_return(picks: list[DraftPick], values: pd.DataFrame,
                        else float(score_pct) - slot),
             "NowOn": (None if pick.rostered_by is None
                       else team_names[pick.rostered_by]),
+            "NoProj": False if value is None else bool(value["NoProj"]),
         })
     return pd.DataFrame(rows, columns=[
         "Player", "Pos", "TeamRow", "Team", "Rd", "Pick", "Overall", "GP",
-        "Own%", "Score", "Return", "NowOn"]).astype(
-            {"GP": "Int64", "Own%": float, "Score": float, "Return": float})
+        "Own%", "Score", "Return", "NowOn", "NoProj"]).astype(
+            {"GP": "Int64", "Own%": float, "Score": float, "Return": float,
+             "NoProj": bool})
 
 
 def acquisition_summary(rosters: list[list[RosterPlayer]],

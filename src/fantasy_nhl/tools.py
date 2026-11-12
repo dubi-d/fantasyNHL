@@ -7,6 +7,7 @@ side effect (fetch, render) so it is not repeated when the user steps back
 and forth. Keep everything between yields free of side effects.
 """
 import re
+from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
 
@@ -32,10 +33,10 @@ from .analysis import (
     TIER_SOLID,
     PreviewPlayer,
     RosterPlayer,
+    StatBasis,
     StreamingContext,
     acquisition_summary,
     average_points,
-    blended_per_game,
     calibrate_night_value,
     category_contestedness,
     category_outlook,
@@ -48,6 +49,8 @@ from .analysis import (
     draft_value_grid,
     drafted_rosters,
     effective_games,
+    has_projection,
+    has_season_games,
     lineup_game_counts,
     luck,
     market_gaps,
@@ -57,6 +60,7 @@ from .analysis import (
     off_night_periods,
     open_seat_counts,
     pick_weekly_awards,
+    player_rate,
     player_table,
     player_values,
     position_open_seats,
@@ -101,6 +105,69 @@ from .prompts import BACK, Ask, Do, ask
 
 # points awarded for a real matchup result ("NA" -> no luck value yet)
 RESULT_PTS = {"W": 2, "T": 1, "L": 0}
+
+_STATS_BLENDED = "blended"
+_STATS_SEASON = "season"
+_STATS_CHOICES = {_STATS_BLENDED: "Blended (season + projection)",
+                  _STATS_SEASON: "This season only"}
+_NO_PROJECTION = "†"
+_NO_PROJECTION_NOTE = (f"{_NO_PROJECTION} = no ESPN projection: rated on "
+                       "season stats alone.")
+
+
+def _stats_key(data: LeagueData) -> str:
+    return _STATS_SEASON if data.season_stats_only else _STATS_BLENDED
+
+
+def player_stats_label(data: LeagueData) -> str:
+    """Menu label of the player stats setting, showing its current value."""
+    return f"Player stats: {_STATS_CHOICES[_stats_key(data)]}"
+
+
+def choose_player_stats(data: LeagueData) -> None:
+    """Session-wide setting: the player stats behind every Score, per-game
+    rate and prediction - season stats blended with ESPN's projection, or
+    this season's stats alone."""
+    answer = ask(questionary.select(
+        "Player stats for Scores, per-game rates and predictions:",
+        choices=[questionary.Choice(label, value=key)
+                 for key, label in _STATS_CHOICES.items()],
+        default=_stats_key(data)))
+    if answer is BACK:
+        return
+    data.season_stats_only = answer == _STATS_SEASON
+    console.print(
+        f"Player stats: [bold]{_STATS_CHOICES[answer]}[/] — "
+        + ("ESPN's projections are ignored; players without games this "
+           "season have no rate. Category outlook keeps its blended pace."
+           if data.season_stats_only else
+           "season rates weighted by the share of the season elapsed, "
+           "ESPN's projection for the rest."))
+
+
+def _stat_basis(data: LeagueData, season_fraction: float) -> StatBasis:
+    return (StatBasis.season(season_fraction) if data.season_stats_only
+            else StatBasis.blended(season_fraction))
+
+
+def _basis_label(basis: StatBasis) -> str:
+    if basis.season_only:
+        return "this season only"
+    season = round(basis.season_fraction * 100)
+    return f"blended: {season}% season / {100 - season}% projection"
+
+
+def _with_basis(title: str, basis: StatBasis) -> str:
+    return f"{title} — stats: {_basis_label(basis)}"
+
+
+def _warn_no_season_stats(basis: StatBasis,
+                          players: Iterable[PreviewPlayer]) -> None:
+    if basis.season_only and not any(has_season_games(p) for p in players):
+        console.print("Nobody here has played this season yet, so 'This "
+                      "season only' stats are empty - switch Player stats "
+                      "to Blended in the main menu to use projections.",
+                      style="yellow")
 
 
 def _round_robin_week(data: LeagueData, week: int) -> pd.DataFrame:
@@ -426,6 +493,20 @@ def _print_matchup_preview(data: LeagueData, week: int) -> None:
                   f"(incl. today's started games) plus playable games of the "
                   f"current roster for the rest of the week.")
 
+    basis = _stat_basis(data, preview.blend_weight)
+    if preview.remaining_periods:
+        rostered = [p for roster in preview.rosters for p in roster]
+        note = ("Remaining days are predicted from per-game rates — stats: "
+                f"{_basis_label(basis)}")
+        unprojected = sum(not has_projection(p) for p in rostered)
+        if basis.season_only:
+            note += "; players without games this season predict 0"
+        elif unprojected:
+            note += ("; rostered players without an ESPN projection "
+                     f"({unprojected}) are predicted from season stats alone")
+        console.print(f"{note}.", style="dim")
+        _warn_no_season_stats(basis, rostered)
+
     playing = dict(preview.playing_by_period)
     today = preview.current_period
     playing[today] = playing.get(today, set()) - preview.started_today
@@ -438,7 +519,7 @@ def _print_matchup_preview(data: LeagueData, week: int) -> None:
         games[row], scores[row] = preview_week(
             preview.rosters[row], preview.slot_counts, playing,
             preview.remaining_periods, preview.actual_scores[row],
-            categories, preview.blend_weight,
+            categories, basis,
             preview.actual_games[row], preview.actual_goalie_games[row])
         display[row] = [
             round(float(value), 2 if cat.name in RATIO_CATEGORIES else 1)
@@ -564,7 +645,8 @@ def streaming_planner(data: LeagueData):
             console.print("FA pool and stats are today's, not those of the "
                           "simulated week.", style="dim")
         _render_candidates(context, candidates, data.config.categories,
-                           preview.blend_weight, streamers, align)
+                           _stat_basis(data, preview.blend_weight),
+                           streamers, align)
     yield Do(show_candidates)
 
 
@@ -785,12 +867,12 @@ def _injury_style(value: object) -> str:
 
 
 def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
-                       categories: list[Category], blend_weight: float,
+                       categories: list[Category], basis: StatBasis,
                        streamers: list[str], align: int,
                        page_size: int = 15) -> None:
     """Render the free agent candidate table: schedule fit on the open days
-    plus blended per-game rates for the skater categories. Shown in pages of
-    ``page_size``, extending on request."""
+    plus per-game rates (on the given stat basis) for the skater categories.
+    Shown in pages of ``page_size``, extending on request."""
     look = ctx.lookahead_periods
     labels = _day_labels(ctx.periods + look, ctx.period_dates)
     keep = [p for p in ctx.roster if p.name not in streamers]
@@ -802,6 +884,7 @@ def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
         console.print("No free agent fills an open seat on the remaining "
                       "days.", style="yellow")
         return
+    _warn_no_season_stats(basis, candidates)
 
     by_name = {c.name: c for c in candidates}
     marker = {"fit": "•", "play": "·", "": ""}
@@ -812,10 +895,13 @@ def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
     rows = []
     for _, r in ranked.iterrows():
         cand = by_name[r["Player"]]
-        rates = {cat.name: blended_per_game(cand, cat.name, blend_weight)
+        rates = {cat.name: player_rate(cand, cat.name, basis)
                  for cat in rate_cats}
+        unprojected = (not basis.season_only and has_season_games(cand)
+                       and not has_projection(cand))
         rows.append({
-            "Player": r["Player"],
+            "Player": (f"{r['Player']} {_NO_PROJECTION}" if unprojected
+                       else r["Player"]),
             "Pos": _position_label(r["Slots"]),
             "Team": r["Team"],
             **{labels[d]: marker[r[d]] for d in ctx.actionable_periods},
@@ -843,13 +929,16 @@ def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
 
     for start in range(0, len(table), page_size):
         page = table.iloc[start:start + page_size]
-        print_df(page, f"Free agent candidates {start + 1}–"
-                 f"{start + len(page)} of {len(table)} by open days "
-                 "filled (• = fills an open seat, · = plays)"
-                 + (" — streamers dropped" if streamers else ""),
+        print_df(page, _with_basis(
+                     f"Free agent candidates {start + 1}–"
+                     f"{start + len(page)} of {len(table)} by open days "
+                     "filled (• = fills an open seat, · = plays)"
+                     + (" — streamers dropped" if streamers else ""), basis),
                  styles=styles,
                  widths={"Team": team_w + max(0, align - fa_lead)},
                  header_styles={labels[d]: "dim" for d in look})
+        if page["Player"].str.endswith(_NO_PROJECTION).any():
+            console.print(_NO_PROJECTION_NOTE, style="dim")
         if start + page_size >= len(table):
             break
         if ask(questionary.confirm("Show more candidates?",
@@ -1117,6 +1206,10 @@ def _player_view(table: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
     rounded numbers, rank index. Only transforms the columns present."""
     view = table.copy()
     view["Pos"] = view["Pos"].map(lambda p: _SLOT_ABBREV.get(p, p or "?"))
+    if "NoProj" in view:
+        view["Player"] = view["Player"].where(
+            ~view["NoProj"].astype(bool),
+            view["Player"] + f" {_NO_PROJECTION}")
     if "Slot" in view:
         view["Slot"] = view["Slot"].map(lambda s: _SLOT_SHORT.get(s, s))
     if "Injury" in view:
@@ -1207,6 +1300,10 @@ def review_rosters(data: LeagueData):
             console.print("Rosters are empty and the league has not drafted "
                           "yet.", style="yellow")
             return None
+        _warn_no_season_stats(
+            _stat_basis(data, review.blend_weight),
+            [p for roster in review.rosters for p in roster]
+            + review.free_agents)
         return review
     review = yield Do(fetch)
     if review is None:
@@ -1214,16 +1311,17 @@ def review_rosters(data: LeagueData):
 
     cats = data.config.categories
     n_teams = review.n_teams
+    basis = _stat_basis(data, review.blend_weight)
+    basis_short = "this season" if basis.season_only else "blended"
     pool: dict[int, RosterPlayer] = {}
     for player in [p for r in review.rosters for p in r] + review.free_agents:
         pool[player.player_id] = player
     for pid, player in review.drafted_players.items():
         pool.setdefault(pid, player)
-    values = player_values(list(pool.values()), cats, review.blend_weight)
+    values = player_values(list(pool.values()), cats, basis)
     pick_table = (draft_pick_table(review.picks, data.team_names, n_teams)
                   if review.picks else None)
-    rates, pcts, profile = category_profiles(list(pool.values()), cats,
-                                             review.blend_weight)
+    rates, pcts, profile = category_profiles(list(pool.values()), cats, basis)
     totals = season_totals(list(pool.values()), cats)
     info = player_table(pool.values(), values, data.team_names)
     info.index = profile.index
@@ -1236,22 +1334,25 @@ def review_rosters(data: LeagueData):
         # a full round of pick value is a strong signal; colour saturates there
         return diverging_style(value, n_teams)
 
-    def footer(gap: bool = False) -> None:
-        required = min_season_games(review.blend_weight)
+    def footer(*shown: pd.DataFrame, gap: bool = False) -> None:
+        """Score legend; ``shown`` = the player tables just printed."""
+        required = basis.min_games
         console.print(
             f"Score = mean over categories of the rank-based z of the "
             f"per-game rate within the {len(pool)}-player pool and the "
-            f"player's position group (F / D / G; "
-            f"{review.blend_weight:.0%} season stats, rest projections"
+            f"player's position group (F / D / G; stats: "
+            f"{_basis_label(basis)}"
             + (f"; blank under {required} GP" if required else "") + ")"
             + ("; Gap = roster% percentile - Score percentile within the "
                "group (+ = crowd overrates)" if gap else "")
             + ". ESPN values as of today.", style="dim")
+        if any(table["NoProj"].any() for table in shown):
+            console.print(_NO_PROJECTION_NOTE, style="dim")
 
     def not_drafted() -> None:
         console.print("The league has not drafted yet.", style="yellow")
 
-    def profile_footer() -> None:
+    def profile_footer(shown: pd.DataFrame) -> None:
         console.print(
             f"Percentile = rank of the per-game rate within the player's "
             f"position group (F / D / G) of the {len(pool)}-player pool "
@@ -1264,7 +1365,7 @@ def review_rosters(data: LeagueData):
             f"(Spec >= {SPEC_HIGH}) or all-rounder (Spec <= {SPEC_LOW}); "
             f"shape, not extra value.",
             style="dim")
-        footer()
+        footer(shown)
 
     def show_leaders(scope: str, row: int | None, group: str, sort: str,
                      cells: str) -> None:
@@ -1285,7 +1386,7 @@ def review_rosters(data: LeagueData):
             ids = ids[:_LEADERS_N]
         source = {"pct": pcts, "rate": rates, "total": totals}[cells]
         table = pd.concat([info.loc[ids, ["Player", "Pos", "Team", "GP",
-                                          "Injury"]],
+                                          "Injury", "NoProj"]],
                            profile.loc[ids, ["Score", "Level", "Spec",
                                              "Elite", "Holes", "Type",
                                              "Best"]]], axis=1)
@@ -1301,15 +1402,15 @@ def review_rosters(data: LeagueData):
         where = {"all": "pool", "fa": "free agents",
                  "team": data.team_names[row] if row is not None else ""}[scope]
         sort_label = f"{sort} percentile" if sort in names else sort
-        print_df(view,
-                 f"Category leaderboard — {_GROUP_CHOICES[group]}, {where} "
-                 f"(cells: {_CELL_CHOICES[cells].lower()}, colored by "
-                 f"percentile; by {sort_label})",
+        print_df(view, _with_basis(
+                     f"Category leaderboard — {_GROUP_CHOICES[group]}, "
+                     f"{where} (cells: {_CELL_CHOICES[cells].lower()}, colored "
+                     f"by percentile; by {sort_label})", basis),
                  styles={**_PLAYER_STYLES, "Level": _pct_cell_style,
                          "Elite": lambda v: diverging_style(v, 3),
                          "Holes": lambda v: diverging_style(-v, 3)},
                  cell_styles=cell_styles)
-        profile_footer()
+        profile_footer(table)
 
         background = profile[profile["Group"].isin(list(group))]
         if background["Spec"].isna().all():
@@ -1322,7 +1423,8 @@ def review_rosters(data: LeagueData):
             plots.level_spec_figure(
                 background, info.loc[ids, "Player"],
                 f"{data.config.name} — {_GROUP_CHOICES[group]}: level vs "
-                f"specialization ({where}, {data.config.year})", path)
+                f"specialization ({where}, {basis_short} stats, "
+                f"{data.config.year})", path)
         console.print(f"Saved [bold]{path}[/]")
 
     def show_compare(ids: tuple[int, ...]) -> None:
@@ -1331,21 +1433,30 @@ def review_rosters(data: LeagueData):
         if len(set(labels)) < len(labels):
             labels = [f"{name} ({info.at[pid, 'Team']})"
                       for name, pid in zip(labels, ids)]
-        cells = pd.DataFrame({
-            label: [" · ".join(filter(None, (
-                _stat_text(name, totals.at[pid, name], per_game=False),
-                _stat_text(name, rates.at[pid, name], per_game=True),
+        labels = [f"{label} {_NO_PROJECTION}" if info.at[pid, "NoProj"]
+                  else label for label, pid in zip(labels, ids)]
+
+        def cell(pid: int, name: str) -> str:
+            # season totals only next to season rates; a ratio is its own total
+            total = (_stat_text(name, totals.at[pid, name], per_game=False)
+                     if basis.season_only and name not in RATIO_CATEGORIES
+                     else "")
+            return " · ".join(filter(None, (
+                total, _stat_text(name, rates.at[pid, name], per_game=True),
                 "" if pd.isna(pcts.at[pid, name])
                 else f"{pcts.at[pid, name]:.0f}")))
-                for name in names]
-            for label, pid in zip(labels, ids)})
+        cells = pd.DataFrame({label: [cell(pid, name) for name in names]
+                              for label, pid in zip(labels, ids)})
         cells.insert(0, "Cat", names)
         cells.index = range(1, len(cells) + 1)
         cell_styles = pd.DataFrame(
             {label: [_pct_cell_style(pcts.at[pid, name]) for name in names]
              for label, pid in zip(labels, ids)}, index=cells.index)
-        print_df(cells, "Player comparison (season total · per game · "
-                 "percentile within group)", cell_styles=cell_styles)
+        print_df(cells, _with_basis(
+                     "Player comparison ("
+                     + ("season total · " if basis.season_only else "")
+                     + "per game · percentile within group)", basis),
+                 cell_styles=cell_styles)
 
         metrics = ["Pos", "Team", "GP", "Score", "Level", "Peak", "Breadth",
                    "Spec", "Elite", "Holes", "Type", "Best"]
@@ -1366,8 +1477,9 @@ def review_rosters(data: LeagueData):
             {label: [styler[m](rows.at[pid, m]) if m in styler else ""
                      for m in metrics]
              for label, pid in zip(labels, ids)}, index=summary.index)
-        print_df(summary, "Profile summary", cell_styles=summary_styles)
-        profile_footer()
+        print_df(summary, _with_basis("Profile summary", basis),
+                 cell_styles=summary_styles)
+        profile_footer(info.loc[list(ids)])
 
         from . import plots  # deferred: matplotlib import is slow
         path = _plot_path(data, "player_radar")
@@ -1376,7 +1488,7 @@ def review_rosters(data: LeagueData):
         with console.status("Rendering figure..."):
             plots.category_radar_figure(
                 radar, f"{data.config.name} — category percentiles "
-                f"({data.config.year})", path)
+                f"({basis_short} stats, {data.config.year})", path)
         console.print(f"Saved [bold]{path}[/]")
 
     by_label: dict[str, int] = {}
@@ -1428,9 +1540,11 @@ def review_rosters(data: LeagueData):
             ["Spec"] if len(names) > PEAK_CATS else []) + ["Elite"]
         sort = yield Ask(lambda: ask(questionary.select(
             "Sort by:", choices=sorts + names)))
+        # season totals only next to season stats, never next to blended ones
         cells = yield Ask(lambda: ask(questionary.select(
             "Cells show:", choices=[questionary.Choice(label, value=key)
-                                    for key, label in _CELL_CHOICES.items()])))
+                                    for key, label in _CELL_CHOICES.items()
+                                    if key != "total" or basis.season_only])))
         return scope, row, group, sort, cells
 
     def show_origins() -> None:
@@ -1439,8 +1553,9 @@ def review_rosters(data: LeagueData):
         table["Avg Own%"] = table["Avg Own%"].round(1)
         table["Avg Score"] = table["Avg Score"].round(2)
         table = _ranked(table, by="Avg Score")
-        print_df(table, "Roster Origins (composition today; Adds/Drops/Trades "
-                 "= season counters)",
+        print_df(table, _with_basis(
+                     "Roster Origins (composition today; Adds/Drops/Trades "
+                     "= season counters)", basis),
                  styles={"Avg Score": _score_style,
                          "Avg Own%": lambda v: heatmap_style(v / 100)})
         footer()
@@ -1503,6 +1618,13 @@ def review_rosters(data: LeagueData):
                 "waiver activity the drafted roster has little bearing on the "
                 "standings - see Draft hits & busts and Waiver pickups for "
                 "what actually happened.", style="dim")
+        if data.season_stats_only:
+            console.print(
+                "Not affected by the 'This season only' setting: "
+                + ("draft-day rosters are ESPN's projections by definition."
+                   if source == "draft" else
+                   "a full-season pace needs projected games, so the outlook "
+                   "stays on blended stats."), style="yellow")
 
     def show_draft_grades() -> None:
         if pick_table["ADP"].nunique() <= 1:
@@ -1548,9 +1670,11 @@ def review_rosters(data: LeagueData):
         ranked = table.dropna(subset=["Return"])
         hits = ranked.nlargest(_RETURN_N, "Return")
         busts = ranked.nsmallest(_RETURN_N, "Return")
-        print_df(_player_view(hits, cols), f"Draft hits (top {len(hits)})",
+        print_df(_player_view(hits, cols),
+                 _with_basis(f"Draft hits (top {len(hits)})", basis),
                  styles=_PLAYER_STYLES)
-        print_df(_player_view(busts, cols), f"Draft busts (top {len(busts)})",
+        print_df(_player_view(busts, cols),
+                 _with_basis(f"Draft busts (top {len(busts)})", basis),
                  styles=_PLAYER_STYLES)
         per_team = ranked.groupby("TeamRow")["Return"].agg(["mean", "sum"])
         summary = pd.DataFrame({"Player": [data.team_names[r]
@@ -1560,14 +1684,14 @@ def review_rosters(data: LeagueData):
                                 "Total": per_team["sum"].round(0)
                                 .astype(int).to_numpy()})
         summary = _ranked(summary, by="Avg Return")
-        print_df(summary, "Draft return by team",
+        print_df(summary, _with_basis("Draft return by team", basis),
                  styles={"Avg Return": _pct_style,
                          "Total": lambda v: diverging_style(v, 500)})
         console.print("Return = Score percentile within the position group "
                       "minus the draft-slot percentile (pick 1 = 100), in "
                       "percentage points; roster% is informational only.",
                       style="dim")
-        footer()
+        footer(hits, busts)
 
     def show_acquired(acquisition: str, label: str) -> None:
         summary, players = acquisition_summary(
@@ -1580,7 +1704,8 @@ def review_rosters(data: LeagueData):
         else:
             summary["Season trades"] = [c.trades for c in review.counters]
         summary = _ranked(summary.fillna({"Best": ""}), by="Avg Score")
-        print_df(summary, f"{label} by team (Count = still on roster)",
+        print_df(summary, _with_basis(
+                     f"{label} by team (Count = still on roster)", basis),
                  styles={"Avg Score": _score_style,
                          "Avg Own%": lambda v: heatmap_style(v / 100)})
         if players.empty:
@@ -1589,8 +1714,9 @@ def review_rosters(data: LeagueData):
             print_df(_player_view(players, ["Player", "Pos", "Team", "Slot",
                                             "GP", "Own%", "Score", "Gap",
                                             "Inj"]),
-                     f"{label} (all, by Score)", styles=_PLAYER_STYLES)
-        footer(gap=not players.empty)
+                     _with_basis(f"{label} (all, by Score)", basis),
+                     styles=_PLAYER_STYLES)
+        footer(players, gap=not players.empty)
 
     def show_gaps(row: int) -> None:
         if not review.rosters[row]:
@@ -1602,18 +1728,18 @@ def review_rosters(data: LeagueData):
             _GAPS_N, _GAPS_GOALIES)
         cols = ["Player", "Pos", "Slot", "Acq", "GP", "Own%", "Chg", "Score",
                 "Gap", "Inj"]
-        print_df(_player_view(drops, cols),
-                 f"{data.team_names[row]} — lowest-scoring players (drop "
-                 "candidates)", styles=_PLAYER_STYLES)
+        print_df(_player_view(drops, cols), _with_basis(
+                     f"{data.team_names[row]} — lowest-scoring players (drop "
+                     "candidates)", basis), styles=_PLAYER_STYLES)
         fa_cols = [c for c in cols if c not in ("Slot", "Acq")]
         pool_note = f"of the {len(review.free_agents)} most-owned free agents"
-        print_df(_player_view(skaters, fa_cols),
-                 f"Free-agent skaters by Score (top {len(skaters)} "
-                 f"{pool_note})", styles=_PLAYER_STYLES)
-        print_df(_player_view(goalies, fa_cols),
-                 f"Free-agent goalies by Score (top {len(goalies)} "
-                 f"{pool_note})", styles=_PLAYER_STYLES)
-        footer(gap=True)
+        print_df(_player_view(skaters, fa_cols), _with_basis(
+                     f"Free-agent skaters by Score (top {len(skaters)} "
+                     f"{pool_note})", basis), styles=_PLAYER_STYLES)
+        print_df(_player_view(goalies, fa_cols), _with_basis(
+                     f"Free-agent goalies by Score (top {len(goalies)} "
+                     f"{pool_note})", basis), styles=_PLAYER_STYLES)
+        footer(drops, skaters, goalies, gap=True)
 
     def show_team(row: int, source: str) -> None:
         name = data.team_names[row]
@@ -1628,11 +1754,12 @@ def review_rosters(data: LeagueData):
                                           "ADP", "Value", "Rounds", "Rank",
                                           "GP", "Own%", "Score", "Return",
                                           "NowOn"]),
-                     f"{name} — draft picks (Value = ADP − pick, Rounds = "
-                     f"Value / {n_teams})",
+                     _with_basis(
+                         f"{name} — draft picks (Value = ADP − pick, Rounds = "
+                         f"Value / {n_teams})", basis),
                      styles={**_PLAYER_STYLES, "Value": value_style,
                              "Rounds": lambda v: diverging_style(v, 1)})
-            footer()
+            footer(table)
             return
         roster = review.rosters[row]
         if not roster:
@@ -1648,9 +1775,10 @@ def review_rosters(data: LeagueData):
         print_df(_player_view(table, ["Player", "Pos", "Slot", "Acq", "Overall",
                                       "GP", "Own%", "Chg", "Score", "Gap",
                                       "Inj"]),
-                 f"{name} — current roster (by Score; Overall = draft "
-                 "position)", styles=_PLAYER_STYLES)
-        footer(gap=True)
+                 _with_basis(f"{name} — current roster (by Score; Overall = "
+                             "draft position)", basis),
+                 styles=_PLAYER_STYLES)
+        footer(table, gap=True)
 
     def ask_team():
         return Ask(lambda: ask(questionary.select(
@@ -1785,4 +1913,5 @@ TOOLS = [
         ("Show NHL schedule outlook", schedule_outlook),
     ]),
     ("Players, rosters & draft", review_rosters),
+    (player_stats_label, choose_player_stats),
 ]

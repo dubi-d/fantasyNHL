@@ -178,3 +178,13 @@ class TestRunMenu:
         select = self.fake_select(["Quit"])
         run_menu(None, [("Tool", lambda data: None)], select=select)
         assert select.queue == []
+
+    def test_label_function_is_reread_after_a_tool(self, monkeypatch):
+        import fantasy_nhl.cli as cli
+        monkeypatch.setattr(cli, "ask", lambda q: q.unsafe_ask())
+        data = {"mode": "a"}
+        items = [(lambda d: f"Mode: {d['mode']}", lambda d: d.update(mode="b"))]
+        # the second pick only exists if the label was resolved again
+        select = self.fake_select(["Mode: a", "Mode: b", BACK])
+        run_menu(data, items, select=select)
+        assert select.queue == [] and data["mode"] == "b"

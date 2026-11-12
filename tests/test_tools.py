@@ -4,13 +4,19 @@ from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import numpy as np
 import pandas as pd
 import pytest
 from rich.console import Console
 from rich.text import Text
 
 from fantasy_nhl import display, tools
-from fantasy_nhl.analysis import PreviewPlayer, RosterPlayer, StreamingContext
+from fantasy_nhl.analysis import (
+    PreviewPlayer,
+    RosterPlayer,
+    StatBasis,
+    StreamingContext,
+)
 from fantasy_nhl.cli import run_tool
 from fantasy_nhl.config import Category
 from fantasy_nhl.prompts import BACK, Ask, Do
@@ -142,7 +148,8 @@ def test_actionable_day_columns_align_including_candidates(rendered):
     align = tools._render_streaming_plan(ctx, 1, "Test", ["First"])
     candidate = PreviewPlayer("Candidate", "BOS", ["Center", "Forward", "Util"],
                               injury="SUSPENSION", player_id=9)
-    tools._render_candidates(ctx, [candidate], [], 0.0, ["First"], align)
+    tools._render_candidates(ctx, [candidate], [], StatBasis.blended(0.0),
+                             ["First"], align)
     lines = Text.from_ansi(output.getvalue()).plain.splitlines()
     headers = [line for line in lines if "#" in line and "Day 2" in line]
     assert len(headers) == 4
@@ -243,65 +250,239 @@ def test_back_to_streamers_reuses_daily_lineup_snapshot(monkeypatch, rendered):
                for call in render.call_args_list)
 
 
+def _plain(output) -> str:
+    """Captured console text with wrapping collapsed."""
+    return " ".join(Text.from_ansi(output.getvalue()).plain.split())
+
+
+@pytest.mark.parametrize("basis,projected,name,rate,label", [
+    (StatBasis.blended(0.5), {"GP": 10, "G": 10}, "Candidate", 0.75,
+     "blended: 50% season / 50% projection"),
+    (StatBasis.blended(0.5), {}, "Candidate †", 0.5,
+     "blended: 50% season / 50% projection"),
+    (StatBasis.season(0.5), {"GP": 10, "G": 10}, "Candidate", 0.5,
+     "this season only"),
+    (StatBasis.season(0.5), {}, "Candidate", 0.5, "this season only"),
+])
+def test_candidate_rates_follow_the_stat_basis(rendered, basis, projected,
+                                               name, rate, label):
+    _, output, calls = rendered
+    ctx = _context()
+    align = tools._render_streaming_plan(ctx, 1, "Test", ["First"])
+    candidate = PreviewPlayer("Candidate", "BOS", ["Center", "Forward", "Util"],
+                              season_stats={"GP": 10, "G": 5},
+                              projected_stats=projected, player_id=9)
+    tools._render_candidates(ctx, [candidate], [Category("G")], basis,
+                             ["First"], align)
+    table, title, _ = calls[-1]
+    assert table["Player"].tolist() == [name]
+    assert table["G"].tolist() == [rate]
+    assert title.endswith(f"stats: {label}")
+    # the mark is explained exactly when it is shown
+    assert ("no ESPN projection" in _plain(output)) == name.endswith("†")
+
+
+def test_candidates_without_season_games_hint(rendered):
+    _, output, calls = rendered
+    ctx = _context()
+    align = tools._render_streaming_plan(ctx, 1, "Test", ["First"])
+    rookie = PreviewPlayer("Rookie", "BOS", ["Center", "Forward", "Util"],
+                           projected_stats={"GP": 10, "G": 10}, player_id=9)
+    tools._render_candidates(ctx, [rookie], [Category("G")],
+                             StatBasis.season(0.0), ["First"], align)
+    assert pd.isna(calls[-1][0].loc[1, "G"])  # no fallback to the projection
+    assert "Nobody here has played this season yet" in _plain(output)
+
+
+@pytest.mark.parametrize("season_only,basis,note", [
+    (False, StatBasis.blended(0.3),
+     "stats: blended: 30% season / 70% projection; rostered players "
+     "without an ESPN projection (1) are predicted from season stats alone."),
+    (True, StatBasis.season(0.3),
+     "stats: this season only; players without games this season predict 0."),
+])
+def test_matchup_preview_predicts_on_the_chosen_stats(monkeypatch, rendered,
+                                                      season_only, basis, note):
+    _, output, _ = rendered
+    projected = PreviewPlayer("P", "BOS", ["Center"],
+                              season_stats={"GP": 5, "G": 1},
+                              projected_stats={"GP": 80, "G": 20})
+    unprojected = PreviewPlayer("U", "BOS", ["Center"],
+                                season_stats={"GP": 5, "G": 1})
+    preview = SimpleNamespace(
+        pairings=[(0, 1)], periods=[1, 2], remaining_periods=[2],
+        start_date=None, end_date=None, playing_by_period={2: {"BOS"}},
+        current_period=2, started_today=set(),
+        rosters=[[projected], [unprojected]], slot_counts={"Center": 1},
+        actual_scores=np.zeros((2, 1)), blend_weight=0.3,
+        actual_games=[0, 0], actual_goalie_games=[0, 0])
+    monkeypatch.setattr(tools, "_fetch_preview", lambda data, week: preview)
+    used = []
+    real = tools.preview_week
+
+    def spy(*args):
+        used.append(args[6])
+        return real(*args)
+    monkeypatch.setattr(tools, "preview_week", spy)
+    data = SimpleNamespace(team_names=["A", "B"], season_stats_only=season_only,
+                           config=SimpleNamespace(categories=[Category("G")]))
+    tools._print_matchup_preview(data, 1)
+    assert used == [basis, basis]
+    assert note in _plain(output)
+
+
+def test_choose_player_stats(monkeypatch, rendered):
+    _, output, _ = rendered
+    data = SimpleNamespace(season_stats_only=False)
+    asked = []
+    monkeypatch.setattr(tools.questionary, "select",
+                        lambda message, **kw: asked.append(kw) or kw)
+    answers = iter(["season", BACK, "blended"])
+    monkeypatch.setattr(tools, "ask", lambda question: next(answers))
+    assert tools.player_stats_label(data) == (
+        "Player stats: Blended (season + projection)")
+
+    tools.choose_player_stats(data)
+    assert data.season_stats_only
+    assert tools.player_stats_label(data) == "Player stats: This season only"
+    assert [c.value for c in asked[0]["choices"]] == ["blended", "season"]
+    assert asked[0]["default"] == "blended"
+    assert "Player stats: This season only" in _plain(output)
+
+    tools.choose_player_stats(data)  # ESC keeps the setting
+    assert data.season_stats_only and asked[1]["default"] == "season"
+
+    tools.choose_player_stats(data)
+    assert not data.season_stats_only
+
+
 def _profile_player(pid, name, g, hit, team_row=None, slots=("Center",)):
     return RosterPlayer(name, "BOS", list(slots), player_id=pid,
                         position=slots[0], team_row=team_row,
                         season_stats={"G": g, "A": g, "HIT": hit, "GP": 30})
 
 
-def test_player_profile_views(monkeypatch, rendered, tmp_path):
-    _, output, calls = rendered
+@pytest.fixture
+def prompts(monkeypatch):
+    """Scripted answers for the tools' select/autocomplete prompts; every
+    question asked is recorded as (message, choice values, kwargs)."""
+    answers, asked = [], []
+
+    def question(message, choices=(), **kwargs):
+        return message, [getattr(c, "value", c) for c in choices], kwargs
+
+    def answer(asked_question):
+        asked.append(asked_question)
+        return answers.pop(0)
+
+    monkeypatch.setattr(tools.questionary, "select", question)
+    monkeypatch.setattr(tools.questionary, "autocomplete", question)
+    monkeypatch.setattr(tools, "ask", answer)
+    return answers, asked
+
+
+def _review_wizard(monkeypatch, tmp_path, season_stats_only):
+    """The review tool on a 5-player pool, advanced to its view prompt."""
     rosters = [[_profile_player(1, "Sniper", 20, 5, 0),
                 _profile_player(2, "Banger", 2, 90, 0)],
                [_profile_player(3, "Twin", 10, 40, 1)]]
     free_agents = [_profile_player(4, "Twin", 1, 1),
                    _profile_player(5, "Wall", 0, 0, slots=("Goalie",))]
+    # only Sniper has a projection; it doubles his blended scoring rates
+    rosters[0][0].projected_stats = {"G": 40, "A": 40, "GP": 20}
     review = SimpleNamespace(rosters=rosters, free_agents=free_agents, picks=[],
-                             drafted_players={}, counters=[], blend_weight=1.0,
+                             drafted_players={}, counters=[], blend_weight=0.5,
                              slot_counts={}, n_teams=2)
     monkeypatch.setattr(tools, "fetch_roster_review", lambda data: review)
-    monkeypatch.setattr(tools, "_plot_path", lambda data, prefix: tmp_path / f"{prefix}.png")
-    data = SimpleNamespace(team_names=["Alpha", "Beta"], config=SimpleNamespace(
-        categories=[Category("G"), Category("A"), Category("HIT")],
-        name="Test", year=2026))
-
+    monkeypatch.setattr(tools, "_plot_path",
+                        lambda data, prefix: tmp_path / f"{prefix}.png")
+    data = SimpleNamespace(
+        team_names=["Alpha", "Beta"], season_stats_only=season_stats_only,
+        config=SimpleNamespace(
+            categories=[Category("G"), Category("A"), Category("HIT")],
+            name="Test", year=2026))
     wizard = tools.review_rosters(data)
     step = next(wizard)
-    step = wizard.send(step.run())  # view prompt
-    for answer in ("leaders", "team", 0, "F", "HIT", "total"):
-        step = wizard.send(answer)
-    assert isinstance(step, Do)
+    return wizard, wizard.send(step.run())
+
+
+def _show(wizard, step):
+    """Answer the wizard's prompts up to its next view, render it and
+    return to the view prompt."""
+    while isinstance(step, Ask):
+        step = wizard.send(step.run())
     step.run()
+    return wizard.send(None)
+
+
+def test_profile_views_blended(monkeypatch, rendered, prompts, tmp_path):
+    _, output, calls = rendered
+    answers, asked = prompts
+    wizard, step = _review_wizard(monkeypatch, tmp_path, False)
+
+    answers += ["leaders", "team", 0, "F", "G", "rate"]
+    step = _show(wizard, step)
+    leaders, title, _ = calls[-1]
+    assert "Alpha" in title and "G percentile" in title
+    assert title.endswith("stats: blended: 50% season / 50% projection")
+    # Sniper's projection counts; Banger has none and is marked
+    assert leaders["Player"].tolist() == ["Sniper", "Banger †"]
+    assert leaders["G"].tolist() == [1.33, 0.07]
+    # season totals are not offered next to blended stats
+    assert next(q for q in asked if q[0] == "Cells show:")[1] == ["pct", "rate"]
+    assert "† = no ESPN projection" in _plain(output)
+    assert (tmp_path / "player_map.png").exists()
+
+    # compare: autocomplete labels disambiguate the two "Twin"s
+    answers += ["compare", "Sniper (C, Alpha)", "Twin (C, FA)", ""]
+    step = _show(wizard, step)
+    players = [q for q in asked if q[0].startswith("Player ")]
+    validate = players[-1][2]["validate"]
+    assert validate("") is True  # two picked: Enter finishes
+    assert validate("Wall (G, FA)") == "Can't mix skaters and goalies"
+    assert validate("Sniper (C, Alpha)") == "Already picked"
+    assert players[0][2]["validate"]("") == "Pick a player"
+    cells, title, _ = calls[-2]
+    assert title == ("Player comparison (per game · percentile within group) "
+                     "— stats: blended: 50% season / 50% projection")
+    assert list(cells.columns) == ["Cat", "Sniper", "Twin †"]
+    assert cells["Sniper"].tolist() == ["1.33 · 88", "1.33 · 88", "0.08 · 38"]
+    assert (tmp_path / "player_radar.png").exists()
+
+
+def test_profile_views_this_season_only(monkeypatch, rendered, prompts,
+                                        tmp_path):
+    _, output, calls = rendered
+    answers, asked = prompts
+    wizard, step = _review_wizard(monkeypatch, tmp_path, True)
+
+    answers += ["leaders", "team", 0, "F", "HIT", "total"]
+    step = _show(wizard, step)
     leaders, title, kwargs = calls[-1]
-    assert "Alpha" in title and "HIT percentile" in title
+    assert title.endswith("stats: this season only")
+    assert next(q for q in asked if q[0] == "Cells show:")[1] == [
+        "pct", "rate", "total"]
     assert leaders["Player"].tolist() == ["Banger", "Sniper"]
     assert leaders["HIT"].tolist() == [90, 5]  # season totals
     # colored by percentile (Banger tops HIT), not by the displayed total
     assert kwargs["cell_styles"].loc[1, "HIT"] == display.heatmap_style(0.875)
-    assert (tmp_path / "player_map.png").exists()
 
-    # compare: autocomplete labels disambiguate the two "Twin"s
-    questions = []
-    monkeypatch.setattr(tools.questionary, "autocomplete",
-                        lambda message, **kw: questions.append(kw) or kw)
-    step = wizard.send(None)
-    step = wizard.send("compare")
-    labels = iter(["Sniper (C, Alpha)", "Twin (C, FA)", ""])
-    monkeypatch.setattr(tools, "ask", lambda question: next(labels))
-    for _ in range(3):
-        step = wizard.send(step.run())
-    validate = questions[-1]["validate"]
-    assert validate("") is True  # two picked: Enter finishes
-    assert validate("Wall (G, FA)") == "Can't mix skaters and goalies"
-    assert validate("Sniper (C, Alpha)") == "Already picked"
-    assert questions[0]["validate"]("") == "Pick a player"
-    assert isinstance(step, Do)
-    step.run()
-    cells, _, _ = calls[-2]
+    answers += ["compare", "Sniper (C, Alpha)", "Twin (C, FA)", ""]
+    step = _show(wizard, step)
+    cells, title, _ = calls[-2]
+    assert title == ("Player comparison (season total · per game · percentile "
+                     "within group) — stats: this season only")
     assert list(cells.columns) == ["Cat", "Sniper", "Twin"]
+    # Sniper's projection is ignored: totals and rates of the season alone
     assert cells["Sniper"].tolist() == ["20 · 0.67 · 88", "20 · 0.67 · 88",
                                        "5 · 0.17 · 38"]
-    assert (tmp_path / "player_radar.png").exists()
+    assert "no ESPN projection" not in _plain(output)
+
+    # the outlook cannot follow the setting and says so
+    answers += ["balance"]
+    _show(wizard, step)
+    assert "Not affected by the 'This season only' setting" in _plain(output)
+
 
 def test_autocomplete_dropdown_is_readable():
     from prompt_toolkit.styles import default_ui_style, merge_styles

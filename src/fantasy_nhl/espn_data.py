@@ -42,6 +42,8 @@ class LeagueData:
                                                             repr=False)
     # lazy cache filled by fetch_schedule_data
     schedule: "ScheduleData | None" = field(default=None, repr=False)
+    # session setting: player stats = season only instead of season+projection
+    season_stats_only: bool = False
 
 
 @dataclass

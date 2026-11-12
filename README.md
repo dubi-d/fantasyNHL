@@ -49,8 +49,16 @@ Select tool
 │   ├── Plan streaming week
 │   └── Show NHL schedule outlook
 ├── Players, rosters & draft
+├── Player stats: Blended (season + projection)
 └── Quit
 ```
+
+**Player stats** is a setting, not a tool: it decides which player stats
+every `Score`, per-game rate and prediction is built from — *Blended*
+(season stats mixed with ESPN's preseason projection, the default) or *This
+season only* (no projection anywhere). The menu entry shows the current
+value; it applies to all tools for the rest of the session and every
+affected table names it in its title. See *Player stats* below.
 
 After a tool finishes it returns to its own first prompt, so you can re-run
 it with different inputs right away. **ESC** goes back one step — the
@@ -101,8 +109,9 @@ answer re-run.
   league-wide (see below).
 - **Show matchup preview** — Predicted category scores for every head-to-head
   pairing of a selected matchup. Elapsed days use real data (live scores and
-  games actually played), remaining days use blended per-game rates (see
-  below) with the current roster filling all active lineup slots against the
+  games actually played), remaining days use per-game rates on the chosen
+  player stats (see *Player stats* below) with the current roster filling
+  all active lineup slots against the
   NHL schedule. Shows games played/playable, per-category winners, and a
   projected result.
 - **Plan streaming week** — Helps plan streamer pickups for a selected
@@ -113,8 +122,9 @@ answer re-run.
   two days of the next matchup appear as informational columns. Elapsed
   days are excluded (dimmed); for finished weeks the tool offers to simulate
   the week as ongoing. Optionally ranks skater free agents by how many of
-  the open days they would actually fill a lineup seat, with blended
-  per-game category rates (see below) alongside (injured players are flagged
+  the open days they would actually fill a lineup seat, with per-game
+  category rates on the chosen player stats (see *Player stats* below)
+  alongside (injured players are flagged
   DTD/OUT/IR). The roster's **Games** column counts scheduled games in each
   player's **saved active ESPN lineup**, from today through the end of the
   matchup (or simulated today onward); Bench/IR and next-matchup lookahead
@@ -163,11 +173,13 @@ answer re-run.
   - *Players* — **Category leaderboard**: the whole pool, the free agents
     or one team's roster, for forwards, defensemen, all skaters or
     goalies, sorted by `Score`, `Spec`, `Elite` or any single
-    category, with one column per category showing percentiles, per-game
-    rates or season totals (always colored by percentile). Also saves a
+    category, with one column per category showing percentiles or per-game
+    rates — and, with *This season only* stats, season totals — always
+    colored by percentile. Also saves a
     level-vs-specialization map PNG to `plots/`. **Compare players**: pick 2–4
     skaters or 2–4 goalies by name (autocomplete) for a per-category table
-    (season total · per game · percentile), their profile metrics and a
+    (per game · percentile; with *This season only* stats also the season
+    total), their profile metrics and a
     radar PNG. See *Player category profiles* below.
   - *League* — **Roster origins**: per team, how many players were
     drafted, added or traded in, how many sit on IR, average roster% and
@@ -222,9 +234,34 @@ average schedule would have produced. Positive luck means the team got easier
 opponents than average (its record flatters its strength), negative means
 it ran into a tough schedule. Luck sums to zero across the league each week.
 
+### Player stats
+
+Everything that rates a player — `Score` and percentiles, the per-game
+rates of free-agent candidates, the predicted days of the matchup preview —
+builds on his per-game rate per category (the ratio itself for GAA and
+SV%). The **Player stats** setting in the main menu decides where that rate
+comes from:
+
+- **Blended (season + projection)**, the default: the current-season rate
+  mixed with ESPN's preseason projection, weighted by how much of the
+  season has elapsed (see *Stat blending* below). Early on it mostly shows
+  what ESPN expected of a player; his real production takes over as the
+  season goes. A player ESPN has no projection for is rated on his season
+  stats alone; such players are marked `†` in player tables, and the
+  matchup preview states how many rostered players are affected.
+- **This season only**: the season stats alone. No projection is used and
+  nothing falls back to one: a player without games this season has no rate
+  (blank `Score`, 0 in predictions).
+
+The two are never mixed in one table: season totals are shown only next to
+*This season only* rates, and every affected table states the stats it is
+built on in its title. The setting lasts for the session. The one exception
+is the **Category outlook**: a full-season pace needs projected games, so
+it always uses blended stats (and says so).
+
 ### Stat blending
 
-Predictions build on per-game rates. For each player and category, the
+Blended player stats build on per-game rates. For each player and category, the
 current-season rate is blended linearly with ESPN's preseason projection,
 weighted by how much of the season has elapsed:
 
@@ -337,7 +374,7 @@ The review pools every rostered player, the 200 most-owned free agents and
 every drafted player, and attaches these metrics to each of them:
 
 - **`Score`** — the player's stat-based value: for each category, his
-  blended per-game rate (see *Stat blending*) is ranked within the pool and
+  per-game rate on the chosen stats (see *Player stats*) is ranked within the pool and
   his position group, the percentile rank is mapped to a normal quantile
   (median 0, 84th percentile +1, 98th +2), and `Score` is the mean over the
   categories, with inverted categories flipped so higher is always better.
@@ -352,7 +389,8 @@ every drafted player, and attaches these metrics to each of them:
     their categories move together).
   - *Minimum games:* a player needs 20 season games over a full season,
     scaled by the fraction of the season elapsed (none before the season
-    starts, 5 a quarter in, 20 at the end); below that his Score is blank —
+    starts, 5 a quarter in, 20 at the end; with *This season only* stats
+    always at least one); below that his Score is blank —
     a rate over a handful of games is noise, and falling back to the
     projection would credit him for games he did not play. Rates otherwise
     ignore availability; the `GP` column and the injury flag carry that.
@@ -376,7 +414,8 @@ transaction.
 
 `Score` collapses a player into one number; the profile keeps the
 per-category picture. Each category's **percentile** is the player's rank
-in his blended per-game rate within his position group of the pool — the
+in his per-game rate (on the chosen *Player stats*) within his position
+group of the pool — the
 same ranking `Score` is built on (midpoint percentile, 100 = best,
 inverted categories flipped; blank under the minimum games). The profile
 separates *how good* a player is from *what shape* his production has:
@@ -414,7 +453,8 @@ and how that profile would turn into matchup results.
 lineups the bench plays nearly every night, so lineup seats are not the
 constraint. *As drafted* sums ESPN's season projections for the draft-day
 rosters. *Current* uses each player's blended per-game rate (see *Stat
-blending*) times his projected games, so it reflects actual production on a
+blending*; always blended, whatever the *Player stats* setting) times his
+projected games, so it reflects actual production on a
 full-season scale; players below the `Score` games threshold stay on
 projections so a fluke week cannot swing a team. Ratio categories (GAA,
 SV%) are goalie-start-weighted means; inverted categories are flipped so a
@@ -476,7 +516,8 @@ tests/                       # pytest suite: analysis logic + wizard runner/menu
 - **Adding a tool:** write a function in `tools.py` taking a `LeagueData`
   argument and register it in the `TOOLS` tree (a nested list of
   `(label, tool)` or `(label, [children])` pairs — nest a list to add a
-  submenu). A tool that only prints is a plain function. A tool with prompts
+  submenu; a label can be a function of the `LeagueData` to show a current
+  value). A tool that only prints is a plain function. A tool with prompts
   is a generator: `answer = yield Ask(lambda: ask(questionary.select(...)))`
   for each prompt and `result = yield Do(thunk)` for every side effect
   (fetch, render, save). The runner in `cli.py` memoizes `Do` results and
@@ -485,7 +526,9 @@ tests/                       # pytest suite: analysis logic + wizard runner/menu
   `prompts.ask` is what makes ESC/Ctrl-C work. Keep computation in
   `analysis.py` (pure functions, no API calls), data fetching in
   `espn_data.py`, and render tables via `display.print_df` (per-cell
-  styling through the `styles` mapping).
+  styling through the `styles` mapping). Anything that rates a player takes
+  a `StatBasis` (build it with `tools._stat_basis`) and gets rates from
+  `analysis.player_rate`, so it follows the *Player stats* setting.
 - **Adding a league:** append an entry under `leagues:` in `config.yaml` and
   a matching credentials entry in `secrets.yaml`.
   The category list must match what the league actually scores on ESPN;

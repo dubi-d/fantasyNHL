@@ -70,16 +70,19 @@ def run_tool(data: Any, tool: Callable[[Any], Any]) -> None:
 _QUIT = object()
 
 
-def run_menu(data: Any, items: list[tuple[str, Any]],
+def run_menu(data: Any, items: list[tuple[Any, Any]],
              select: Callable[..., Any] = questionary.select) -> None:
     """Navigate a nested menu: ``items`` are (label, value) pairs where a
-    list value is a submenu and anything else a tool. ESC pops one level
-    (past the root exits); the root also offers Quit."""
-    stack: list[tuple[str, list[tuple[str, Any]]]] = [("Select tool", items)]
+    list value is a submenu and anything else a tool. A label is a string
+    or a function of ``data`` (re-read whenever the menu is shown). ESC pops
+    one level (past the root exits); the root also offers Quit."""
+    stack: list[tuple[str, list[tuple[Any, Any]]]] = [("Select tool", items)]
     while stack:
         title, entries = stack[-1]
-        choices = [questionary.Choice(label, value=(label, value))
-                   for label, value in entries]
+        choices = []
+        for label, value in entries:
+            text = label(data) if callable(label) else label
+            choices.append(questionary.Choice(text, value=(text, value)))
         if len(stack) == 1:
             choices.append(questionary.Choice("Quit", value=_QUIT,
                                               shortcut_key="q"))
