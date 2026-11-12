@@ -36,12 +36,9 @@ from .analysis import (
     StatBasis,
     StreamingContext,
     acquisition_summary,
-    average_points,
     calibrate_night_value,
-    category_contestedness,
     category_outlook,
     category_profiles,
-    category_win_rates,
     draft_extremes,
     draft_pick_table,
     draft_return,
@@ -52,14 +49,12 @@ from .analysis import (
     has_projection,
     has_season_games,
     lineup_game_counts,
-    luck,
     market_gaps,
     matchup_result,
     min_season_games,
     night_seat_curve,
     off_night_periods,
     open_seat_counts,
-    pick_weekly_awards,
     player_rate,
     player_table,
     player_values,
@@ -67,16 +62,12 @@ from .analysis import (
     preview_week,
     projected_category_balance,
     rank_streaming_candidates,
-    rank_timeline,
     replacement_rates,
     roster_origins,
-    round_robin,
     schedule_summary,
     season_totals,
     team_gap_coverage,
     team_week_schedule,
-    trailing_points,
-    weekly_points_timeline,
 )
 from .config import Category, ScheduleCalibration, load_config, save_calibration
 from .display import (
@@ -84,8 +75,10 @@ from .display import (
     console,
     diverging_style,
     heatmap_style,
+    note_markup,
     print_df,
     result_style,
+    tone_style,
 )
 from .espn_data import (
     LeagueData,
@@ -102,9 +95,16 @@ from .espn_data import (
     fetch_week_pairings,
 )
 from .prompts import BACK, Ask, Do, ask
-
-# points awarded for a real matchup result ("NA" -> no luck value yet)
-RESULT_PTS = {"W": 2, "T": 1, "L": 0}
+from .views.common import completed_matchups
+from .views.common import ranked as _ranked
+from .views.model import FigureBlock, Note, TableView, TextBlock, View
+from .views.standings import (
+    build_accumulated_scores,
+    build_category_profile,
+    build_luck_ranking,
+    build_power_rankings,
+)
+from .views.weekly import build_weekly_awards, build_weekly_scores
 
 _STATS_BLENDED = "blended"
 _STATS_SEASON = "season"
@@ -170,128 +170,58 @@ def _warn_no_season_stats(basis: StatBasis,
                       style="yellow")
 
 
-def _round_robin_week(data: LeagueData, week: int) -> pd.DataFrame:
-    return round_robin(data.weekly_cat_scores[:, :, week - 1],
-                       data.config.categories, data.team_names)
+def _print_table(table: TableView,
+                 widths: dict[str, int] | None = None) -> None:
+    print_df(table.frame, table.title,
+             cell_styles=(None if table.tones is None
+                          else table.tones.map(tone_style)),
+             footer=table.footer, widths=widths,
+             header_styles={col: "dim" for col in table.muted})
 
 
-def _completed_matchups(data: LeagueData) -> int:
-    """Number of completed matchups; the current one counts once it has a
-    decided result (season over)."""
-    if any(results[data.current_week - 1] != "NA"
-           for results in data.weekly_results):
-        return data.current_week
-    return data.current_week - 1
+def _save_figure(data: LeagueData, block: FigureBlock) -> None:
+    from . import plots  # deferred: matplotlib import is slow
+    path = _plot_path(data, block.prefix)
+    with console.status("Rendering figure..."):
+        figure = getattr(plots, f"{block.kind}_figure")(**block.inputs)
+        plots.save_figure(figure, path)
+    console.print(f"Saved [bold]{path}[/]")
 
 
-def _ranked(table: pd.DataFrame, by: str = "Pts") -> pd.DataFrame:
-    """Sort by the given points column and use the rank as index."""
-    table = table.sort_values(by=[by], ascending=False)
-    table.index = range(1, len(table) + 1)
-    return table
-
-
-def _week_table(data: LeagueData, week: int) -> pd.DataFrame:
-    """Round-robin table for one week with actual Result and Luck columns;
-    index = team row."""
-    table = _round_robin_week(data, week)
-    table["Result"] = [row_results[week - 1] for row_results in data.weekly_results]
-    actual_pts = table["Result"].map(RESULT_PTS)
-    table["Luck"] = luck(actual_pts, table["Pts"], len(data.team_names) - 1)
-    return table
-
-
-def _print_week_table(table: pd.DataFrame, title: str) -> None:
-    table = table.rename(columns={"W": "rrW", "L": "rrL", "T": "rrT"})
-    table["Luck"] = table["Luck"].round(2)
-    table = _ranked(
-        table[["Player", "Result", "rrW", "rrL", "rrT", "CatsWon", "Pts", "Luck"]])
-    # weekly luck is bounded by +-2
-    print_df(table, title,
-             styles={"Result": result_style,
-                     "Luck": lambda v: diverging_style(v, 2)})
+def _show(data: LeagueData, view: View) -> None:
+    """Render a view's blocks in order."""
+    for block in view.blocks:
+        if isinstance(block, TableView):
+            _print_table(block)
+        elif isinstance(block, Note):
+            markup, style = note_markup(block)
+            console.print(markup, style=style)
+        elif isinstance(block, TextBlock):
+            console.print(block.text, markup=False, highlight=False)
+        else:
+            _save_figure(data, block)
 
 
 def weekly_scores(data: LeagueData) -> None:
     """Print the round-robin table for every week, including the ongoing one."""
-    for week in range(1, data.current_week + 1):
-        ongoing = " (ongoing)" if week == data.current_week else ""
-        _print_week_table(_week_table(data, week), f"Week {week}{ongoing}")
+    _show(data, build_weekly_scores(data))
 
 
 def accumulated_scores(data: LeagueData) -> None:
     """Print actual matchup record and accumulated round-robin standings
     over all completed weeks."""
-    accumulated = _accumulated_table(data)
-    if accumulated is None:
-        console.print("No completed weeks yet.", style="yellow")
-        return
-
-    accumulated = _ranked(
-        accumulated[["Player", "W", "L", "T", "Pts",
-                     "rrW", "rrL", "rrT", "CatsWon", "xPts", "Luck"]],
-        by="xPts")
-    luck_scale = accumulated["Luck"].abs().max()
-    print_df(accumulated, "Accumulated Scores (matchup vs round-robin)",
-             styles={"Luck": lambda v: diverging_style(v, luck_scale)})
-
-
-def _accumulated_table(data: LeagueData) -> pd.DataFrame | None:
-    """Accumulated round-robin stats, actual record and luck over completed
-    weeks, or None if no week is completed yet."""
-    completed_weeks = _completed_matchups(data)
-    if completed_weeks == 0:
-        return None
-
-    stat_cols = ["W", "L", "T", "CatsWon", "Pts"]
-    accumulated = _round_robin_week(data, 1)
-    for week in range(2, completed_weeks + 1):
-        accumulated[stat_cols] += _round_robin_week(data, week)[stat_cols]
-    accumulated = accumulated.rename(columns={"W": "rrW", "L": "rrL", "T": "rrT"})
-
-    # actual matchup record (completed weeks only)
-    for result in ("W", "L", "T"):
-        accumulated[result] = [row_results[:completed_weeks].count(result)
-                               for row_results in data.weekly_results]
-    num_opponents = len(data.team_names) - 1
-    actual_pts = 2 * accumulated["W"] + accumulated["T"]
-    accumulated["Luck"] = luck(actual_pts, accumulated["Pts"], num_opponents).round(2)
-    # replace rr points with expected points; matchup points take the Pts name
-    accumulated["xPts"] = (accumulated["Pts"] / num_opponents).round(2)
-    accumulated["Pts"] = actual_pts
-    return accumulated
+    _show(data, build_accumulated_scores(data))
 
 
 def luck_ranking(data: LeagueData) -> None:
     """Print teams ranked by accumulated schedule luck (luckiest first)."""
-    table = _accumulated_table(data)
-    if table is None:
-        console.print("No completed weeks yet.", style="yellow")
-        return
-
-    table = table.sort_values(by=["Luck"], ascending=False)
-    table.index = range(1, len(table) + 1)
-    table = table[["Player", "W", "L", "T", "Pts", "xPts", "Luck"]]
-    luck_scale = table["Luck"].abs().max()
-    print_df(table, "Luck Ranking (positive = favorable schedule)",
-             styles={"Luck": lambda v: diverging_style(v, luck_scale)})
-
-
-def _ordinal(n: int) -> str:
-    if 10 <= n % 100 <= 20:
-        return f"{n}th"
-    suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
-    return f"{n}{suffix}"
-
-
-def _award_line(emoji: str, label: str, team: str, *clauses: str) -> str:
-    return f"{emoji} {label}: {team} — {', '.join(c for c in clauses if c)}"
+    _show(data, build_luck_ranking(data))
 
 
 def weekly_awards(data: LeagueData):
     """Print weekly awards (best/worst team, luckiest win, biggest choke)
     with a plain-text summary ready to paste into the league chat."""
-    completed = _completed_matchups(data)
+    completed = completed_matchups(data)
     if completed == 0:
         console.print("No completed matchups yet.", style="yellow")
         return
@@ -300,61 +230,15 @@ def weekly_awards(data: LeagueData):
 
 
 def _print_weekly_awards(data: LeagueData, week: int) -> None:
-    table = _week_table(data, week)
     with console.status("Fetching matchups..."):
         pairings = fetch_week_pairings(data, week)
-    opponents = {row: opp for pair in pairings for row, opp in (pair, pair[::-1])}
-    _print_week_table(table, f"Matchup {week} scores")
-
-    names = data.team_names
-    categories = data.config.categories
-    scores = data.weekly_cat_scores[:, :, week - 1]
-    ranks = table["Pts"].rank(ascending=False, method="min").astype(int)
-
-    def scoreline(row: int, opp: int) -> str:
-        won = int(matchup_result(scores[row], scores[opp], categories)[3])
-        lost = int(matchup_result(scores[opp], scores[row], categories)[3])
-        return f"{won}-{lost}-{len(categories) - won - lost}"
-
-    def versus(row: pd.Series) -> str:
-        """'beat <opponent> 6-2-1' clause, empty without a decided matchup."""
-        opp = opponents.get(row.name)
-        verb = {"W": "beat", "L": "lost to", "T": "tied"}.get(row["Result"])
-        if opp is None or verb is None:
-            return ""
-        return f"{verb} {names[opp]} {scoreline(row.name, opp)}"
-
-    def field_record(row: pd.Series) -> str:
-        return f"{int(row['W'])}-{int(row['L'])}-{int(row['T'])} vs the field"
-
-    awards = pick_weekly_awards(table)
-    best, worst = awards["best"], awards["worst"]
-    dates = (data.week_dates or {}).get(week)
-    when = f" ({dates[0]:%b %-d} – {dates[1]:%b %-d})" if dates else ""
-    lines = [f"🏒 Matchup {week} Awards{when}",
-             _award_line("🏆", "Team of the matchup", best["Player"],
-                         f"best stats ({field_record(best)})", versus(best)),
-             _award_line("🥶", "Dud of the matchup", worst["Player"],
-                         f"worst stats ({field_record(worst)})", versus(worst))]
-    lucky = awards.get("luckiest_win")
-    if lucky is not None and lucky["Player"] != best["Player"]:
-        lines.append(_award_line(
-            "🍀", "Luckiest win", lucky["Player"], versus(lucky),
-            f"with only the {_ordinal(ranks[lucky.name])}-best stats"))
-    choke = awards.get("biggest_choke")
-    if choke is not None and choke["Player"] != worst["Player"]:
-        lines.append(_award_line(
-            "💀", "Biggest choke", choke["Player"], versus(choke),
-            f"despite the {_ordinal(ranks[choke.name])}-best stats"))
-
-    console.print("Copy-paste for the league chat:", style="bold")
-    console.print("\n".join(lines), markup=False, highlight=False)
+    _show(data, build_weekly_awards(data, week, pairings))
 
 
 def power_rankings(data: LeagueData):
     """Print a teams-x-matchups heatmap of round-robin points and save
     a shareable timeline PNG (hot-streak rank bump chart + average points)."""
-    completed = _completed_matchups(data)
+    completed = completed_matchups(data)
     if completed < 2:
         console.print("Need at least 2 completed matchups.", style="yellow")
         return
@@ -364,60 +248,14 @@ def power_rankings(data: LeagueData):
         f"Hot-streak window in matchups (2-{completed})?", default=default,
         validate=lambda v: (v.isdigit() and 2 <= int(v) <= completed)
         or f"Enter a number between 2 and {completed}")))
-    yield Do(lambda: _print_power_rankings(data, completed, int(answer)))
-
-
-def _print_power_rankings(data: LeagueData, completed: int,
-                          window: int) -> None:
-    timeline = weekly_points_timeline(
-        data.weekly_cat_scores[:, :, :completed],
-        data.config.categories, data.team_names)
-    form_ranks = rank_timeline(trailing_points(timeline, window))
-    averages = average_points(timeline)
-
-    matchup_cols = [f"M{w}" for w in timeline.columns]
-    table = timeline.set_axis(matchup_cols, axis=1)
-    table.insert(0, "Player", timeline.index)
-    table["Total"] = timeline.sum(axis=1)
-    table = _ranked(table.reset_index(drop=True), by="Total")
-    max_pts = 2 * (len(data.team_names) - 1)  # neutral color at max_pts/2
-    styles: dict[str, StyleFn] = {
-        col: lambda v: heatmap_style(v / max_pts) for col in matchup_cols}
-    styles["Total"] = lambda v: heatmap_style(v / (max_pts * completed))
-    print_df(table, "Power Rankings (round-robin points per completed matchup)",
-             styles=styles)
-
-    from . import plots  # deferred: matplotlib import is slow
-    path = _plot_path(data, "power_rankings")
-    title = f"{data.config.name} — Power Rankings (through matchup {completed})"
-    with console.status("Rendering figure..."):
-        plots.save_figure(plots.power_rankings_figure(
-            form_ranks, averages, window, title), path)
-    console.print(f"Saved [bold]{path}[/]")
+    yield Do(lambda: _show(data, build_power_rankings(data, completed,
+                                                      int(answer))))
 
 
 def category_profile(data: LeagueData) -> None:
     """Print each team's per-category round-robin win% over completed weeks,
     plus how contested each category is league-wide."""
-    completed_weeks = _completed_matchups(data)
-    if completed_weeks == 0:
-        console.print("No completed weeks yet.", style="yellow")
-        return
-
-    scores = data.weekly_cat_scores[:, :, :completed_weeks]
-    cat_names = [cat.name for cat in data.config.categories]
-    table = category_win_rates(scores, data.config.categories, data.team_names)
-    contested = category_contestedness(table, data.config.categories).round(2)
-    table["Overall"] = table[cat_names].mean(axis=1)
-    table[cat_names + ["Overall"]] = table[cat_names + ["Overall"]].round(2)
-    table = _ranked(table[["Player"] + cat_names + ["Overall"]], by="Overall")
-
-    footer = pd.DataFrame(
-        [{"Player": "(contested)", **contested.to_dict()}], index=[""])
-    print_df(table, "Category Strength Profile "
-             "(win rate per category, completed weeks)",
-             styles={col: heatmap_style for col in cat_names + ["Overall"]},
-             footer=footer)
+    _show(data, build_category_profile(data))
 
 
 def _pair_style(home_raw: float, away_raw: float, inverted: bool,
