@@ -491,6 +491,12 @@ players toward the mean, so a draft built on breakouts looks weak on paper.
 .venv/bin/pytest
 ```
 
+`tests/test_golden.py` runs every tool through the real menu on a synthetic
+league and compares the whole terminal session (output with colors, prompts,
+fetch calls, figure inputs) with the transcripts in `tests/golden/`. After an
+intended change to what a tool shows, regenerate them with
+`UPDATE_GOLDEN=1 .venv/bin/pytest tests/test_golden.py` and review the diff.
+
 ## Repo overview
 
 ```
@@ -499,44 +505,62 @@ secrets.example.yaml         # template for secrets.yaml (ESPN cookies, gitignor
 calibration.yaml             # stored schedule-scoring calibrations (auto-managed)
 pyproject.toml               # package metadata, dependencies, CLI entrypoint
 src/fantasy_nhl/
-  cli.py                     # interactive session: league picker, menu tree, wizard runner
-  prompts.py                 # prompt primitives: Ask/Do steps, ESC = back, Ctrl-C = quit
   config.py                  # YAML loading into LeagueConfig/Category dataclasses
   espn_data.py               # ESPN API access: scores, rosters, draft, ownership, NHL schedule, settings
   analysis.py                # pure logic: round-robin tables, predictions, lineup seats, draft/roster value
-  display.py                 # rich rendering: tables, color gradients
-  plots.py                   # matplotlib PNG figures (power rankings, schedule grids)
-  tools.py                   # CLI tools and the TOOLS menu tree
-tests/                       # pytest suite: analysis logic + wizard runner/menu
+  plots.py                   # matplotlib figures (power rankings, schedule grids, player profiles)
+  views/                     # what each tool shows, independent of the frontend
+    model.py                 #   View = ordered blocks: tables with cell tones, notes, text, figures
+    common.py                #   shared formatting: player tables, abbreviations, stat-basis labels
+    weekly.py, standings.py, preview.py, streaming.py, schedule.py
+    review.py                #   the valued player pool behind players.py, rosters.py, draft.py
+  cli/                       # the terminal frontend
+    app.py                   #   interactive session: league picker, menu tree, wizard runner
+    prompts.py               #   prompt primitives: Ask/Do steps, ESC = back, Ctrl-C = quit
+    display.py               #   rich rendering: tables, tone -> color mapping
+    tools.py                 #   the tools (prompts, fetches, rendering of views) and the TOOLS menu tree
+tests/                       # pytest suite; support.py = synthetic league, golden/ = transcripts
 ```
+
+Imports point one way, checked by `tests/test_layering.py`: `analysis` knows
+nothing of ESPN, views or the terminal; `views` build on `analysis` and import
+neither `rich`, `questionary`, `matplotlib` nor the ESPN layer; only `cli`
+prompts, fetches and prints.
 
 ## Contributing
 
 - Install with dev dependencies: `pip install -e ".[dev]"` (see Setup).
-- **Adding a tool:** write a function in `tools.py` taking a `LeagueData`
-  argument and register it in the `TOOLS` tree (a nested list of
-  `(label, tool)` or `(label, [children])` pairs — nest a list to add a
-  submenu; a label can be a function of the `LeagueData` to show a current
-  value). A tool that only prints is a plain function. A tool with prompts
-  is a generator: `answer = yield Ask(lambda: ask(questionary.select(...)))`
-  for each prompt and `result = yield Do(thunk)` for every side effect
-  (fetch, render, save). The runner in `cli.py` memoizes `Do` results and
+- **Adding a tool:** write a builder in `views/` that takes the
+  `LeagueData`, anything already fetched and the user's choices, and returns
+  a `View` (see `views/model.py`): tables as DataFrames with per-cell
+  *tones* (`diverging`/`heat` intensities or tags like `GOOD`, `WARN`)
+  instead of terminal styles, notes, verbatim text and figures. A builder
+  never fetches, prompts or prints. Then write the tool in `cli/tools.py`,
+  a function taking a `LeagueData`, and register it in the `TOOLS` tree (a
+  nested list of `(label, tool)` or `(label, [children])` pairs — nest a
+  list to add a submenu; a label can be a function of the `LeagueData` to
+  show a current value). A tool without prompts is a plain function:
+  `_show(data, build_x(data))`. A tool with prompts is a generator:
+  `answer = yield Ask(lambda: ask(questionary.select(...)))` for each
+  prompt and `result = yield Do(thunk)` for every side effect (fetch,
+  render, save). The runner in `cli/app.py` memoizes `Do` results and
   replays answers when the user steps back with ESC, so keep the code
   between yields free of side effects and never call `.ask()` directly —
   `prompts.ask` is what makes ESC/Ctrl-C work. Keep computation in
-  `analysis.py` (pure functions, no API calls), data fetching in
-  `espn_data.py`, and render tables via `display.print_df` (per-cell
-  styling through the `styles` mapping). Anything that rates a player takes
-  a `StatBasis` (build it with `tools._stat_basis`) and gets rates from
-  `analysis.player_rate`, so it follows the *Player stats* setting.
+  `analysis.py` (pure functions, no API calls) and data fetching in
+  `espn_data.py`. Anything that rates a player takes a `StatBasis` (the
+  tool builds it with `_stat_basis` from the *Player stats* setting) and
+  gets rates from `analysis.player_rate`.
 - **Adding a league:** append an entry under `leagues:` in `config.yaml` and
   a matching credentials entry in `secrets.yaml`.
   The category list must match what the league actually scores on ESPN;
   mark lower-is-better categories with `inverted: true`.
 - Run `pytest` before committing. New analysis logic should come with tests
-  (`tests/test_analysis.py`); the wizard runner and menu are covered by
+  (`tests/test_analysis.py`), a new tool with a scripted case in
+  `tests/test_golden.py`; the wizard runner and menu are covered by
   `tests/test_cli.py` with scripted fake prompts, the ESC/Ctrl-C prompt
   behavior by `tests/test_prompts.py` (real questionary prompts driven
   through a pipe), and config/calibration persistence by
-  `tests/test_config.py`. The ESPN layer is untested (requires live
-  credentials), as are the tool bodies themselves.
+  `tests/test_config.py`. Requests to ESPN are never made in tests: the
+  parsing of its payloads is covered offline by `tests/test_espn_data.py`,
+  the tools run on the fake fetchers of `tests/support.py`.
