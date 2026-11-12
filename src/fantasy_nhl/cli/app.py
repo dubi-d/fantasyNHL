@@ -4,9 +4,9 @@ from typing import Any, Callable
 
 import questionary
 
-from .config import LeagueConfig, load_config
+from ..config import LeagueConfig, load_config
+from ..espn_data import fetch_league_data
 from .display import console
-from .espn_data import fetch_league_data
 from .prompts import BACK, Ask, Do, ask
 from .tools import TOOLS
 

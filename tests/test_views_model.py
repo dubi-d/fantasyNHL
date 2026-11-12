@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from fantasy_nhl.display import (
+from fantasy_nhl.cli.display import (
     diverging_style,
     heatmap_style,
     note_markup,

@@ -1,8 +1,8 @@
-"""Tests for the wizard runner and nested menu navigation in cli.py."""
+"""Tests for the wizard runner and nested menu navigation in cli/app.py."""
 import pytest
 
-from fantasy_nhl.cli import run_menu, run_tool
-from fantasy_nhl.prompts import BACK, Ask, Do
+from fantasy_nhl.cli.app import run_menu, run_tool
+from fantasy_nhl.cli.prompts import BACK, Ask, Do
 
 
 def scripted(*answers):
@@ -161,7 +161,7 @@ class TestRunMenu:
         return select
 
     def test_group_navigation_and_esc_levels(self, monkeypatch):
-        import fantasy_nhl.cli as cli
+        import fantasy_nhl.cli.app as cli
         # ask() installs key bindings; bypass with a passthrough
         monkeypatch.setattr(cli, "ask", lambda q: q.unsafe_ask())
         ran = []
@@ -173,14 +173,14 @@ class TestRunMenu:
         assert select.queue == []
 
     def test_quit_choice_exits(self, monkeypatch):
-        import fantasy_nhl.cli as cli
+        import fantasy_nhl.cli.app as cli
         monkeypatch.setattr(cli, "ask", lambda q: q.unsafe_ask())
         select = self.fake_select(["Quit"])
         run_menu(None, [("Tool", lambda data: None)], select=select)
         assert select.queue == []
 
     def test_label_function_is_reread_after_a_tool(self, monkeypatch):
-        import fantasy_nhl.cli as cli
+        import fantasy_nhl.cli.app as cli
         monkeypatch.setattr(cli, "ask", lambda q: q.unsafe_ask())
         data = {"mode": "a"}
         items = [(lambda d: f"Mode: {d['mode']}", lambda d: d.update(mode="b"))]

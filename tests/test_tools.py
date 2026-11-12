@@ -10,16 +10,16 @@ import pytest
 from rich.console import Console
 from rich.text import Text
 
-from fantasy_nhl import display, tools
 from fantasy_nhl.analysis import (
     PreviewPlayer,
     RosterPlayer,
     StatBasis,
     StreamingContext,
 )
-from fantasy_nhl.cli import run_tool
+from fantasy_nhl.cli import display, tools
+from fantasy_nhl.cli.app import run_tool
+from fantasy_nhl.cli.prompts import BACK, Ask, Do
 from fantasy_nhl.config import Category
-from fantasy_nhl.prompts import BACK, Ask, Do
 from fantasy_nhl.views import preview as preview_view
 
 

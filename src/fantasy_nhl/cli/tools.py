@@ -14,7 +14,7 @@ from pathlib import Path
 import pandas as pd
 import questionary
 
-from .analysis import (
+from ..analysis import (
     ACQUIRED_ADD,
     ACQUIRED_TRADE,
     COMBINED_PLAYOFF_WEIGHT,
@@ -22,9 +22,8 @@ from .analysis import (
     StatBasis,
     StreamingContext,
 )
-from .config import Category, ScheduleCalibration, load_config, save_calibration
-from .display import console, note_markup, print_df, tone_style
-from .espn_data import (
+from ..config import Category, ScheduleCalibration, load_config, save_calibration
+from ..espn_data import (
     LeagueData,
     fetch_adds_used,
     fetch_calibration_data,
@@ -38,8 +37,7 @@ from .espn_data import (
     fetch_week_dates,
     fetch_week_pairings,
 )
-from .prompts import BACK, Ask, Do, ask
-from .views.common import (
+from ..views.common import (
     NO_PROJECTION,
     NO_PROJECTION_NOTE,
     completed_matchups,
@@ -47,14 +45,14 @@ from .views.common import (
     no_season_stats_note,
     stat_basis,
 )
-from .views.draft import (
+from ..views.draft import (
     build_draft_grades,
     build_draft_return,
     build_team_draft,
     not_drafted,
 )
-from .views.model import FigureBlock, Note, TableView, TextBlock, View
-from .views.players import (
+from ..views.model import FigureBlock, Note, TableView, TextBlock, View
+from ..views.players import (
     COMPARE_MAX,
     GROUP_CHOICES,
     build_compare,
@@ -64,16 +62,16 @@ from .views.players import (
     leader_sorts,
     player_labels,
 )
-from .views.preview import build_matchup_preview
-from .views.review import build_review_context
-from .views.rosters import (
+from ..views.preview import build_matchup_preview
+from ..views.review import build_review_context
+from ..views.rosters import (
     build_acquired,
     build_gaps,
     build_origins,
     build_outlook,
     build_team_roster,
 )
-from .views.schedule import (
+from ..views.schedule import (
     build_calibration,
     build_schedule_outlook,
     lead_choices,
@@ -82,13 +80,13 @@ from .views.schedule import (
     schedule_scores,
     select_schedule,
 )
-from .views.standings import (
+from ..views.standings import (
     build_accumulated_scores,
     build_category_profile,
     build_luck_ranking,
     build_power_rankings,
 )
-from .views.streaming import (
+from ..views.streaming import (
     COVERAGE,
     ROSTER,
     SLOTS,
@@ -98,7 +96,9 @@ from .views.streaming import (
     position_sorted,
     streaming_context,
 )
-from .views.weekly import build_weekly_awards, build_weekly_scores
+from ..views.weekly import build_weekly_awards, build_weekly_scores
+from .display import console, note_markup, print_df, tone_style
+from .prompts import BACK, Ask, Do, ask
 
 _STATS_BLENDED = "blended"
 _STATS_SEASON = "season"
@@ -162,7 +162,7 @@ def _print_table(table: TableView,
 
 
 def _save_figure(data: LeagueData, block: FigureBlock) -> None:
-    from . import plots  # deferred: matplotlib import is slow
+    from .. import plots  # deferred: matplotlib import is slow
     path = _plot_path(data, block.prefix)
     with console.status("Rendering figure..."):
         figure = getattr(plots, f"{block.kind}_figure")(**block.inputs)

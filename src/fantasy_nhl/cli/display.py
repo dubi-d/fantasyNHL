@@ -6,7 +6,7 @@ import pandas as pd
 from rich.console import Console
 from rich.table import Table
 
-from .views.model import (
+from ..views.model import (
     ALERT,
     BAD,
     BENCH,
