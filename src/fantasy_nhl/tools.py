@@ -391,7 +391,8 @@ def _print_power_rankings(data: LeagueData, completed: int,
     path = _plot_path(data, "power_rankings")
     title = f"{data.config.name} — Power Rankings (through matchup {completed})"
     with console.status("Rendering figure..."):
-        plots.power_rankings_figure(form_ranks, averages, window, title, path)
+        plots.save_figure(plots.power_rankings_figure(
+            form_ranks, averages, window, title), path)
     console.print(f"Saved [bold]{path}[/]")
 
 
@@ -1146,15 +1147,14 @@ def schedule_outlook(data: LeagueData):
         png_scores = {name: s.reindex(order) for name, s in scores.items()}
         with console.status("Rendering figure..."):
             if scope == "playoffs":
-                plots.schedule_combined_figure(games_df.loc[order],
-                                               off_df.loc[order],
-                                               off_label, title, path,
-                                               scores=png_scores)
+                fig = plots.schedule_combined_figure(
+                    games_df.loc[order], off_df.loc[order], off_label, title,
+                    scores=png_scores)
             else:
-                plots.schedule_heatmap_figure(games_df.loc[order],
-                                              off_df.loc[order],
-                                              playoff_weeks, off_label,
-                                              title, path, scores=png_scores)
+                fig = plots.schedule_heatmap_figure(
+                    games_df.loc[order], off_df.loc[order], playoff_weeks,
+                    off_label, title, scores=png_scores)
+            plots.save_figure(fig, path)
         console.print(f"Saved [bold]{path}[/]")
 
     yield Do(render)
@@ -1420,11 +1420,11 @@ def review_rosters(data: LeagueData):
         from . import plots  # deferred: matplotlib import is slow
         path = _plot_path(data, "player_map")
         with console.status("Rendering figure..."):
-            plots.level_spec_figure(
+            plots.save_figure(plots.level_spec_figure(
                 background, info.loc[ids, "Player"],
                 f"{data.config.name} — {_GROUP_CHOICES[group]}: level vs "
                 f"specialization ({where}, {basis_short} stats, "
-                f"{data.config.year})", path)
+                f"{data.config.year})"), path)
         console.print(f"Saved [bold]{path}[/]")
 
     def show_compare(ids: tuple[int, ...]) -> None:
@@ -1486,9 +1486,9 @@ def review_rosters(data: LeagueData):
         radar = pcts.loc[list(ids), names]
         radar.index = labels
         with console.status("Rendering figure..."):
-            plots.category_radar_figure(
+            plots.save_figure(plots.category_radar_figure(
                 radar, f"{data.config.name} — category percentiles "
-                f"({basis_short} stats, {data.config.year})", path)
+                f"({basis_short} stats, {data.config.year})"), path)
         console.print(f"Saved [bold]{path}[/]")
 
     by_label: dict[str, int] = {}
