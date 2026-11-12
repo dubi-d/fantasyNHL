@@ -1,15 +1,43 @@
 """Helpers shared by several views."""
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ..analysis import round_robin
-from .model import BAD, EVEN, GOOD
+from ..analysis import PreviewPlayer, StatBasis, has_season_games, round_robin
+from .model import BAD, EVEN, GOOD, WARNING, Note, note
 
 if TYPE_CHECKING:
     from ..espn_data import LeagueData
 
 RESULT_TONES = {"W": GOOD, "L": BAD, "T": EVEN}
+
+
+def stat_basis(season_only: bool, season_fraction: float) -> StatBasis:
+    return (StatBasis.season(season_fraction) if season_only
+            else StatBasis.blended(season_fraction))
+
+
+def basis_label(basis: StatBasis) -> str:
+    if basis.season_only:
+        return "this season only"
+    season = round(basis.season_fraction * 100)
+    return f"blended: {season}% season / {100 - season}% projection"
+
+
+def with_basis(title: str, basis: StatBasis) -> str:
+    return f"{title} — stats: {basis_label(basis)}"
+
+
+def no_season_stats_note(basis: StatBasis,
+                         players: Iterable[PreviewPlayer]) -> Note | None:
+    """Warning for season-only stats when nobody has played yet."""
+    if basis.season_only and not any(has_season_games(p) for p in players):
+        return note("Nobody here has played this season yet, so 'This "
+                    "season only' stats are empty - switch Player stats "
+                    "to Blended in the main menu to use projections.",
+                    level=WARNING)
+    return None
 
 
 def completed_matchups(data: "LeagueData") -> int:

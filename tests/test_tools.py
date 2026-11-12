@@ -20,6 +20,7 @@ from fantasy_nhl.analysis import (
 from fantasy_nhl.cli import run_tool
 from fantasy_nhl.config import Category
 from fantasy_nhl.prompts import BACK, Ask, Do
+from fantasy_nhl.views import preview as preview_view
 
 
 def _context():
@@ -318,12 +319,12 @@ def test_matchup_preview_predicts_on_the_chosen_stats(monkeypatch, rendered,
         actual_games=[0, 0], actual_goalie_games=[0, 0])
     monkeypatch.setattr(tools, "_fetch_preview", lambda data, week: preview)
     used = []
-    real = tools.preview_week
+    real = preview_view.preview_week
 
     def spy(*args):
         used.append(args[6])
         return real(*args)
-    monkeypatch.setattr(tools, "preview_week", spy)
+    monkeypatch.setattr(preview_view, "preview_week", spy)
     data = SimpleNamespace(team_names=["A", "B"], season_stats_only=season_only,
                            config=SimpleNamespace(categories=[Category("G")]))
     tools._print_matchup_preview(data, 1)

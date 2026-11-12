@@ -50,7 +50,6 @@ from .analysis import (
     has_season_games,
     lineup_game_counts,
     market_gaps,
-    matchup_result,
     min_season_games,
     night_seat_curve,
     off_night_periods,
@@ -59,7 +58,6 @@ from .analysis import (
     player_table,
     player_values,
     position_open_seats,
-    preview_week,
     projected_category_balance,
     rank_streaming_candidates,
     replacement_rates,
@@ -77,7 +75,6 @@ from .display import (
     heatmap_style,
     note_markup,
     print_df,
-    result_style,
     tone_style,
 )
 from .espn_data import (
@@ -95,9 +92,12 @@ from .espn_data import (
     fetch_week_pairings,
 )
 from .prompts import BACK, Ask, Do, ask
-from .views.common import completed_matchups
+from .views.common import basis_label as _basis_label
+from .views.common import completed_matchups, no_season_stats_note, stat_basis
 from .views.common import ranked as _ranked
+from .views.common import with_basis as _with_basis
 from .views.model import FigureBlock, Note, TableView, TextBlock, View
+from .views.preview import build_matchup_preview
 from .views.standings import (
     build_accumulated_scores,
     build_category_profile,
@@ -146,28 +146,19 @@ def choose_player_stats(data: LeagueData) -> None:
 
 
 def _stat_basis(data: LeagueData, season_fraction: float) -> StatBasis:
-    return (StatBasis.season(season_fraction) if data.season_stats_only
-            else StatBasis.blended(season_fraction))
-
-
-def _basis_label(basis: StatBasis) -> str:
-    if basis.season_only:
-        return "this season only"
-    season = round(basis.season_fraction * 100)
-    return f"blended: {season}% season / {100 - season}% projection"
-
-
-def _with_basis(title: str, basis: StatBasis) -> str:
-    return f"{title} — stats: {_basis_label(basis)}"
+    return stat_basis(data.season_stats_only, season_fraction)
 
 
 def _warn_no_season_stats(basis: StatBasis,
                           players: Iterable[PreviewPlayer]) -> None:
-    if basis.season_only and not any(has_season_games(p) for p in players):
-        console.print("Nobody here has played this season yet, so 'This "
-                      "season only' stats are empty - switch Player stats "
-                      "to Blended in the main menu to use projections.",
-                      style="yellow")
+    warning = no_season_stats_note(basis, players)
+    if warning:
+        _show_note(warning)
+
+
+def _show_note(block: Note) -> None:
+    markup, style = note_markup(block)
+    console.print(markup, style=style)
 
 
 def _print_table(table: TableView,
@@ -194,8 +185,7 @@ def _show(data: LeagueData, view: View) -> None:
         if isinstance(block, TableView):
             _print_table(block)
         elif isinstance(block, Note):
-            markup, style = note_markup(block)
-            console.print(markup, style=style)
+            _show_note(block)
         elif isinstance(block, TextBlock):
             console.print(block.text, markup=False, highlight=False)
         else:
@@ -258,17 +248,6 @@ def category_profile(data: LeagueData) -> None:
     _show(data, build_category_profile(data))
 
 
-def _pair_style(home_raw: float, away_raw: float, inverted: bool,
-                home_display: float, away_display: float) -> StyleFn:
-    """Style callback coloring the better of two displayed category scores,
-    judged on the raw (unrounded) values."""
-    if home_raw == away_raw or home_display == away_display:
-        return lambda _: "bold yellow"
-    home_wins = home_raw < away_raw if inverted else home_raw > away_raw
-    winner = home_display if home_wins else away_display
-    return lambda value: "bold green" if value == winner else "bold red"
-
-
 def _ask_week(data: LeagueData, last_week: int | None = None,
               default_week: int | None = None) -> Ask:
     """Wizard step prompting for a matchup week."""
@@ -309,80 +288,8 @@ def _fetch_preview(data: LeagueData, week: int):
 
 def _print_matchup_preview(data: LeagueData, week: int) -> None:
     preview = _fetch_preview(data, week)
-    if not preview.pairings:
-        console.print("No matchups scheduled for this week yet (playoff "
-                      "pairings appear once the bracket is seeded).",
-                      style="yellow")
-        return
-
-    days_real = len(preview.periods) - len(preview.remaining_periods)
-    if not preview.remaining_periods:
-        status = "completed, real data"
-    elif days_real == 0:
-        status = "not started, predictions only"
-    else:
-        status = (f"{days_real} days real (live), "
-                  f"{len(preview.remaining_periods)} days predicted")
-    dates = ""
-    if preview.start_date and preview.end_date:
-        dates = (f", {preview.start_date:%a %b %-d} \u2013 "
-                 f"{preview.end_date:%a %b %-d}")
-    console.print(f"\n[bold]Week {week} preview[/] — {len(preview.periods)} "
-                  f"days{dates}, {status}. Games = games already played "
-                  f"(incl. today's started games) plus playable games of the "
-                  f"current roster for the rest of the week.")
-
-    basis = _stat_basis(data, preview.blend_weight)
-    if preview.remaining_periods:
-        rostered = [p for roster in preview.rosters for p in roster]
-        note = ("Remaining days are predicted from per-game rates — stats: "
-                f"{_basis_label(basis)}")
-        unprojected = sum(not has_projection(p) for p in rostered)
-        if basis.season_only:
-            note += "; players without games this season predict 0"
-        elif unprojected:
-            note += ("; rostered players without an ESPN projection "
-                     f"({unprojected}) are predicted from season stats alone")
-        console.print(f"{note}.", style="dim")
-        _warn_no_season_stats(basis, rostered)
-
-    playing = dict(preview.playing_by_period)
-    today = preview.current_period
-    playing[today] = playing.get(today, set()) - preview.started_today
-
-    categories = data.config.categories
-    games = {}
-    scores = {}  # raw values for results, so display rounding can't fake ties
-    display = {}
-    for row in range(len(data.team_names)):
-        games[row], scores[row] = preview_week(
-            preview.rosters[row], preview.slot_counts, playing,
-            preview.remaining_periods, preview.actual_scores[row],
-            categories, basis,
-            preview.actual_games[row], preview.actual_goalie_games[row])
-        display[row] = [
-            round(float(value), 2 if cat.name in RATIO_CATEGORIES else 1)
-            for value, cat in zip(scores[row], categories)]
-
-    for home_row, away_row in preview.pairings:
-        rows = []
-        for row, opponent in ((home_row, away_row), (away_row, home_row)):
-            won, lost, _tied, cats_won = matchup_result(
-                scores[row], scores[opponent], categories)
-            rows.append({"Player": data.team_names[row], "Games": games[row],
-                         **{cat.name: display[row][i]
-                            for i, cat in enumerate(categories)},
-                         "Cats": int(cats_won),
-                         "Proj": "W" if won else ("L" if lost else "T")})
-        styles: dict[str, StyleFn] = {"Proj": result_style}
-        for i, cat in enumerate(categories):
-            styles[cat.name] = _pair_style(scores[home_row][i],
-                                           scores[away_row][i], cat.inverted,
-                                           display[home_row][i],
-                                           display[away_row][i])
-        print_df(pd.DataFrame(rows, index=["", ""]),
-                 f"{data.team_names[home_row]} vs {data.team_names[away_row]}",
-                 styles=styles)
+    _show(data, build_matchup_preview(
+        data, preview, week, _stat_basis(data, preview.blend_weight)))
 
 
 # specific positions first; Forward/Util add no information for the label
