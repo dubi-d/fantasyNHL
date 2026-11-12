@@ -69,10 +69,12 @@ def test_roster_games_colors_injuries_ir_order_and_blanks(rendered):
     assert grid["Inj"].tolist() == ["DTD", "OUT", "", "", ""]
     assert grid.iloc[-1]["Pos"] == "Center"  # IR without active eligibility
     assert grid.iloc[0]["Day 2"] == "•"
-    assert grid.iloc[0]["Day 3"] == "[orange3]•[/]"
-    assert grid.iloc[1]["Day 2"] == "[orange3]•[/]"
+    tones = kwargs["cell_styles"]
+    assert grid.iloc[0]["Day 3"] == "•" and tones.iloc[0]["Day 3"] == "orange3"
+    assert grid.iloc[1]["Day 2"] == "•" and tones.iloc[1]["Day 2"] == "orange3"
     assert grid.iloc[3]["Day 2"] == "?"
-    assert grid.iloc[-1]["Day 2"] == "[red]•[/]"  # wins over future activation
+    # wins over future activation
+    assert grid.iloc[-1]["Day 2"] == "•" and tones.iloc[-1]["Day 2"] == "red"
     assert grid.iloc[-1]["Day 4"] == ""
     assert "Games" not in kwargs["footer"] and "Inj" not in kwargs["footer"]
     assert "lineup unavailable" in Text.from_ansi(output.getvalue()).plain
@@ -139,7 +141,8 @@ def test_future_ir_assignment_is_red_and_not_counted(rendered):
     ctx = _context()
     ctx.daily_lineup_slots[2][1] = "IR"
     tools._render_streaming_plan(ctx, 1, "Test", [])
-    assert calls[0][0].iloc[0]["Day 2"] == "[red]•[/]"
+    assert calls[0][0].iloc[0]["Day 2"] == "•"
+    assert calls[0][2]["cell_styles"].iloc[0]["Day 2"] == "red"
     assert calls[0][0].iloc[0]["Games"] == "0"
 
 
