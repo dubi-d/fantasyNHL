@@ -19,35 +19,21 @@ from .analysis import (
     ACQUIRED_TRADE,
     COMBINED_PLAYOFF_WEIGHT,
     GOALIE_CATEGORIES,
-    OFF_NIGHT_MAX_TEAMS,
     RATIO_CATEGORIES,
     PreviewPlayer,
     StatBasis,
     StreamingContext,
-    calibrate_night_value,
-    effective_games,
     has_projection,
     has_season_games,
     lineup_game_counts,
-    night_seat_curve,
-    off_night_periods,
     open_seat_counts,
     player_rate,
     position_open_seats,
     rank_streaming_candidates,
-    schedule_summary,
     team_gap_coverage,
-    team_week_schedule,
 )
 from .config import Category, ScheduleCalibration, load_config, save_calibration
-from .display import (
-    StyleFn,
-    console,
-    heatmap_style,
-    note_markup,
-    print_df,
-    tone_style,
-)
+from .display import StyleFn, console, note_markup, print_df, tone_style
 from .espn_data import (
     LeagueData,
     fetch_adds_used,
@@ -97,6 +83,15 @@ from .views.rosters import (
     build_origins,
     build_outlook,
     build_team_roster,
+)
+from .views.schedule import (
+    build_calibration,
+    build_schedule_outlook,
+    lead_choices,
+    lead_with,
+    roster_fit,
+    schedule_scores,
+    select_schedule,
 )
 from .views.standings import (
     build_accumulated_scores,
@@ -686,8 +681,6 @@ def schedule_outlook(data: LeagueData):
             return fetch_schedule_data(data)
     schedule = yield Do(fetch)
 
-    playoff_weeks = {w for w in schedule.week_periods
-                     if 0 < data.regular_weeks < w}
     while True:
         scope = yield Ask(lambda: ask(questionary.select(
             "Scope:", choices=[
@@ -702,180 +695,37 @@ def schedule_outlook(data: LeagueData):
             break
         yield from _calibrate_schedule_scoring(data)
 
-    selected = sorted(schedule.week_periods)
-    if scope == "remaining":
-        selected = [w for w in selected if w >= data.current_week]
-    elif scope == "playoffs":
-        selected = [w for w in selected if w in playoff_weeks]
-    week_periods = {w: schedule.week_periods[w] for w in selected
-                    if schedule.week_periods[w]}
-    if not week_periods:
+    selection = select_schedule(data, schedule, scope)
+    if selection is None:
         console.print("No matchups in the selected scope.", style="yellow")
         return
-
-    off_periods = off_night_periods(schedule.playing_by_period)
-    games_df, off_df = team_week_schedule(schedule.playing_by_period,
-                                          week_periods, off_periods)
-    # playoffs-only scope: PO columns would just duplicate the totals
-    near_weeks = selected[:4] if scope == "remaining" else None
-
-    # effective-games score: near-term for remaining, whole scope otherwise
-    score_weeks = near_weeks or selected
-    score_wp = {w: week_periods[w] for w in score_weeks if w in week_periods}
-    calibration = data.config.calibration
-    curve_fn = night_seat_curve(calibration.curve if calibration else None)
-    seats_generic = {p: curve_fn(len(teams))
-                     for p, teams in schedule.playing_by_period.items()
-                     if teams}
+    calibration = data.config.calibration  # after a possible recalibration
 
     playoff_weight = COMBINED_PLAYOFF_WEIGHT
-    if scope != "playoffs" and any(w in week_periods for w in playoff_weeks):
+    if selection.blends_playoffs:
         answer = yield Ask(lambda: ask(questionary.text(
             "Playoff weight in Combined score (0-1)?",
             default=str(COMBINED_PLAYOFF_WEIGHT),
             validate=_valid_weight)))
         playoff_weight = float(answer)
 
-    def blend(a: pd.Series, b: pd.Series) -> pd.Series:
-        return (1 - playoff_weight) * a + playoff_weight * b
-
     fit = None
-    if scope == "playoffs":
-        # already playoff-only: no Reg Score/PO Score/Combined split needed
-        scores = {"Score": effective_games(schedule.playing_by_period,
-                                           score_wp, seats_generic)}
+    if scope != "full":
         fit = yield from _roster_fit(data, schedule.playing_by_period,
-                                     score_wp)
-        if fit is not None:
-            scores = {"Fit": fit, **scores}
-    elif scope == "full":
-        reg_wp = {w: p for w, p in score_wp.items() if w not in playoff_weeks}
-        scores = {"Reg Score": effective_games(schedule.playing_by_period,
-                                               reg_wp, seats_generic)}
-        po_wp = {w: week_periods[w] for w in playoff_weeks
-                if w in week_periods}
-        if po_wp:
-            scores["PO Score"] = effective_games(schedule.playing_by_period,
-                                                 po_wp, seats_generic)
-            scores = {"Combined": blend(scores["Reg Score"],
-                                        scores["PO Score"]), **scores}
-    else:  # remaining
-        near_n = len(score_wp)
-        reg_wp = {w: p for w, p in score_wp.items() if w not in playoff_weeks}
-        scores = {f"Reg Score next {near_n}": effective_games(
-            schedule.playing_by_period, reg_wp, seats_generic)}
-        rest_wp = {w: p for w, p in week_periods.items()
-                  if w not in playoff_weeks and w not in score_wp}
-        if rest_wp:
-            scores["Reg Score rest"] = effective_games(
-                schedule.playing_by_period, rest_wp, seats_generic)
-        po_wp = {w: week_periods[w] for w in playoff_weeks
-                if w in week_periods}
-        if po_wp:
-            scores["PO Score"] = effective_games(schedule.playing_by_period,
-                                                 po_wp, seats_generic)
-            # Combined uses the WHOLE remaining regular season, not just
-            # the "rest" portion (near-term N is informational only)
-            all_reg_wp = {w: p for w, p in week_periods.items()
-                         if w not in playoff_weeks}
-            reg_score_all = effective_games(schedule.playing_by_period,
-                                            all_reg_wp, seats_generic)
-            scores["Combined rest of season"] = blend(reg_score_all,
-                                                       scores["PO Score"])
-        fit = yield from _roster_fit(data, schedule.playing_by_period,
-                                     score_wp)
-        fit_key = f"Fit next {near_n}"
-        if fit is not None:
-            scores = {fit_key: fit, **scores}
-        combined_key = "Combined rest of season"
-        reg_key = f"Reg Score next {near_n}"
-        available = [k for k in (fit_key, combined_key, reg_key)
-                    if k in scores]
-        lead = available[0] if available else None
-        if len(available) > 1:
+                                     selection.score_periods)
+    scores = schedule_scores(schedule, selection, calibration,
+                             playoff_weight, fit)
+    leads = lead_choices(selection, scores)
+    if leads:
+        lead = leads[0]
+        if len(leads) > 1:
             lead = yield Ask(lambda: ask(questionary.select(
-                "Sort by:", choices=available)))
-        if lead and next(iter(scores)) != lead:
-            scores = {lead: scores.pop(lead), **scores}
+                "Sort by:", choices=leads)))
+        scores = lead_with(scores, lead)
 
-    def render() -> None:
-        summary = schedule_summary(
-            games_df, off_df, set() if scope == "playoffs" else playoff_weeks,
-            near_weeks=near_weeks, scores=scores)
-
-        def norm(col: str) -> StyleFn:
-            # stretch each column's actual value range over the full gradient
-            lo, hi = float(summary[col].min()), float(summary[col].max())
-            if hi <= lo:
-                return lambda v: ""
-            return lambda v: heatmap_style((v - lo) / (hi - lo))
-
-        styles = {col: norm(col) for col in summary.columns if col != "Team"}
-        summary.index = range(1, len(summary) + 1)  # sorted by analysis
-        order = list(summary["Team"])  # same sorting as the terminal table
-        off_label = f"off-night = ≤{OFF_NIGHT_MAX_TEAMS} teams playing"
-        scope_label = {"full": "full season",
-                       "remaining": "remaining matchups",
-                       "playoffs": "playoffs"}[scope]
-
-        if scope == "playoffs":
-            # few columns: append the week-by-week grid as games (off-nights)
-            def paren_style(series: pd.Series) -> StyleFn:
-                lo, hi = float(series.min()), float(series.max())
-                if hi <= lo:
-                    return lambda v: ""
-                # color by the off-night count inside the parentheses
-                return lambda v: heatmap_style(
-                    (int(v.split("(")[1].rstrip(")")) - lo) / (hi - lo))
-
-            for w in games_df.columns:
-                summary[f"M{w}"] = [
-                    f"{games_df.loc[t, w]} ({off_df.loc[t, w]})"
-                    for t in order]
-                styles[f"M{w}"] = paren_style(off_df[w])
-            totals_g = games_df.sum(axis=1)
-            totals_o = off_df.sum(axis=1)
-            summary["Total"] = [f"{totals_g[t]} ({totals_o[t]})"
-                                for t in order]
-            styles["Total"] = paren_style(totals_o)
-
-        print_df(summary,
-                 f"NHL Schedule Outlook ({scope_label}, "
-                 f"matchups {selected[0]}–{selected[-1]}, {off_label})",
-                 styles=styles)
-        calib_note = (f"calibrated on {calibration.source} "
-                      f"({calibration.calibrated})" if calibration else
-                      "uncalibrated (linear proxy) — "
-                      "pick 'Calibrate scoring' in the scope menu")
-        fit_note = (" Fit uses your roster's actual open seats."
-                    if fit is not None else "")
-        po_note = (f" PO Score/Combined isolate playoff-week schedule "
-                   f"strength ({round((1 - playoff_weight) * 100)}/"
-                   f"{round(playoff_weight * 100)} blend)."
-                   if "PO Score" in scores else "")
-        score_label = "Score" if scope == "playoffs" else "Reg Score"
-        console.print(f"{score_label} = effective games per matchup, games "
-                      f"on streamable nights count up to double; "
-                      f"{calib_note}.{po_note}{fit_note}", style="dim")
-
-        from . import plots  # deferred: matplotlib import is slow
-        path = _plot_path(data, f"schedule_{scope}")
-        title = (f"{data.config.name} — NHL Schedule ({scope_label}, "
-                 f"{data.config.year})")
-        png_scores = {name: s.reindex(order) for name, s in scores.items()}
-        with console.status("Rendering figure..."):
-            if scope == "playoffs":
-                fig = plots.schedule_combined_figure(
-                    games_df.loc[order], off_df.loc[order], off_label, title,
-                    scores=png_scores)
-            else:
-                fig = plots.schedule_heatmap_figure(
-                    games_df.loc[order], off_df.loc[order], playoff_weeks,
-                    off_label, title, scores=png_scores)
-            plots.save_figure(fig, path)
-        console.print(f"Saved [bold]{path}[/]")
-
-    yield Do(render)
+    yield Do(lambda: _show(data, build_schedule_outlook(
+        data, schedule, selection, scores, calibration, playoff_weight,
+        fitted=fit is not None)))
 
 
 _SKIP = object()  # "no roster" choice; never None (questionary quirk)
@@ -896,11 +746,8 @@ def _roster_fit(data: LeagueData, playing_by_period: dict[int, set[str]],
     def compute() -> pd.Series:
         with console.status("Fetching rosters..."):
             slot_counts, rosters = fetch_rosters_and_slots(data)
-        periods = sorted({p for ps in week_periods.values() for p in ps})
-        seats = {p: skater for p, (skater, _) in
-                 open_seat_counts(rosters[row], slot_counts,
-                                  playing_by_period, periods).items()}
-        return effective_games(playing_by_period, week_periods, seats)
+        return roster_fit(playing_by_period, week_periods, rosters[row],
+                          slot_counts)
     return (yield Do(compute))
 
 
@@ -1057,22 +904,8 @@ def _calibrate_schedule_scoring(data: LeagueData):
     def fit_curve() -> dict[int, float]:
         with console.status(f"Fetching {source.name} data..."):
             cal_data = fetch_calibration_data(source)
-        curve = calibrate_night_value(cal_data.rosters, cal_data.slot_counts,
-                                      cal_data.playing_by_period)
-        nights = {n: 0 for n in curve}
-        for teams in cal_data.playing_by_period.values():
-            if teams:
-                nights[len(teams)] += 1
-        table = pd.DataFrame({
-            "Teams playing": list(curve),
-            "Avg open seats": [round(v, 2) for v in curve.values()],
-            "Nights": [nights[n] for n in curve],
-        })
-        table.index = range(1, len(table) + 1)
-        print_df(table,
-                 f"Night value curve from {source.name} "
-                 f"({len(cal_data.rosters)} rosters)",
-                 styles={"Avg open seats": lambda v: heatmap_style(v / 3)})
+        view, curve = build_calibration(source.name, cal_data)
+        _show(data, view)
         return curve
     curve = yield Do(fit_curve)
 
