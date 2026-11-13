@@ -15,6 +15,8 @@ FORBIDDEN = {
     "sources": TERMINAL | {"views", "cli", "plots", "matplotlib"},
     "views": TERMINAL | {"sources", "cli", "plots", "espn_api", "matplotlib"},
     "plots": TERMINAL | {"sources", "views", "cli", "espn_api"},
+    "cli": {"api", "fastapi"},
+    "api": TERMINAL | {"cli", "espn_api"},
 }
 
 

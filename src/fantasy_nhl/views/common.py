@@ -40,6 +40,18 @@ def day_labels(periods: list[int],
                 else f"Day {p}") for p in periods}
 
 
+def week_label(data: "LeagueData", week: int, week_dates: dict) -> str:
+    """A matchup week as a choice: number, dates (week -> (first day, last
+    day), where known) and whether it is a playoff or the current one."""
+    dates = ""
+    if week in week_dates:
+        start, end = week_dates[week]
+        dates = f" ({start:%b %-d} – {end:%b %-d})"
+    return (f"Matchup {week}" + dates
+            + (" (playoffs)" if 0 < data.regular_weeks < week else "")
+            + (" (current)" if week == data.current_week else ""))
+
+
 def score_tone(value: float) -> Tone:
     return diverging(value, 1.5)
 

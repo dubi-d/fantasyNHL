@@ -44,6 +44,7 @@ from ..views.common import (
     day_labels,
     no_season_stats_note,
     stat_basis,
+    week_label,
 )
 from ..views.draft import (
     build_draft_grades,
@@ -247,17 +248,8 @@ def _ask_week(data: LeagueData, last_week: int | None = None,
     with console.status("Fetching matchup dates..."):
         week_dates = fetch_week_dates(data)
 
-    def dates(week: int) -> str:
-        if week not in week_dates:
-            return ""
-        start, end = week_dates[week]
-        return f" ({start:%b %-d} – {end:%b %-d})"
-
-    choices = [questionary.Choice(
-        f"Matchup {week}" + dates(week)
-        + (" (playoffs)" if 0 < data.regular_weeks < week else "")
-        + (" (current)" if week == data.current_week else ""),
-        value=week) for week in range(1, weeks + 1)]
+    choices = [questionary.Choice(week_label(data, week, week_dates),
+                                  value=week) for week in range(1, weeks + 1)]
     return Ask(lambda: ask(questionary.select(
         "Select matchup:", choices=choices,
         default=choices[min(default_week, weeks) - 1])))
