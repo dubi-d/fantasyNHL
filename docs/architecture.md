@@ -1,55 +1,96 @@
 # Architecture
 
-## Repo overview
+fantasyNHL reads a league from ESPN, computes on it, and shows the result
+in a terminal app and in a local web app. The code is in layers, and
+imports point one way.
+
+## Layers
+
+```mermaid
+flowchart TD
+    web["web: browser app"] -. HTTP .-> api
+    cli["cli: terminal app"] --> views
+    api["api: web backend"] --> views
+    cli --> espn
+    api --> espn
+    cli --> plots
+    api --> plots
+    views["views: what a tool shows"] --> analysis
+    espn["sources/espn: ESPN access"] --> analysis
+    plots["plots: figures"] --> analysis
+    analysis["analysis: pure logic"]
+```
+
+| Layer | Role | Documented in |
+| --- | --- | --- |
+| `analysis` | Computes. Pure functions of records and tables. | [analysis.md](../src/fantasy_nhl/analysis/analysis.md) |
+| `sources/espn` | Fetches from ESPN and returns plain data. | [espn.md](../src/fantasy_nhl/sources/espn/espn.md) |
+| `views` | Builds what a tool shows: tables, notes, text, figures. | [views.md](../src/fantasy_nhl/views/views.md) |
+| `plots.py` | Draws the figures a view describes. | below |
+| `cli` | Terminal front end: prompts, fetches, renders. | [cli.md](../src/fantasy_nhl/cli/cli.md) |
+| `api` | Web backend: the views as JSON, figures as PNG. | [api.md](../src/fantasy_nhl/api/api.md) |
+| `web` | Browser front end rendering what `api` serves. | [web.md](../web/web.md) |
+| `tests` | The offline test suite. | [tests.md](../tests/tests.md) |
+
+Why the layers are cut this way:
+
+- `analysis` knows nothing of ESPN, of views or of a front end, so it can
+  be tested without a network and reused for other data sources.
+- `views` build on `analysis` and neither fetch nor render, so the two
+  front ends cannot drift apart: they show the same view.
+- `cli` and `api` fetch, call a builder and render. They know nothing of
+  each other, so the web dependencies stay optional.
+
+The import rules are checked by
+[tests/test_layering.py](../tests/test_layering.py).
+
+## How a tool runs
+
+1. The front end collects the choices: prompts in the terminal, query
+   parameters in the web app.
+2. It fetches what the tool needs through `sources/espn` (the terminal
+   once per run, the backend through its session cache).
+3. It calls the builder in `views` with the league, the fetched data and
+   the choices, and gets a `View`.
+4. It renders the view: the terminal prints tables and saves figures to
+   `plots/`; the backend serializes it to JSON, and the browser renders
+   that.
+
+## Top-level modules
+
+- [config.py](../src/fantasy_nhl/config.py): `LeagueConfig`, `Category`
+  and `ScheduleCalibration`. `load_config` merges `config.yaml` with the
+  credentials of `secrets.yaml` (keyed by league name) and the stored
+  calibrations of `calibration.yaml`; `save_calibration` writes the
+  latter. The paths are relative to the working directory, which is why
+  both apps are started from the repository root.
+- [plots.py](../src/fantasy_nhl/plots.py): the matplotlib figures. A
+  `FigureBlock` of kind `x` is drawn by `x_figure(**inputs)`, which
+  returns the figure; `save_figure` and `render_png` write it. It may
+  import `analysis` only, and the front ends import it lazily because
+  matplotlib is slow to load.
+
+## Repository
 
 ```
+README.md                    # install, configure, run
+AGENTS.md                    # entry point for coding agents
 config.yaml                  # leagues and scoring categories (committed)
 secrets.example.yaml         # template for secrets.yaml (ESPN cookies, gitignored)
-calibration.yaml             # stored schedule-scoring calibrations (auto-managed)
-pyproject.toml               # package metadata, dependencies, CLI entrypoint
+calibration.yaml             # stored schedule-scoring calibrations (written by the tool)
+pyproject.toml               # package metadata, dependencies, entry points
+docs/                        # general and cross-module documentation
 src/fantasy_nhl/
-  config.py                  # YAML loading into LeagueConfig/Category dataclasses
-  sources/espn/              # ESPN API access (public names re-exported by the package)
-    league.py                #   the league session: weekly scores, results, fetch caches
-    calendar.py              #   NHL schedule mapped onto ESPN's fantasy calendar
-    players.py               #   rosters, saved lineups, free agents, player info
-    preview.py, review.py, calibration.py   # the fetches behind those tools
-  analysis/                  # pure logic (all names re-exported by the package)
-    models.py                #   player/draft records, position groups
-    rates.py, ranking.py     #   per-game rates and their blend; rank statistics
-    standings.py, seats.py, schedule.py, preview.py
-    draft.py, outlook.py, values.py, review.py
-  plots.py                   # matplotlib figures (power rankings, schedule grids, player profiles)
-  views/                     # what each tool shows, independent of the frontend
-    model.py                 #   View = ordered blocks: tables with cell tones, notes, text, figures
-    common.py                #   shared formatting: player tables, abbreviations, stat-basis labels
-    weekly.py, standings.py, preview.py, streaming.py, schedule.py
-    review.py                #   the valued player pool behind players.py, rosters.py, draft.py
-  cli/                       # the terminal frontend
-    app.py                   #   interactive session: league picker, menu tree, wizard runner
-    prompts.py               #   prompt primitives: Ask/Do steps, ESC = back, Ctrl-C = quit
-    display.py               #   rich rendering: tables, tone -> color mapping
-    tools.py                 #   the tools (prompts, fetches, rendering of views) and the TOOLS menu tree
-  api/                       # the web backend (FastAPI)
-    state.py                 #   per league: its current load (session) with fetch cache, expiry, reload
-    serialize.py             #   View -> JSON models (typed columns, figure data, per-view meta)
-    figures.py               #   figures as PNG, rendered once per content
-    routes/                  #   one endpoint per view, prompts as query parameters
-      base.py                #     league dependencies, write guard, registration of views
-      league.py, standings.py, planning.py, review.py
-    app.py                   #   the app: local-only middleware, static frontend, entrypoint
-web/                         # the web frontend (Vite, React, TypeScript)
-  openapi.json               #   the API schema (generated, checked by the tests)
-  src/schema.d.ts            #   its TypeScript types (generated)
-  src/session.tsx, params.ts #   the league of the address; a page's choices in the address
-  src/components/View.tsx    #   generic renderer of a served view (tables, notes, text, figures)
-  src/pages/                 #   one page per tool: its form controls around the view
-tests/                       # pytest suite; support.py = synthetic league and its scenarios, golden/ = transcripts
+  config.py, plots.py        # see above
+  analysis/                  # pure logic
+  sources/espn/              # ESPN access
+  views/                     # what each tool shows
+  cli/                       # the terminal front end
+  api/                       # the web backend
+web/                         # the browser front end (Vite, React, TypeScript)
+tests/                       # pytest suite, synthetic league, golden transcripts
+plots/                       # figures saved by the terminal app (gitignored)
 ```
 
-Imports point one way, checked by `tests/test_layering.py`: `analysis` knows
-nothing of ESPN, views or the terminal; `views` build on `analysis` and import
-neither `rich`, `questionary`, `matplotlib` nor the ESPN layer; `cli` and
-`api` are the two frontends that fetch and render, and know nothing of each
-other.
+Each folder's own doc lists its files.
 

@@ -103,27 +103,8 @@ bookmarked, reloaded and stepped through with back and forward. The
 server listens on `127.0.0.1` only, answers no other host name, and never
 sends the ESPN cookies to the browser (nor writes them to its log).
 
-For working on the frontend, run the two parts separately:
-
-```bash
-.venv/bin/fantasy-nhl-web            # backend with your leagues, or:
-.venv/bin/python tests/fake_server.py  # backend on the synthetic test league
-cd web && npm run dev                # frontend with hot reload, http://127.0.0.1:5173
-```
-
-`tests/fake_server.py` takes a scenario of `tests/support.py` as argument
-(`finished`, `opening_day`, `pre_draft`, ...). The API is described at
-`http://127.0.0.1:8000/api/docs` and, as committed schema, in
-`web/openapi.json`, from which the frontend's types are generated. After
-changing the API:
-
-```bash
-UPDATE_OPENAPI=1 .venv/bin/pytest tests/test_api.py -k schema   # web/openapi.json
-cd web && npm run types                                         # web/src/schema.d.ts
-```
-
-Both files are checked by the tests (`pytest`, `npm test`); `npm test` also
-runs the frontend's component tests against scripted server answers.
+Working on the frontend (dev server, generated types) is described in
+[web/web.md](web/web.md).
 
 ## Tests
 
@@ -131,19 +112,30 @@ runs the frontend's component tests against scripted server answers.
 .venv/bin/pytest
 ```
 
-`tests/test_golden.py` runs every tool through the real menu on a synthetic
-league and compares the whole terminal session (output with colors, prompts,
-fetch calls, figure inputs) with the transcripts in `tests/golden/`. After an
-intended change to what a tool shows, regenerate them with
-`UPDATE_GOLDEN=1 .venv/bin/pytest tests/test_golden.py` and review the diff.
+The suite runs offline on a synthetic league; see
+[tests/tests.md](tests/tests.md).
 
 ## Documentation
+
+For using it:
 
 - [docs/tools.md](docs/tools.md): what each tool shows.
 - [docs/methodology.md](docs/methodology.md): the definitions behind the
   numbers (luck, stat blending, schedule scoring, player value, ...).
-- [docs/architecture.md](docs/architecture.md): how the code is laid out.
-- [docs/contributing.md](docs/contributing.md): adding a tool or a league.
 - [docs/draft-guide.md](docs/draft-guide.md): draft strategy for a
   daily-lineup head-to-head categories league.
+
+For working on it:
+
+- [docs/architecture.md](docs/architecture.md): the layers and how a tool
+  runs through them.
+- [docs/contributing.md](docs/contributing.md): adding a tool or a league.
+- Each layer documents itself in its folder:
+  [analysis](src/fantasy_nhl/analysis/analysis.md),
+  [sources/espn](src/fantasy_nhl/sources/espn/espn.md),
+  [views](src/fantasy_nhl/views/views.md),
+  [cli](src/fantasy_nhl/cli/cli.md),
+  [api](src/fantasy_nhl/api/api.md),
+  [web](web/web.md),
+  [tests](tests/tests.md).
 
