@@ -27,6 +27,7 @@ frontend's tests live in `web/src` and are described in
 | [test_golden.py](test_golden.py) | Every tool through the real menu, compared with the transcripts in `golden/` |
 | [test_api.py](test_api.py) | The web backend on the synthetic league |
 | [test_layering.py](test_layering.py) | The import rules between the layers |
+| [test_docs.py](test_docs.py) | The documentation: links resolve, every layer has its doc, a module doc names its files |
 
 ## The synthetic league
 

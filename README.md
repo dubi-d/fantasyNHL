@@ -130,6 +130,8 @@ For working on it:
 - [docs/architecture.md](docs/architecture.md): the layers and how a tool
   runs through them.
 - [docs/contributing.md](docs/contributing.md): adding a tool or a league.
+- [docs/documentation.md](docs/documentation.md): where documentation
+  goes and how it is kept true.
 - Each layer documents itself in its folder:
   [analysis](src/fantasy_nhl/analysis/analysis.md),
   [sources/espn](src/fantasy_nhl/sources/espn/espn.md),
