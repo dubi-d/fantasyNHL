@@ -10,9 +10,10 @@ python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 ```
 
-The `[dev]` extra adds the development dependencies (pytest) so the test
-suite runs out of the box; for just using the CLI, `pip install -e .`
-is enough.
+The `[dev]` extra adds the development dependencies (pytest and the web
+backend) so the test suite runs out of the box; for just using the CLI,
+`pip install -e .` is enough, for the web app without tests
+`pip install -e ".[web]"`.
 
 ## Configuration
 
@@ -66,6 +67,36 @@ previous prompt within a tool, or up one menu level (ESC at the top menu
 quits); **Ctrl-C** quits immediately from anywhere. Stepping back doesn't
 repeat fetches or tables already shown; only the steps after the changed
 answer re-run.
+
+## Web app
+
+The same tools in the browser: a local FastAPI backend serving every view
+as JSON and a React/TypeScript frontend rendering them, with the terminal's
+prompts as form controls. It needs Node.js for the frontend.
+
+```bash
+cd web && npm install && npm run build && cd ..   # once, and after frontend changes
+.venv/bin/fantasy-nhl-web                         # http://127.0.0.1:8000
+```
+
+Run it from the repository root (it reads `config.yaml` and `secrets.yaml`
+there). The sidebar mirrors the menu above; the league, the **Player stats**
+setting and *Reload from ESPN* sit on top. What was fetched from ESPN is
+kept for five minutes, so changing a form does not refetch; reload after
+roster moves. The server listens on `127.0.0.1` only, answers no other
+host name, and never sends the ESPN cookies to the browser.
+
+For working on the frontend, run the two parts separately:
+
+```bash
+.venv/bin/fantasy-nhl-web            # backend with your leagues, or:
+.venv/bin/python tests/fake_server.py  # backend on the synthetic test league
+cd web && npm run dev                # frontend with hot reload, http://127.0.0.1:5173
+```
+
+The API is described at `http://127.0.0.1:8000/api/docs`; after changing
+it, `npm run types` (backend running) regenerates the frontend's types in
+`web/src/schema.d.ts`. `npm test` runs the frontend's unit tests.
 
 ## Tools
 
@@ -527,13 +558,22 @@ src/fantasy_nhl/
     prompts.py               #   prompt primitives: Ask/Do steps, ESC = back, Ctrl-C = quit
     display.py               #   rich rendering: tables, tone -> color mapping
     tools.py                 #   the tools (prompts, fetches, rendering of views) and the TOOLS menu tree
+  api/                       # the web backend (FastAPI)
+    state.py                 #   one session per league: lazy load, lock, short-lived fetch cache
+    serialize.py             #   View -> JSON models
+    routes.py                #   one endpoint per view, prompts as query parameters
+    app.py                   #   the app: local-only middleware, static frontend, entrypoint
+web/                         # the web frontend (Vite, React, TypeScript)
+  src/components/View.tsx    #   generic renderer of a served view (tables, notes, text, figures)
+  src/pages/                 #   one page per tool: its form controls around the view
 tests/                       # pytest suite; support.py = synthetic league, golden/ = transcripts
 ```
 
 Imports point one way, checked by `tests/test_layering.py`: `analysis` knows
 nothing of ESPN, views or the terminal; `views` build on `analysis` and import
-neither `rich`, `questionary`, `matplotlib` nor the ESPN layer; only `cli`
-prompts, fetches and prints.
+neither `rich`, `questionary`, `matplotlib` nor the ESPN layer; `cli` and
+`api` are the two frontends that fetch and render, and know nothing of each
+other.
 
 ## Contributing
 
@@ -558,7 +598,10 @@ prompts, fetches and prints.
   `analysis/` (pure functions, no API calls) and data fetching in
   `sources/espn/`. Anything that rates a player takes a `StatBasis` (the
   tool builds it with `_stat_basis` from the *Player stats* setting) and
-  gets rates from `analysis.player_rate`.
+  gets rates from `analysis.player_rate`. For the web app, add an endpoint
+  in `api/routes.py` (a function decorated with `@view(path)` that fetches
+  through the league session and returns the same `View`), a case in
+  `tests/test_api.py`, and a page in `web/src/pages/`.
 - **Adding a league:** append an entry under `leagues:` in `config.yaml` and
   a matching credentials entry in `secrets.yaml`.
   The category list must match what the league actually scores on ESPN;

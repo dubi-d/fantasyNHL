@@ -1,7 +1,10 @@
 """The web backend: a local FastAPI app serving the views as JSON."""
+from pathlib import Path
+
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from ..config import LeagueConfig, load_config
@@ -10,6 +13,8 @@ from .state import LeagueStore, UpstreamError
 
 HOST = "127.0.0.1"
 PORT = 8000
+# the built frontend of a source checkout (npm run build in web/)
+WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 
 
 def create_app(leagues: list[LeagueConfig] | None = None) -> FastAPI:
@@ -30,6 +35,8 @@ def create_app(leagues: list[LeagueConfig] | None = None) -> FastAPI:
             {"detail": f"The request to ESPN failed ({error})."},
             status_code=502)
 
+    if WEB_DIST.is_dir():
+        app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
     return app
 
 
