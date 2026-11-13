@@ -22,7 +22,9 @@ Leagues and their scoring categories live in [config.yaml](config.yaml)
 (gitignored), keyed by league name — copy
 [secrets.example.yaml](secrets.example.yaml) to `secrets.yaml` and fill in
 your cookies. Add or replace leagues as entries under `leagues:` plus a matching
-entry in `secrets.yaml`. Schedule-scoring calibrations are stored in
+entry in `secrets.yaml`. The optional `default_league:` names the league to
+start on: the web app opens on it and the terminal menu preselects it.
+Schedule-scoring calibrations are stored in
 `calibration.yaml`, written by the calibrate option of the schedule outlook
 tool — don't edit it by hand.
 

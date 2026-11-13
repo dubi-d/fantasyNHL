@@ -31,6 +31,19 @@ def test_load_config_merges_secrets_and_categories(config_files):
     assert [(c.name, c.inverted) for c in league.categories] == [
         ("G", False), ("GAA", True)]
     assert league.calibration is None  # no calibration file yet
+    assert not league.default
+
+
+def test_default_league_is_marked(config_files):
+    config, secrets, calibration = config_files
+    raw = yaml.safe_load(config.read_text())
+    config.write_text(yaml.safe_dump({**raw, "default_league": "Test League"}))
+    (league,) = load_config(config, secrets, calibration)
+    assert league.default
+
+    config.write_text(yaml.safe_dump({**raw, "default_league": "Typo"}))
+    with pytest.raises(KeyError, match="Typo"):
+        load_config(config, secrets, calibration)
 
 
 def test_missing_secrets_file_is_explained(config_files, tmp_path):

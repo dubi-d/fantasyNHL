@@ -33,6 +33,7 @@ class LeagueConfig:
     espn_s2: str
     categories: list[Category] = field(default_factory=list)
     calibration: ScheduleCalibration | None = None
+    default: bool = False  # the league the apps start on
 
 
 def _load_secrets(path: Path) -> dict:
@@ -80,11 +81,19 @@ def load_config(path: Path = DEFAULT_CONFIG_PATH,
                 ) -> list[LeagueConfig]:
     """Load league configurations from a YAML file, merging in credentials
     from the gitignored secrets file (keyed by league name) and any stored
-    schedule-scoring calibrations."""
+    schedule-scoring calibrations. The optional top-level ``default_league``
+    names the league to start on."""
     with open(path) as f:
         raw = yaml.safe_load(f)
     secrets = _load_secrets(secrets_path)
     calibrations = _load_calibrations(calibration_path)
+    default_league = raw.get("default_league")
+    names = [entry["name"] for entry in raw["leagues"]]
+    if default_league is not None and default_league not in names:
+        raise KeyError(
+            f"default_league '{default_league}' in '{path}' is not the name "
+            f"of a league there."
+        )
 
     leagues = []
     for entry in raw["leagues"]:
@@ -108,6 +117,7 @@ def load_config(path: Path = DEFAULT_CONFIG_PATH,
                 espn_s2=credentials["espn_s2"],
                 categories=categories,
                 calibration=calibrations.get(name),
+                default=name == default_league,
             )
         )
     return leagues

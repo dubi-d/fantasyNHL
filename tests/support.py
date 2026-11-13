@@ -302,7 +302,8 @@ class FakeLeague:
         self._season_over = season_over
         self.config = LeagueConfig(
             name="Test League", league_id=1, year=2027, swid="{SWID}",
-            espn_s2="S2", categories=CATEGORIES, calibration=calibration)
+            espn_s2="S2", categories=CATEGORIES, calibration=calibration,
+            default=True)
         # the leagues offered as calibration source (stands in for load_config)
         self.sources = [LeagueConfig(name="Old League", league_id=2,
                                      year=2026, swid="{SWID}", espn_s2="S2",

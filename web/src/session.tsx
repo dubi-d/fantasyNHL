@@ -27,10 +27,10 @@ export function useSession(): Session {
   return session;
 }
 
-function useStored(key: string, fallback: string) {
-  const [value, setValue] = useState(localStorage.getItem(key) ?? fallback);
+function useStored(storage: Storage, key: string, fallback: string) {
+  const [value, setValue] = useState(storage.getItem(key) ?? fallback);
   const store = (next: string) => {
-    localStorage.setItem(key, next);
+    storage.setItem(key, next);
     setValue(next);
   };
   return [value, store] as const;
@@ -39,24 +39,56 @@ function useStored(key: string, fallback: string) {
 /** Loads the chosen league and provides it to the pages below. */
 export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const [chosen, setLeague] = useStored("league", "");
-  const [stats, setStats] = useStored("stats", "blended");
+  // per tab: a new one starts on the configured default league
+  const [chosen, setLeague] = useStored(sessionStorage, "league", "");
+  const [stats, setStats] = useStored(localStorage, "stats", "blended");
   const leagues = useQuery({
     queryKey: ["leagues"],
     queryFn: () => request<LeagueInfo[]>(apiUrl("/leagues")),
   });
   const league =
-    leagues.data?.find((entry) => entry.id === chosen) ?? leagues.data?.[0];
+    leagues.data?.find((entry) => entry.id === chosen) ??
+    leagues.data?.find((entry) => entry.default) ??
+    leagues.data?.[0];
   const meta = useQuery({
     queryKey: ["meta", league?.id],
     queryFn: () => request<LeagueMeta>(apiUrl(`/leagues/${league!.id}`)),
     enabled: league !== undefined,
   });
 
-  const error = leagues.error ?? meta.error;
-  if (error) return <p className="note note-warning">{error.message}</p>;
-  if (!leagues.data || !meta.data) {
-    return <p className="note note-info">Loading league data from ESPN…</p>;
+  if (leagues.error) {
+    return <p className="note note-warning">{leagues.error.message}</p>;
+  }
+  if (!leagues.data || !league) {
+    return <p className="note note-info">Loading leagues…</p>;
+  }
+  if (!meta.data) {
+    // a league that does not load must not lock the others away
+    return (
+      <main>
+        <label className="field">
+          <span>League</span>
+          <select
+            value={league.id}
+            onChange={(event) => setLeague(event.target.value)}
+          >
+            {leagues.data.map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {entry.name} ({entry.year})
+              </option>
+            ))}
+          </select>
+        </label>
+        {meta.error ? (
+          <>
+            <p className="note note-warning">{meta.error.message}</p>
+            <button onClick={() => meta.refetch()}>Try again</button>
+          </>
+        ) : (
+          <p className="note note-info">Loading league data from ESPN…</p>
+        )}
+      </main>
+    );
   }
   const session: Session = {
     leagues: leagues.data,

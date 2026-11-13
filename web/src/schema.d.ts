@@ -531,6 +531,8 @@ export interface components {
             name: string;
             /** Year */
             year: number;
+            /** Default */
+            default: boolean;
         };
         /** LeagueMeta */
         LeagueMeta: {
@@ -540,6 +542,8 @@ export interface components {
             name: string;
             /** Year */
             year: number;
+            /** Default */
+            default: boolean;
             /** Teams */
             teams: string[];
             /** Current Week */

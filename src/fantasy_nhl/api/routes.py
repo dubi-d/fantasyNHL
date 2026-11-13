@@ -159,6 +159,7 @@ class LeagueInfo(BaseModel):
     id: str
     name: str
     year: int
+    default: bool  # the league to start on
 
 
 class WeekInfo(BaseModel):
@@ -188,7 +189,7 @@ class LeagueMeta(LeagueInfo):
 
 def _league_info(session: LeagueSession) -> LeagueInfo:
     return LeagueInfo(id=session.id, name=session.config.name,
-                      year=session.config.year)
+                      year=session.config.year, default=session.config.default)
 
 
 def _calibration_info(session: LeagueSession) -> CalibrationInfo | None:

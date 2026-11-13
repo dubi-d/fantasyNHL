@@ -47,10 +47,8 @@ INVALID = [
 ]
 
 
-@pytest.fixture
-def api(monkeypatch):
-    """A client of the app serving a FakeLeague; ``calls`` counts fetches."""
-    league = FakeLeague()
+def _serve(monkeypatch, league: FakeLeague) -> SimpleNamespace:
+    """A client of the app serving ``league``; ``calls`` counts fetches."""
     calls: dict[str, int] = {}
     saved = []
 
@@ -70,6 +68,19 @@ def api(monkeypatch):
                         base_url="http://127.0.0.1")
     return SimpleNamespace(client=client, league=league, calls=calls,
                            saved=saved)
+
+
+@pytest.fixture
+def api(monkeypatch):
+    return _serve(monkeypatch, FakeLeague())
+
+
+@pytest.fixture
+def finished_api(monkeypatch):
+    """The season is over: only the last playoff matchup is left."""
+    return _serve(monkeypatch, FakeLeague(
+        current_week=8, today=60, season_over=True, constant_adp=True,
+        blend_weight=1.0, add_limit=None))
 
 
 def _tables(view: dict) -> list[list[list[str]]]:
@@ -144,10 +155,37 @@ def test_candidates_equal_the_terminal_pages(api):
     assert served == [[row for page in pages for row in page]]
 
 
+def test_remaining_schedule_of_playoffs_only(finished_api):
+    """Nothing to blend once only playoff matchups remain."""
+    url = BASE + "/schedule/outlook?scope=remaining"
+    plain = finished_api.client.get(url).json()
+    fitted = finished_api.client.get(url + "&fit_team=0").json()
+    assert _tables(plain) + _tables(fitted) == (
+        _golden_tables("schedule_finished")[2:4])
+    assert plain["meta"] == {"sorts": [], "blends_playoffs": False}
+    assert fitted["meta"]["sorts"] == ["Fit next 1"]
+    columns = [column["name"] for column in plain["blocks"][0]["columns"]]
+    assert "PO Score" in columns
+    assert not {"Combined rest of season", "Reg Score next 1"} & set(columns)
+
+
+def test_compared_namesakes_keep_their_columns(api):
+    players = api.client.get(BASE + "/review/options").json()["players"]
+    twins = [player["id"] for player in players
+             if player["label"].startswith("Twin (")]
+    assert len(twins) == 3
+    view = api.client.get(BASE + "/review/compare?" + "&".join(
+        f"players={pid}" for pid in twins)).json()
+    columns = [column["name"] for column in view["blocks"][0]["columns"]]
+    assert columns == ["Cat", "Twin (Bravo)", "Twin (FA)", "Twin (FA) #908"]
+
+
 def test_leagues_and_meta(api):
     assert api.client.get("/api/leagues").json() == [
-        {"id": "old-league", "name": "Old League", "year": 2026},
-        {"id": "test-league", "name": "Test League", "year": 2027}]
+        {"id": "old-league", "name": "Old League", "year": 2026,
+         "default": False},
+        {"id": "test-league", "name": "Test League", "year": 2027,
+         "default": True}]
     meta = api.client.get(BASE).json()
     assert meta["teams"] == ["Alpha", "Bravo", "Charlie", "Delta"]
     assert (meta["current_week"], meta["completed_matchups"]) == (5, 4)
