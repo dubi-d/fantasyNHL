@@ -74,7 +74,8 @@ const MENU = [
 ];
 
 export function App() {
-  const { leagues, meta, setLeague, stats, setStats, reload } = useSession();
+  const { leagues, meta, setLeague, stats, setStats, reload, refreshError } =
+    useSession();
   const [reloading, setReloading] = useState(false);
   const [reloadError, setReloadError] = useState("");
   const refresh = async () => {
@@ -88,6 +89,11 @@ export function App() {
       setReloading(false);
     }
   };
+  const loaded = new Date(meta.loaded_at).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const problems = [reloadError, refreshError, ...meta.warnings].filter(Boolean);
   return (
     <div className="layout">
       <nav>
@@ -110,15 +116,22 @@ export function App() {
           ]}
           onChange={(next) => setStats(next as Stats)}
         />
-        <button onClick={refresh} disabled={reloading}>
-          {reloading ? "Reloading…" : "Reload from ESPN"}
-        </button>
-        {reloadError && <p className="note note-warning">{reloadError}</p>}
+        <div className="field">
+          <button onClick={refresh} disabled={reloading}>
+            {reloading ? "Reloading…" : "Reload from ESPN"}
+          </button>
+          <span title="When the league was read from ESPN">as of {loaded}</span>
+        </div>
+        {problems.map((problem) => (
+          <p key={problem} className="note note-warning">
+            {problem}
+          </p>
+        ))}
         {MENU.map((entry) => (
           <div key={entry.group}>
             <h3>{entry.group}</h3>
             {entry.pages.map((page) => (
-              <NavLink key={page.path} to={page.path}>
+              <NavLink key={page.path} to={`/${meta.id}${page.path}`}>
                 {page.label}
               </NavLink>
             ))}
@@ -129,9 +142,16 @@ export function App() {
       <main key={meta.id}>
         <Routes>
           {MENU.flatMap((entry) => entry.pages).map((page) => (
-            <Route key={page.path} path={page.path} element={page.element} />
+            <Route
+              key={page.path}
+              path={`/:league${page.path}`}
+              element={page.element}
+            />
           ))}
-          <Route path="*" element={<Navigate to="/standings/accumulated" />} />
+          <Route
+            path="*"
+            element={<Navigate replace to={`/${meta.id}/standings/accumulated`} />}
+          />
         </Routes>
       </main>
     </div>

@@ -10,6 +10,7 @@ import {
   useTeamOptions,
 } from "../components/controls";
 import { useView, ViewPanel } from "../components/View";
+import { usePageParams } from "../params";
 import { useSession } from "../session";
 
 const COMPARE_MAX = 4;
@@ -33,20 +34,22 @@ const SOURCES = [
 export function Review() {
   const { meta, stats } = useSession();
   const teams = useTeamOptions();
-  const [view, setView] = useState("leaders");
-  const [scope, setScope] = useState("all");
-  const [team, setTeam] = useState("0");
-  const [group, setGroup] = useState("F");
-  const [sort, setSort] = useState("Score");
-  const [cells, setCells] = useState("pct");
-  const [source, setSource] = useState("current");
-  const [players, setPlayers] = useState<number[]>([]);
+  const page = usePageParams();
+  const view = page.get("view", "leaders");
+  const scope = page.get("scope", "all");
+  const team = page.get("team", "0");
+  const group = page.get("group", "F");
+  const sort = page.get("sort", "Score");
+  const cells = page.get("cells", "pct");
+  const source = page.get("source", "current");
+  const players = page.list("players").map(Number);
 
   const optionsUrl = apiUrl(`/leagues/${meta.id}/review/options`, { stats });
-  const options = useQuery({
+  const optionsQuery = useQuery({
     queryKey: [optionsUrl],
     queryFn: () => request<ReviewOptions>(optionsUrl),
-  }).data;
+  });
+  const options = optionsQuery.data;
   const groups = options?.groups ?? [];
   const sorts = groups.find((entry) => entry.key === group)?.sorts ?? ["Score"];
   const cellChoices = options?.cells ?? [];
@@ -77,7 +80,10 @@ export function Review() {
       controls={
         <>
           <Field label="View">
-            <select value={view} onChange={(event) => setView(event.target.value)}>
+            <select
+              value={view}
+              onChange={(event) => page.set({ view: event.target.value })}
+            >
               {[...new Set(VIEWS.map((entry) => entry.group))].map((name) => (
                 <optgroup key={name} label={name}>
                   {VIEWS.filter((entry) => entry.group === name).map((entry) => (
@@ -99,7 +105,7 @@ export function Review() {
                   { value: "fa", label: "Free agents" },
                   { value: "team", label: "One team" },
                 ]}
-                onChange={setScope}
+                onChange={(next) => page.set({ scope: next })}
               />
               <Select
                 label="Position"
@@ -108,13 +114,13 @@ export function Review() {
                   value: entry.key,
                   label: entry.label,
                 }))}
-                onChange={setGroup}
+                onChange={(next) => page.set({ group: next })}
               />
               <Select
                 label="Sort by"
                 value={usedSort}
                 options={sorts.map((name) => ({ value: name, label: name }))}
-                onChange={setSort}
+                onChange={(next) => page.set({ sort: next })}
               />
               <Select
                 label="Cells show"
@@ -123,34 +129,46 @@ export function Review() {
                   value: choice.key,
                   label: choice.label,
                 }))}
-                onChange={setCells}
+                onChange={(next) => page.set({ cells: next })}
               />
             </>
           )}
           {(view === "team" ||
             view === "gaps" ||
             (view === "leaders" && scope === "team")) && (
-            <Select label="Team" value={team} options={teams} onChange={setTeam} />
+            <Select
+              label="Team"
+              value={team}
+              options={teams}
+              onChange={(next) => page.set({ team: next })}
+            />
           )}
           {sourced && (
             <Select
               label="Rosters"
               value={source}
               options={SOURCES}
-              onChange={setSource}
+              onChange={(next) => page.set({ source: next })}
             />
           )}
           {view === "compare" && options && (
             <PlayerPicker
               choices={options.players}
               picked={players}
-              onChange={setPlayers}
+              onChange={(ids) => page.set({ players: ids })}
             />
           )}
         </>
       }
     >
-      {ready ? (
+      {optionsQuery.error ? (
+        <>
+          <p className="note note-warning">{optionsQuery.error.message}</p>
+          <button onClick={() => optionsQuery.refetch()}>Try again</button>
+        </>
+      ) : !options ? (
+        <p className="note note-info">Loading…</p>
+      ) : ready ? (
         <ViewPanel query={query} />
       ) : (
         <p className="note note-info">Pick two to four skaters or goalies.</p>

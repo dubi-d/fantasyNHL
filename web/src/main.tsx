@@ -7,10 +7,11 @@ import { App } from "./App";
 import { SessionProvider } from "./session";
 import "./styles.css";
 
-// the server caches ESPN data itself; refetch only on demand
+// the server keeps what it fetched for some minutes; ask it again once a
+// view is that old (on returning to the page or the window)
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: Infinity, retry: false, refetchOnWindowFocus: false },
+    queries: { staleTime: 5 * 60 * 1000, retry: false },
   },
 });
 

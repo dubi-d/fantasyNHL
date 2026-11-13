@@ -74,19 +74,33 @@ answer re-run.
 
 The same tools in the browser: a local FastAPI backend serving every view
 as JSON and a React/TypeScript frontend rendering them, with the terminal's
-prompts as form controls. It needs Node.js for the frontend.
+prompts as form controls. It runs from a source checkout (the frontend is
+built there, an installed wheel does not contain it) and needs Node.js
+20.19+ or 22.12+ for the build.
 
 ```bash
-cd web && npm install && npm run build && cd ..   # once, and after frontend changes
-.venv/bin/fantasy-nhl-web                         # http://127.0.0.1:8000
+cd web && npm ci && npm run build && cd ..   # once, and after frontend changes
+.venv/bin/fantasy-nhl-web                    # http://127.0.0.1:8000
 ```
 
 Run it from the repository root (it reads `config.yaml` and `secrets.yaml`
 there). The sidebar mirrors the menu above; the league, the **Player stats**
-setting and *Reload from ESPN* sit on top. What was fetched from ESPN is
-kept for five minutes, so changing a form does not refetch; reload after
-roster moves. The server listens on `127.0.0.1` only, answers no other
-host name, and never sends the ESPN cookies to the browser.
+setting and *Reload from ESPN* sit on top, with the time the league was
+read ("as of"). A new browser tab opens on the `default_league`; without a
+built frontend the server says how to build it.
+
+How fresh the data is: the league itself (standings, rosters, current
+matchup) is read from ESPN again once it is 15 minutes old, everything
+fetched for a page (preview, lineups, free agents, ...) after 5 minutes,
+and the browser asks the server again when a page it shows is older than
+5 minutes. *Reload from ESPN* drops all of it at once - use it after
+roster moves.
+
+The address holds the league, the page and its choices
+(`#/<league>/streaming?week=5&team=0&streamers=...`), so pages can be
+bookmarked, reloaded and stepped through with back and forward. The
+server listens on `127.0.0.1` only, answers no other host name, and never
+sends the ESPN cookies to the browser (nor writes them to its log).
 
 For working on the frontend, run the two parts separately:
 
@@ -96,9 +110,19 @@ For working on the frontend, run the two parts separately:
 cd web && npm run dev                # frontend with hot reload, http://127.0.0.1:5173
 ```
 
-The API is described at `http://127.0.0.1:8000/api/docs`; after changing
-it, `npm run types` (backend running) regenerates the frontend's types in
-`web/src/schema.d.ts`. `npm test` runs the frontend's unit tests.
+`tests/fake_server.py` takes a scenario of `tests/support.py` as argument
+(`finished`, `opening_day`, `pre_draft`, ...). The API is described at
+`http://127.0.0.1:8000/api/docs` and, as committed schema, in
+`web/openapi.json`, from which the frontend's types are generated. After
+changing the API:
+
+```bash
+UPDATE_OPENAPI=1 .venv/bin/pytest tests/test_api.py -k schema   # web/openapi.json
+cd web && npm run types                                         # web/src/schema.d.ts
+```
+
+Both files are checked by the tests (`pytest`, `npm test`); `npm test` also
+runs the frontend's component tests against scripted server answers.
 
 ## Tools
 
@@ -161,9 +185,9 @@ it, `npm run types` (backend running) regenerates the frontend's types in
   DTD/OUT/IR). The roster's **Games** column counts scheduled games in each
   player's **saved active ESPN lineup**, from today through the end of the
   matchup (or simulated today onward); Bench/IR and next-matchup lookahead
-  don't count. Orange dots mark games assigned to Bench on that date, red
-  dots mark IR assignments. Players currently in your fantasy IR slot appear
-  last, with red team-schedule dots and **Games 0**, regardless of future
+  don't count. An orange `○` marks a game assigned to Bench on that date, a
+  red `×` an IR assignment. Players currently in your fantasy IR slot appear
+  last, with red `×` on their team's game days and **Games 0**, regardless of future
   assignments; they remain excluded from all seat/streaming calculations.
   **Inj** shows reported injury status separately from IR-slot placement
   (DTD/SUS yellow, OUT/IR red, healthy blank). Dots show team games, not
@@ -173,7 +197,7 @@ it, `npm run types` (backend running) regenerates the frontend's types in
   per actionable day. `?` marks unavailable assignments and incomplete Games
   totals; missing data is never replaced with today's lineup or a predicted
   bench. Open-seat/coverage/FA tables still model maximum usable capacity, so
-  an orange bench dot can coexist with an open seat. Simulations use today's
+  an orange bench mark can coexist with an open seat. Simulations use today's
   loaded roster/IR group with the selected dates' saved assignments, not a
   reconstructed historical roster. Roster membership and injuries are the
   loaded league snapshot (reload the league after roster/IR changes); daily
@@ -561,14 +585,20 @@ src/fantasy_nhl/
     display.py               #   rich rendering: tables, tone -> color mapping
     tools.py                 #   the tools (prompts, fetches, rendering of views) and the TOOLS menu tree
   api/                       # the web backend (FastAPI)
-    state.py                 #   one session per league: lazy load, lock, short-lived fetch cache
-    serialize.py             #   View -> JSON models
-    routes.py                #   one endpoint per view, prompts as query parameters
+    state.py                 #   per league: its current load (session) with fetch cache, expiry, reload
+    serialize.py             #   View -> JSON models (typed columns, figure data, per-view meta)
+    figures.py               #   figures as PNG, rendered once per content
+    routes/                  #   one endpoint per view, prompts as query parameters
+      base.py                #     league dependencies, write guard, registration of views
+      league.py, standings.py, planning.py, review.py
     app.py                   #   the app: local-only middleware, static frontend, entrypoint
 web/                         # the web frontend (Vite, React, TypeScript)
+  openapi.json               #   the API schema (generated, checked by the tests)
+  src/schema.d.ts            #   its TypeScript types (generated)
+  src/session.tsx, params.ts #   the league of the address; a page's choices in the address
   src/components/View.tsx    #   generic renderer of a served view (tables, notes, text, figures)
   src/pages/                 #   one page per tool: its form controls around the view
-tests/                       # pytest suite; support.py = synthetic league, golden/ = transcripts
+tests/                       # pytest suite; support.py = synthetic league and its scenarios, golden/ = transcripts
 ```
 
 Imports point one way, checked by `tests/test_layering.py`: `analysis` knows
@@ -601,9 +631,12 @@ other.
   `sources/espn/`. Anything that rates a player takes a `StatBasis` (the
   tool builds it with `_stat_basis` from the *Player stats* setting) and
   gets rates from `analysis.player_rate`. For the web app, add an endpoint
-  in `api/routes.py` (a function decorated with `@view(path)` that fetches
-  through the league session and returns the same `View`), a case in
-  `tests/test_api.py`, and a page in `web/src/pages/`.
+  in the matching module of `api/routes/` (a function decorated with
+  `@view(path)` that fetches through the league session and returns the
+  same `View`; give it a `meta=` model if the page needs more than the
+  blocks), a case in `tests/test_api.py`, regenerate the schema and types
+  (see *Web app*), and add a page in `web/src/pages/` that keeps its
+  choices in the address (`usePageParams`).
 - **Adding a league:** append an entry under `leagues:` in `config.yaml` and
   a matching credentials entry in `secrets.yaml`.
   The category list must match what the league actually scores on ESPN;

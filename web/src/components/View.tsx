@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import {
   apiUrl,
@@ -14,23 +14,36 @@ import {
 import { useSession } from "../session";
 import { toneClasses, toneColor } from "../tone";
 
-/** A view of the current league; ``params`` are its query parameters. */
-export function useView(path: string, params: Params = {}, enabled = true) {
+/** A view of the current league; ``params`` are its query parameters.
+ * While another choice loads, the previous view stays on screen. */
+export function useView<V extends View = View>(
+  path: string,
+  params: Params = {},
+  enabled = true,
+) {
   const { meta } = useSession();
   const url = apiUrl(`/leagues/${meta.id}${path}`, params);
   return useQuery({
     queryKey: [url],
-    queryFn: () => request<View>(url),
+    queryFn: () => request<V>(url),
     placeholderData: keepPreviousData,
     enabled,
   });
+}
+
+/** The meta of the view that was asked for: none while a previous view
+ * stands in for it, whose choices would not fit. */
+export function currentMeta<M>(query: {
+  data?: { meta: M };
+  isPlaceholderData: boolean;
+}): M | undefined {
+  return query.isPlaceholderData ? undefined : query.data?.meta;
 }
 
 type ViewQuery = {
   data?: View;
   error: Error | null;
   isFetching: boolean;
-  dataUpdatedAt?: number;
 };
 
 /** A fetched view with its loading and error states. */
@@ -41,20 +54,13 @@ export function ViewPanel({
   query: ViewQuery;
   pageSize?: number;
 }) {
-  // a view kept on screen while the next one loads has no fetch time
-  const version = useRef<number>(undefined);
-  if (query.dataUpdatedAt) version.current = query.dataUpdatedAt;
   if (query.error) {
     return <p className="note note-warning">{query.error.message}</p>;
   }
   if (!query.data) return <p className="note note-info">Loading…</p>;
   return (
     <div className={query.isFetching ? "view stale" : "view"}>
-      <ViewBlocks
-        view={query.data}
-        pageSize={pageSize}
-        version={version.current}
-      />
+      <ViewBlocks view={query.data} pageSize={pageSize} />
     </div>
   );
 }
@@ -69,40 +75,17 @@ export function RemoteView(props: {
   return <ViewPanel query={query} pageSize={props.pageSize} />;
 }
 
-/** The blocks of a view; ``version`` tells its fetches apart, so that a
- * refetched view also loads its figures again. */
-export function ViewBlocks({
-  view,
-  pageSize,
-  version,
-}: {
-  view: View;
-  pageSize?: number;
-  version?: number;
-}) {
+export function ViewBlocks({ view, pageSize }: { view: View; pageSize?: number }) {
   return (
     <>
       {view.blocks.map((block, index) => (
-        <BlockView
-          key={index}
-          block={block}
-          pageSize={pageSize}
-          version={version}
-        />
+        <BlockView key={index} block={block} pageSize={pageSize} />
       ))}
     </>
   );
 }
 
-function BlockView({
-  block,
-  pageSize,
-  version,
-}: {
-  block: Block;
-  pageSize?: number;
-  version?: number;
-}) {
+function BlockView({ block, pageSize }: { block: Block; pageSize?: number }) {
   switch (block.type) {
     case "table":
       return <DataTable key={block.title} table={block} pageSize={pageSize} />;
@@ -110,11 +93,9 @@ function BlockView({
       return <NoteView note={block} />;
     case "text":
       return <CopyText text={block.text} />;
-    case "figure": {
-      const mark = block.url.includes("?") ? "&" : "?";
-      const src = version ? `${block.url}${mark}v=${version}` : block.url;
-      return <img className="figure" src={src} alt={block.title} />;
-    }
+    case "figure":
+      // the address changes with the content, so the browser may keep it
+      return <img className="figure" src={block.url} alt={block.title} />;
   }
 }
 
@@ -132,15 +113,22 @@ function NoteView({ note }: { note: Note }) {
 }
 
 function CopyText({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-  };
+  const [state, setState] = useState<"" | "copied" | "failed">("");
+  const copy = () =>
+    // absent or refused where the page may not use the clipboard
+    (navigator.clipboard?.writeText(text) ?? Promise.reject()).then(
+      () => setState("copied"),
+      () => setState("failed"),
+    );
   return (
     <div className="copy">
       <pre>{text}</pre>
-      <button onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+      <button onClick={copy}>{state === "copied" ? "Copied" : "Copy"}</button>
+      {state === "failed" && (
+        <span className="note-warning">
+          Copying is not allowed here: select the text instead.
+        </span>
+      )}
     </div>
   );
 }
@@ -150,17 +138,17 @@ function DataTable({ table, pageSize }: { table: Table; pageSize?: number }) {
   const shown = limit ?? table.rows.length;
   const cells = (row: Row) =>
     row.cells.map((cell, index) => {
-      const align = table.columns[index].align;
+      const { align, key } = table.columns[index];
       return typeof cell.tone === "number" ? (
         <td
-          key={index}
+          key={key}
           className={`${align} graded`}
           style={{ background: toneColor(cell.tone) }}
         >
           {cell.text}
         </td>
       ) : (
-        <td key={index} className={`${align} ${toneClasses(cell.tone)}`}>
+        <td key={key} className={`${align} ${toneClasses(cell.tone)}`}>
           {cell.text}
         </td>
       );
@@ -169,13 +157,16 @@ function DataTable({ table, pageSize }: { table: Table; pageSize?: number }) {
     <figure className="table">
       <figcaption>{table.title}</figcaption>
       <div className="scroll">
-        <table>
+        <table aria-label={table.title}>
           <thead>
             <tr>
-              <th className="right">#</th>
-              {table.columns.map((column, index) => (
+              <th scope="col" className="right">
+                #
+              </th>
+              {table.columns.map((column) => (
                 <th
-                  key={index}
+                  key={column.key}
+                  scope="col"
                   className={`${column.align} ${column.muted ? "tone-muted" : ""}`}
                 >
                   {column.name}

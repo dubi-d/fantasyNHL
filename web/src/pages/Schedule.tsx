@@ -1,32 +1,38 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { apiUrl, request, type CalibrationInfo, type View } from "../api";
+import {
+  apiUrl,
+  request,
+  type CalibrationInfo,
+  type OutlookView,
+  type View,
+} from "../api";
 import { Field, Page, Select, useTeamOptions } from "../components/controls";
-import { useView, ViewBlocks, ViewPanel } from "../components/View";
+import { currentMeta, useView, ViewBlocks, ViewPanel } from "../components/View";
+import { usePageParams } from "../params";
 import { useSession } from "../session";
-
-type OutlookMeta = { sorts?: string[]; blends_playoffs?: boolean };
 
 export function ScheduleOutlook() {
   const { meta } = useSession();
+  const page = usePageParams();
   const teams = useTeamOptions();
-  const [scope, setScope] = useState("full");
-  const [weight, setWeight] = useState("0.4");
-  const [fitTeam, setFitTeam] = useState("");
-  const [sort, setSort] = useState("");
+  const scope = page.get("scope", "full");
+  const weight = page.get("weight", "0.4");
+  const fitTeam = page.get("fit");
+  const sort = page.get("sort");
 
   const fitted = scope !== "full";
-  const outlook = useView("/schedule/outlook", {
+  const outlook = useView<OutlookView>("/schedule/outlook", {
     scope,
     playoff_weight: scope === "playoffs" ? null : weight,
     fit_team: fitted ? fitTeam : null,
     sort,
   });
-  const outlookMeta = (outlook.data?.meta ?? {}) as OutlookMeta;
-  const sorts = outlookMeta.sorts ?? [];
+  const shown = currentMeta(outlook);
+  const sorts = shown?.sorts ?? [];
   // nothing to weight in a scope without both season and playoff matchups
-  const blends = outlookMeta.blends_playoffs ?? scope !== "playoffs";
+  const blends = shown?.blends_playoffs ?? scope !== "playoffs";
 
   return (
     <Page
@@ -44,10 +50,7 @@ export function ScheduleOutlook() {
               },
               { value: "playoffs", label: "Playoffs only" },
             ]}
-            onChange={(next) => {
-              setScope(next);
-              setSort("");
-            }}
+            onChange={(next) => page.set({ scope: next, sort: null })}
           />
           {blends && (
             <Field label="Playoff weight in Combined score (0-1)">
@@ -57,7 +60,7 @@ export function ScheduleOutlook() {
                 max={1}
                 step={0.05}
                 value={weight}
-                onChange={(event) => setWeight(event.target.value)}
+                onChange={(event) => page.set({ weight: event.target.value }, true)}
               />
             </Field>
           )}
@@ -66,10 +69,7 @@ export function ScheduleOutlook() {
               label="Weight by a roster's open seats (Fit)"
               value={fitTeam}
               options={[{ value: "", label: "Skip" }, ...teams]}
-              onChange={(next) => {
-                setFitTeam(next);
-                setSort("");
-              }}
+              onChange={(next) => page.set({ fit: next, sort: null })}
             />
           )}
           {sorts.length > 1 && (
@@ -77,7 +77,7 @@ export function ScheduleOutlook() {
               label="Sort by"
               value={sort || sorts[0]}
               options={sorts.map((name) => ({ value: name, label: name }))}
-              onChange={setSort}
+              onChange={(next) => page.set({ sort: next })}
             />
           )}
         </>

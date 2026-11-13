@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef } from "react";
 
+import type { PlanView } from "../api";
 import {
   Group,
   Page,
@@ -7,48 +8,49 @@ import {
   useTeamOptions,
   useWeekOptions,
 } from "../components/controls";
-import { RemoteView, useView, ViewPanel } from "../components/View";
+import { currentMeta, RemoteView, useView, ViewPanel } from "../components/View";
+import { clamp, usePageParams } from "../params";
 import { useSession } from "../session";
 
 const PAGE_SIZE = 15;
 
-type PlanMeta = {
-  roster?: string[];
-  days?: { period: number; label: string }[];
-  finished?: boolean;
-  has_open_days?: boolean;
-};
-
 export function StreamingPlanner() {
   const { meta, stats } = useSession();
+  const page = usePageParams();
   const weeks = useWeekOptions();
   const teams = useTeamOptions();
-  const [week, setWeek] = useState(String(meta.current_week));
-  const stored = localStorage.getItem("team") ?? "";
-  const [team, setTeam] = useState(
-    teams.some((option) => String(option.value) === stored) ? stored : "0",
+  const week = clamp(page.get("week", String(meta.current_week)), 1, weeks.length);
+  // the team planned last in this league, unless the address names one
+  const teamKey = `team:${meta.id}`;
+  const team = clamp(
+    page.get("team", localStorage.getItem(teamKey) ?? "0"),
+    0,
+    teams.length - 1,
   );
-  const [streamers, setStreamers] = useState<string[]>([]);
-  const [simulate, setSimulate] = useState("");
-  const [candidates, setCandidates] = useState(false);
+  const streamers = page.list("streamers");
+  const simulate = page.get("simulate");
+  const candidates = page.get("candidates") === "1";
 
   // streamers and the simulated day belong to one team's week
-  const choose = (nextWeek: string, nextTeam: string) => {
-    localStorage.setItem("team", nextTeam);
-    setWeek(nextWeek);
-    setTeam(nextTeam);
-    setStreamers([]);
-    setSimulate("");
+  const choose = (nextWeek: string | number, nextTeam: string | number) => {
+    localStorage.setItem(teamKey, String(nextTeam));
+    page.set({ week: nextWeek, team: nextTeam, streamers: null, simulate: null });
   };
   const params = { week, team, streamers, simulate };
-  const plan = useView("/streaming/plan", params);
-  const info = (plan.data?.meta ?? {}) as PlanMeta;
-  const toggle = (name: string) =>
-    setStreamers(
-      streamers.includes(name)
-        ? streamers.filter((other) => other !== name)
-        : [...streamers, name],
-    );
+  const plan = useView<PlanView>("/streaming/plan", params);
+  // the roster and days offered are those of this team's week: kept while
+  // its plan reloads, never taken from the plan of another one
+  const known = useRef<{ of: string; meta: PlanView["meta"] }>(undefined);
+  const of = `${week}/${team}`;
+  const current = currentMeta(plan);
+  if (current) known.current = { of, meta: current };
+  const info = known.current?.of === of ? known.current.meta : undefined;
+  const toggle = (id: string) =>
+    page.set({
+      streamers: streamers.includes(id)
+        ? streamers.filter((other) => other !== id)
+        : [...streamers, id],
+    });
 
   return (
     <Page
@@ -67,31 +69,31 @@ export function StreamingPlanner() {
             options={teams}
             onChange={(next) => choose(week, next)}
           />
-          {info.finished && (
+          {info?.finished && (
             <Select
               label="Week is over — simulate it from"
               value={simulate}
               options={[
                 { value: "", label: "No, just show the roster grid" },
-                ...(info.days ?? []).map((day) => ({
+                ...info.days.map((day) => ({
                   value: day.period,
                   label: `Plan as if today were ${day.label}`,
                 })),
               ]}
-              onChange={setSimulate}
+              onChange={(next) => page.set({ simulate: next, streamers: null })}
             />
           )}
-          {(!info.finished || simulate !== "") && (
+          {info && (!info.finished || simulate !== "") && (
             <Group label="Streamers (droppable roster spots)">
               <div className="checks">
-                {(info.roster ?? []).map((name) => (
-                  <label key={name}>
+                {info.roster.map((player) => (
+                  <label key={player.id}>
                     <input
                       type="checkbox"
-                      checked={streamers.includes(name)}
-                      onChange={() => toggle(name)}
+                      checked={streamers.includes(String(player.id))}
+                      onChange={() => toggle(String(player.id))}
                     />
-                    {name}
+                    {player.name}
                   </label>
                 ))}
               </div>
@@ -101,17 +103,17 @@ export function StreamingPlanner() {
       }
     >
       <ViewPanel query={plan} />
-      {info.has_open_days && (
+      {info?.has_open_days && (
         <label className="toggle">
           <input
             type="checkbox"
             checked={candidates}
-            onChange={() => setCandidates(!candidates)}
+            onChange={() => page.set({ candidates: candidates ? null : 1 })}
           />
           Show free agent candidates for the open days
         </label>
       )}
-      {info.has_open_days && candidates && (
+      {info?.has_open_days && candidates && (
         <RemoteView
           path="/streaming/candidates"
           params={{ ...params, stats }}

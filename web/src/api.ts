@@ -2,6 +2,8 @@ import type { components } from "./schema";
 
 type Schemas = components["schemas"];
 export type View = Schemas["ViewModel"];
+export type PlanView = Schemas["PlanView"];
+export type OutlookView = Schemas["OutlookView"];
 export type Block = View["blocks"][number];
 export type Table = Schemas["TableBlock"];
 export type Row = Schemas["Row"];
@@ -28,6 +30,19 @@ export function apiUrl(path: string, params: Params = {}): string {
   return `/api${path}${text ? `?${text}` : ""}`;
 }
 
+/** What the server says went wrong, as one line. */
+export function errorText(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (!Array.isArray(detail)) return JSON.stringify(detail);
+  // a parameter the server refused: where and why
+  return detail
+    .map((issue: { loc?: unknown[]; msg?: string }) => {
+      const where = (issue.loc ?? []).slice(1).join(".");
+      return where ? `${where}: ${issue.msg}` : String(issue.msg);
+    })
+    .join("; ");
+}
+
 export async function request<T>(
   url: string,
   method = "GET",
@@ -46,7 +61,7 @@ export async function request<T>(
       (error) => error.detail,
       () => response.statusText,
     );
-    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    throw new Error(errorText(detail));
   }
   return response.json();
 }
