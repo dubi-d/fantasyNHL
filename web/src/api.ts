@@ -38,6 +38,8 @@ export async function request<T>(
     // the backend only accepts state changes sent as JSON
     headers: method === "GET" ? undefined : { "Content-Type": "application/json" },
     body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
+  }).catch(() => {
+    throw new Error("The fantasyNHL server cannot be reached. Is it still running?");
   });
   if (!response.ok) {
     const detail = await response.json().then(
