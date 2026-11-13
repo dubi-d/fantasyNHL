@@ -76,10 +76,14 @@ const MENU = [
 export function App() {
   const { leagues, meta, setLeague, stats, setStats, reload } = useSession();
   const [reloading, setReloading] = useState(false);
+  const [reloadError, setReloadError] = useState("");
   const refresh = async () => {
     setReloading(true);
+    setReloadError("");
     try {
       await reload();
+    } catch (error) {
+      setReloadError(error instanceof Error ? error.message : String(error));
     } finally {
       setReloading(false);
     }
@@ -109,6 +113,7 @@ export function App() {
         <button onClick={refresh} disabled={reloading}>
           {reloading ? "Reloading…" : "Reload from ESPN"}
         </button>
+        {reloadError && <p className="note note-warning">{reloadError}</p>}
         {MENU.map((entry) => (
           <div key={entry.group}>
             <h3>{entry.group}</h3>

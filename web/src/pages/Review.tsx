@@ -2,7 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiUrl, request, type ReviewOptions } from "../api";
-import { Field, Page, Select, useTeamOptions } from "../components/controls";
+import {
+  Field,
+  Group,
+  Page,
+  Select,
+  useTeamOptions,
+} from "../components/controls";
 import { useView, ViewPanel } from "../components/View";
 import { useSession } from "../session";
 
@@ -178,7 +184,7 @@ function PlayerPicker({
     setText(match ? "" : value);
   };
   return (
-    <Field label={`Players (${picked.length} of 2-${COMPARE_MAX})`}>
+    <Group label={`Players (${picked.length} of 2-${COMPARE_MAX})`}>
       <div className="picker">
         {chosen.map((choice) => (
           <button
@@ -194,6 +200,7 @@ function PlayerPicker({
             <input
               list="player-choices"
               placeholder="Type a name…"
+              aria-label="Add a player"
               value={text}
               onChange={(event) => type(event.target.value)}
             />
@@ -205,6 +212,6 @@ function PlayerPicker({
           </>
         )}
       </div>
-    </Field>
+    </Group>
   );
 }

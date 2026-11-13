@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import {
-  Field,
+  Group,
   Page,
   Select,
   useTeamOptions,
@@ -82,7 +82,7 @@ export function StreamingPlanner() {
             />
           )}
           {(!info.finished || simulate !== "") && (
-            <Field label="Streamers (droppable roster spots)">
+            <Group label="Streamers (droppable roster spots)">
               <div className="checks">
                 {(info.roster ?? []).map((name) => (
                   <label key={name}>
@@ -95,7 +95,7 @@ export function StreamingPlanner() {
                   </label>
                 ))}
               </div>
-            </Field>
+            </Group>
           )}
         </>
       }

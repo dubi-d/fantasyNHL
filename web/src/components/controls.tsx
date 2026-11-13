@@ -13,6 +13,17 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
+/** Several controls under one caption: a label would send every click on
+ * the caption or a gap to the first of them. */
+export function Group({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="field" role="group" aria-label={label}>
+      <span>{label}</span>
+      {children}
+    </div>
+  );
+}
+
 /** A labeled dropdown; values travel as strings. */
 export function Select({
   label,

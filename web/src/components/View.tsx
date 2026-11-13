@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   apiUrl,
@@ -30,6 +30,7 @@ type ViewQuery = {
   data?: View;
   error: Error | null;
   isFetching: boolean;
+  dataUpdatedAt?: number;
 };
 
 /** A fetched view with its loading and error states. */
@@ -40,13 +41,20 @@ export function ViewPanel({
   query: ViewQuery;
   pageSize?: number;
 }) {
+  // a view kept on screen while the next one loads has no fetch time
+  const version = useRef<number>(undefined);
+  if (query.dataUpdatedAt) version.current = query.dataUpdatedAt;
   if (query.error) {
     return <p className="note note-warning">{query.error.message}</p>;
   }
   if (!query.data) return <p className="note note-info">Loading…</p>;
   return (
     <div className={query.isFetching ? "view stale" : "view"}>
-      <ViewBlocks view={query.data} pageSize={pageSize} />
+      <ViewBlocks
+        view={query.data}
+        pageSize={pageSize}
+        version={version.current}
+      />
     </div>
   );
 }
@@ -61,17 +69,40 @@ export function RemoteView(props: {
   return <ViewPanel query={query} pageSize={props.pageSize} />;
 }
 
-export function ViewBlocks({ view, pageSize }: { view: View; pageSize?: number }) {
+/** The blocks of a view; ``version`` tells its fetches apart, so that a
+ * refetched view also loads its figures again. */
+export function ViewBlocks({
+  view,
+  pageSize,
+  version,
+}: {
+  view: View;
+  pageSize?: number;
+  version?: number;
+}) {
   return (
     <>
       {view.blocks.map((block, index) => (
-        <BlockView key={index} block={block} pageSize={pageSize} />
+        <BlockView
+          key={index}
+          block={block}
+          pageSize={pageSize}
+          version={version}
+        />
       ))}
     </>
   );
 }
 
-function BlockView({ block, pageSize }: { block: Block; pageSize?: number }) {
+function BlockView({
+  block,
+  pageSize,
+  version,
+}: {
+  block: Block;
+  pageSize?: number;
+  version?: number;
+}) {
   switch (block.type) {
     case "table":
       return <DataTable key={block.title} table={block} pageSize={pageSize} />;
@@ -79,8 +110,11 @@ function BlockView({ block, pageSize }: { block: Block; pageSize?: number }) {
       return <NoteView note={block} />;
     case "text":
       return <CopyText text={block.text} />;
-    case "figure":
-      return <img className="figure" src={block.url} alt={block.title} />;
+    case "figure": {
+      const mark = block.url.includes("?") ? "&" : "?";
+      const src = version ? `${block.url}${mark}v=${version}` : block.url;
+      return <img className="figure" src={src} alt={block.title} />;
+    }
   }
 }
 
