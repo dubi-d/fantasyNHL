@@ -1,4 +1,6 @@
 """Loading of the YAML configuration file."""
+import os
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -58,21 +60,28 @@ def _load_calibrations(path: Path) -> dict[str, ScheduleCalibration]:
             for name, entry in raw.items()}
 
 
+_calibration_lock = threading.Lock()
+
+
 def save_calibration(league_name: str, calibration: ScheduleCalibration,
                      path: Path = DEFAULT_CALIBRATION_PATH) -> None:
     """Store a league's night-value curve, keeping other leagues' entries."""
-    raw = {}
-    if path.exists():
-        with open(path) as f:
-            raw = yaml.safe_load(f) or {}
-    raw[league_name] = {
-        "source": calibration.source,
-        "calibrated": calibration.calibrated,
-        "curve": {int(n): round(float(v), 4)
-                  for n, v in sorted(calibration.curve.items())},
-    }
-    with open(path, "w") as f:
-        yaml.safe_dump(raw, f, sort_keys=True)
+    with _calibration_lock:
+        raw = {}
+        if path.exists():
+            with open(path) as f:
+                raw = yaml.safe_load(f) or {}
+        raw[league_name] = {
+            "source": calibration.source,
+            "calibrated": calibration.calibrated,
+            "curve": {int(n): round(float(v), 4)
+                      for n, v in sorted(calibration.curve.items())},
+        }
+        # written aside and moved in place: never a half-written file
+        draft = path.with_name(path.name + ".tmp")
+        with open(draft, "w") as f:
+            yaml.safe_dump(raw, f, sort_keys=True)
+        os.replace(draft, path)
 
 
 def load_config(path: Path = DEFAULT_CONFIG_PATH,

@@ -64,7 +64,7 @@ from ..views.players import (
     player_labels,
 )
 from ..views.preview import build_matchup_preview
-from ..views.review import build_review_context
+from ..views.review import NOBODY, build_review_context, has_players
 from ..views.rosters import (
     build_acquired,
     build_gaps,
@@ -315,11 +315,11 @@ def streaming_planner(data: LeagueData):
                 return fetch_daily_lineup_slots(data, my_row, actionable)
         daily_slots = yield Do(fetch_lineups)
 
-    streamers: list[str] = []
+    streamers: list[PreviewPlayer] = []
     if actionable:
         streamers = yield Ask(lambda: ask(questionary.checkbox(
             "Mark your streamers (droppable roster spots):",
-            choices=[p.name for p in roster])))
+            choices=[questionary.Choice(p.name, value=p) for p in roster])))
 
     context = streaming_context(preview, roster, ir_roster, adds_used[my_row],
                                 actionable, daily_slots)
@@ -355,7 +355,7 @@ def _lead(*col_widths: int) -> int:
 
 
 def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
-                           streamers: list[str],
+                           streamers: list[PreviewPlayer],
                            simulated_from: str | None = None) -> int | None:
     """Render the planner tables. Returns the shared day-column alignment
     width when there are open days worth streaming for, else None."""
@@ -399,7 +399,7 @@ def _render_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
 
 def _render_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
                        categories: list[Category], basis: StatBasis,
-                       streamers: list[str], align: int,
+                       streamers: list[PreviewPlayer], align: int,
                        page_size: int = 15) -> None:
     """Render the free agent candidate table: schedule fit on the open days
     plus per-game rates (on the given stat basis) for the skater categories.
@@ -551,9 +551,8 @@ def review_rosters(data: LeagueData):
     def fetch():
         with console.status("Fetching rosters, free agents and draft..."):
             review = fetch_roster_review(data)
-        if not any(review.rosters) and not review.picks:
-            console.print("Rosters are empty and the league has not drafted "
-                          "yet.", style="yellow")
+        if not has_players(review):
+            console.print(NOBODY, style="yellow")
             return None
         _warn_no_season_stats(
             _stat_basis(data, review.blend_weight),

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "types": "openapi-typescript http://127.0.0.1:8000/api/openapi.json -o src/schema.d.ts"
+    "types": "openapi-typescript openapi.json -o src/schema.d.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.107.1",

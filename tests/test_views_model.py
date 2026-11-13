@@ -1,15 +1,9 @@
-"""View tones render as exactly the styles the tools used directly."""
+"""View tones and the styles the terminal renders them with."""
 import numpy as np
 import pandas as pd
 import pytest
 
-from fantasy_nhl.cli.display import (
-    diverging_style,
-    heatmap_style,
-    note_markup,
-    result_style,
-    tone_style,
-)
+from fantasy_nhl.cli.display import note_markup, tone_style
 from fantasy_nhl.views.model import (
     BAD,
     DANGER,
@@ -19,35 +13,55 @@ from fantasy_nhl.views.model import (
     MUTED,
     STRONG,
     Span,
+    cell_texts,
     column_tones,
     diverging,
     heat,
     note,
 )
 
-VALUES = [-7.5, -2, -1.0, -0.26, -0.0, 0, 0.01, 0.5, 1, 3.3, 40,
-          np.float64(-0.3), np.int64(2), float("nan"), None, pd.NA]
+
+@pytest.mark.parametrize("value,scale,style", [
+    (0, 2, "white on rgb(60,60,60)"),
+    (-0.0, 2, "white on rgb(60,60,60)"),
+    (1, 2, "white on rgb(30,98,30)"),
+    (np.int64(2), 2, "white on rgb(0,135,0)"),
+    (40, 2, "white on rgb(0,135,0)"),  # saturates at the scale
+    (-1.0, 2, "white on rgb(118,30,30)"),
+    (np.float64(-0.3), 1.5, "white on rgb(83,48,48)"),
+    (-7.5, 1.5, "white on rgb(175,0,0)"),
+    (float("nan"), 2, ""), (None, 2, ""), (pd.NA, 2, ""),
+    (1, 0, ""), (1, -1, ""),  # no scale, no tone
+])
+def test_diverging_tone_styles(value, scale, style):
+    assert tone_style(diverging(value, scale)) == style
 
 
-@pytest.mark.parametrize("scale", [0.5, 1, 1.5, 2, 3, 10, 50, 500, 0, -1])
-def test_diverging_tone_matches_the_style(scale):
-    for value in VALUES:
-        assert tone_style(diverging(value, scale)) == diverging_style(
-            value, scale), value
-
-
-def test_heat_tone_matches_the_style():
-    for rate in [0, 0.1, 0.25, 0.5, 0.501, 0.875, 1, 1.4, -0.2,
-                 float("nan")]:
-        assert tone_style(heat(rate)) == heatmap_style(rate), rate
+@pytest.mark.parametrize("rate,style", [
+    (0.5, "white on rgb(60,60,60)"), (1, "white on rgb(0,135,0)"),
+    (0, "white on rgb(175,0,0)"), (0.875, "white on rgb(15,116,15)"),
+    (0.25, "white on rgb(118,30,30)"), (1.4, "white on rgb(0,135,0)"),
+    (-0.2, "white on rgb(175,0,0)"), (float("nan"), ""),
+])
+def test_heat_tone_styles(rate, style):
+    assert tone_style(heat(rate)) == style
 
 
 def test_tags():
     assert [tone_style(tag) for tag in (GOOD, BAD, EVEN)] == [
-        result_style(result) for result in "WLT"]
+        "bold green", "bold red", "bold yellow"]
     assert tone_style(f"{MUTED} {DANGER}") == "dim red"
     assert tone_style(None) == tone_style("") == ""
 
+
+def test_cell_texts_keep_whole_numbers_whole():
+    frame = pd.DataFrame({"Teams": [4, 18], "Seats": [3.0, 0.22],
+                          "Rank": pd.array([1, None], dtype="Int64"),
+                          "Name": ["a", None]})
+    assert cell_texts(frame) == [["4", "3.0", "1", "a"],
+                                 ["18", "0.22", "", ""]]
+    assert cell_texts(frame.iloc[:0]) == []
+    assert cell_texts(pd.DataFrame(index=[1, 2])) == [[], []]
 
 def test_column_tones_keep_row_order_and_skip_missing_columns():
     frame = pd.DataFrame({"A": [1.0, np.nan], "B": ["x", "y"]}, index=["", ""])

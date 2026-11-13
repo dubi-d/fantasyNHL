@@ -47,6 +47,19 @@ def column_tones(frame: pd.DataFrame,
                         index=frame.index, dtype=object)
 
 
+def cell_text(value: Any) -> str:
+    return "" if pd.isna(value) else str(value)
+
+
+def cell_texts(frame: pd.DataFrame) -> list[list[str]]:
+    """The display text of a frame's cells, by row. Taken column by
+    column: a row of mixed numbers would turn its whole ones into 4.0."""
+    columns = [[cell_text(value) for value in frame.iloc[:, j]]
+               for j in range(frame.shape[1])]
+    return [list(row) for row in zip(*columns)] if columns else [
+        [] for _ in range(len(frame))]
+
+
 @dataclass
 class TableView:
     title: str

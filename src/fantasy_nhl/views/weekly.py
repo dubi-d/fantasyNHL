@@ -4,7 +4,12 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 from ..analysis import luck, matchup_result, pick_weekly_awards
-from .common import RESULT_TONES, ranked, round_robin_week
+from .common import (
+    RESULT_TONES,
+    completed_matchups,
+    ranked,
+    round_robin_week,
+)
 from .model import HEADING, TableView, TextBlock, View, column_tones, diverging, note
 
 if TYPE_CHECKING:
@@ -37,8 +42,9 @@ def _scores_table(table: pd.DataFrame, title: str) -> TableView:
 def build_weekly_scores(data: "LeagueData") -> View:
     """The round-robin table of every week, including the ongoing one."""
     view = View()
+    completed = completed_matchups(data)
     for week in range(1, data.current_week + 1):
-        ongoing = " (ongoing)" if week == data.current_week else ""
+        ongoing = " (ongoing)" if week > completed else ""
         view.blocks.append(_scores_table(week_table(data, week),
                                          f"Week {week}{ongoing}"))
     return view

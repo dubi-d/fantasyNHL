@@ -81,7 +81,7 @@
   > 'Players, rosters & draft'
 [status] Fetching rosters, free agents and draft...
 [fetch] fetch_roster_review()
-␛[33mRosters are empty and the league has not drafted yet.␛[0m
+␛[33mNobody to review yet: no rosters, no draft and no free agents.␛[0m
 ? Select tool: [select, use_shortcuts=True]
     * Weekly
     * Season standings

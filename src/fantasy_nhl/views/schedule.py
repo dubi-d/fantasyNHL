@@ -100,7 +100,9 @@ def schedule_scores(schedule: "ScheduleData", selection: ScheduleSelection,
                      for p, teams in playing.items() if teams}
 
     def blend(a: pd.Series, b: pd.Series) -> pd.Series:
-        return (1 - playoff_weight) * a + playoff_weight * b
+        # a team without a game in one part scores 0 there
+        return ((1 - playoff_weight) * a).add(playoff_weight * b,
+                                              fill_value=0)
 
     if selection.scope == "playoffs":
         # already playoff-only: no Reg Score/PO Score/Combined split needed

@@ -276,7 +276,8 @@ class FakeLeague:
 
     def __init__(self, *, current_week: int = 5, today: int = 31,
                  season_over: bool = False, drafted: bool = True,
-                 rostered: bool = True, constant_adp: bool = False,
+                 rostered: bool = True, free_agents: bool | None = None,
+                 constant_adp: bool = False,
                  empty_rosters: tuple[int, ...] = (), trades: bool = True,
                  season_stats: bool = True, blend_weight: float = 0.3,
                  add_limit: int | None = 4,
@@ -286,7 +287,8 @@ class FakeLeague:
         :param today: current scoring period
         :param season_over: the current matchup has a decided result
         :param drafted: the league has a draft on record
-        :param rostered: rosters and free agents exist
+        :param rostered: the teams have rosters
+        :param free_agents: free agents exist (default: as ``rostered``)
         :param constant_adp: ESPN's archived placeholder ADP for every pick
         :param empty_rosters: team rows without any player
         :param trades: some players were acquired by trade
@@ -347,7 +349,8 @@ class FakeLeague:
         rosters = _rosters(rng, trades) if rostered else [[] for _ in names]
         for row in empty_rosters:
             rosters[row] = []
-        free_agents = _free_agents(rng) if rostered else []
+        pool = rostered if free_agents is None else free_agents
+        free_agents = _free_agents(rng) if pool else []
         picks, drafted_players = (
             _draft(rng, rosters, free_agents, constant_adp)
             if drafted and rostered else ([], {}))
@@ -447,3 +450,40 @@ class FakeLeague:
         return lookup("CalibrationData")(
             rosters=self._preview_rosters(), slot_counts=dict(SLOT_COUNTS),
             playing_by_period=self.schedule.playing_by_period)
+
+
+# the league in the states the tests look at it
+
+def midseason(**kwargs) -> FakeLeague:
+    return FakeLeague(**kwargs)
+
+
+def finished() -> FakeLeague:
+    """The season is over: only the last playoff matchup is left."""
+    return FakeLeague(current_week=8, today=60, season_over=True,
+                      constant_adp=True, blend_weight=1.0, add_limit=None)
+
+
+def opening_day() -> FakeLeague:
+    return FakeLeague(current_week=1, today=1, season_stats=False,
+                      blend_weight=0.0)
+
+
+def preseason() -> FakeLeague:
+    """Nothing there yet: no rosters, no draft, no free agents."""
+    return FakeLeague(current_week=1, today=1, rostered=False,
+                      blend_weight=0.0)
+
+
+def pre_draft() -> FakeLeague:
+    """Before the draft: empty rosters, but ESPN lists free agents."""
+    return FakeLeague(current_week=1, today=1, rostered=False,
+                      free_agents=True, season_stats=False, blend_weight=0.0)
+
+
+def undrafted() -> FakeLeague:
+    return FakeLeague(drafted=False, trades=False, empty_rosters=(3,))
+
+
+SCENARIOS = {factory.__name__: factory for factory in (
+    midseason, finished, opening_day, preseason, pre_draft, undrafted)}

@@ -97,6 +97,14 @@ class ReviewContext:
             *self.score_legend(shown)]
 
 
+NOBODY = "Nobody to review yet: no rosters, no draft and no free agents."
+
+
+def has_players(review: "RosterReviewData") -> bool:
+    """Whether a roster-review fetch holds anybody to value."""
+    return bool(any(review.rosters) or review.picks or review.free_agents)
+
+
 def build_review_context(data: "LeagueData", review: "RosterReviewData",
                          basis: StatBasis) -> ReviewContext:
     """Value every player of a roster-review fetch on the given stats."""

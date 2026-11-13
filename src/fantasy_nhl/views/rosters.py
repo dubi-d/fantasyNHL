@@ -44,8 +44,17 @@ def _empty_roster(name: str) -> View:
     return View([note(f"{name} has an empty roster.", level=WARNING)])
 
 
+def _no_rosters(ctx: ReviewContext) -> View | None:
+    """The answer of the roster views while nobody has a roster."""
+    if any(ctx.review.rosters):
+        return None
+    return View([note("All rosters are empty.", level=WARNING)])
+
+
 def build_origins(ctx: ReviewContext) -> View:
     """Per team: how its roster was assembled and how good it is."""
+    if empty := _no_rosters(ctx):
+        return empty
     table = roster_origins(ctx.review.rosters, ctx.values,
                            ctx.data.team_names, ctx.review.counters)
     table["Avg Own%"] = table["Avg Own%"].round(1)
@@ -69,6 +78,8 @@ def build_outlook(ctx: ReviewContext, source: str) -> View:
         rosters = drafted_rosters(review.picks, n_teams)
         weight = 0.0  # draft-day expectation: projections only
     else:
+        if empty := _no_rosters(ctx):
+            return empty
         rosters = review.rosters
         weight = review.blend_weight
     names = [cat.name for cat in cats]
@@ -135,6 +146,8 @@ def build_outlook(ctx: ReviewContext, source: str) -> View:
 def build_acquired(ctx: ReviewContext, acquisition: str, label: str) -> View:
     """Players acquired by pickup (ACQUIRED_ADD) or trade (ACQUIRED_TRADE)
     still on rosters, with a per-team summary; ``label`` names them."""
+    if empty := _no_rosters(ctx):
+        return empty
     review, basis = ctx.review, ctx.basis
     summary, players = acquisition_summary(
         review.rosters, ctx.values, ctx.data.team_names, acquisition)

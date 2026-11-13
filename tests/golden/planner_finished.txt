@@ -46,7 +46,7 @@
 
 ␛[1mWeek ␛[0m␛[1;36m8␛[0m␛[1m streaming planner␛[0m — Delta, adds used this week: ␛[1;36m5␛[0m␛[1m ␛[0m␛[1;35m/␛[0m␛[1m ∞␛[0m
 ␛[33mWeek is over — the grid shows the current roster, not the historical lineups of that week.␛[0m
-␛[2mGames = remaining scheduled games in saved active ESPN slots ␛[0m␛[1;2m(␛[0m␛[2mtoday included, no lookahead␛[0m␛[1;2m)␛[0m␛[2m. ␛[0m␛[2;38;5;172m•␛[0m␛[2m = saved Bench; ␛[0m␛[2;31m•␛[0m␛[2m = IR; ? = lineup unavailable ␛[0m␛[2;35m/␛[0m␛[2m incomplete total. Current IR rows are last, always Games ␛[0m␛[1;2;36m0␛[0m␛[2m. Inj = reported injury status.␛[0m
+␛[2mGames = remaining scheduled games in saved active ESPN slots ␛[0m␛[1;2m(␛[0m␛[2mtoday included, no lookahead␛[0m␛[1;2m)␛[0m␛[2m. ␛[0m␛[2;38;5;172m○␛[0m␛[2m = saved Bench; ␛[0m␛[2;31m×␛[0m␛[2m = IR; ? = lineup unavailable ␛[0m␛[2;35m/␛[0m␛[2m incomplete total. Current IR rows are last, always Games ␛[0m␛[1;2;36m0␛[0m␛[2m. Inj = reported injury status.␛[0m
 ␛[2mDots show NHL team schedules, not guaranteed player appearances or goalie starts. Open seats/coverage model capacity, not saved lineups; IR rows never fill seats.␛[0m
 
 ␛[1mRoster week 8                                                                                                    ␛[0m
@@ -63,7 +63,7 @@
 │␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Delta D3       │ D    │ LA   │ 0     │     │        │ ␛[2m•␛[0m      │        │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │        │
 │␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Delta G1       │ G    │ DET  │ 0     │     │        │        │        │ ␛[2m•␛[0m      │        │ ␛[2m•␛[0m      │        │
 │␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Delta G2       │ G    │ NYR  │ 0     │     │        │ ␛[2m•␛[0m      │        │ ␛[2m•␛[0m      │        │ ␛[2m•␛[0m      │        │
-│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Delta RW2 (IR) │ RW   │ EDM  │ 0     │     │ ␛[2;31m•␛[0m      │ ␛[2;31m•␛[0m      │        │ ␛[2;31m•␛[0m      │        │ ␛[2;31m•␛[0m      │        │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Delta RW2 (IR) │ RW   │ EDM  │ 0     │     │ ␛[2;31m×␛[0m      │ ␛[2;31m×␛[0m      │        │ ␛[2;31m×␛[0m      │        │ ␛[2;31m×␛[0m      │        │
 └───┴────────────────┴──────┴──────┴───────┴─────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┘
 [status] Fetching matchup dates...
 [fetch] fetch_week_dates()
@@ -114,7 +114,7 @@
 
 ␛[1mWeek ␛[0m␛[1;36m8␛[0m␛[1m streaming planner␛[0m — Alpha, adds used this week: ␛[1;36m2␛[0m␛[1m ␛[0m␛[1;35m/␛[0m␛[1m ∞␛[0m
 ␛[1;35mSIMULATION — planning as if today were Wed ␛[0m␛[1;36m25␛[0m␛[1;35m; using the current roster/IR group with saved assignments for those dates, not a reconstructed historical roster.␛[0m
-␛[2mGames = remaining scheduled games in saved active ESPN slots ␛[0m␛[1;2m(␛[0m␛[2mtoday included, no lookahead␛[0m␛[1;2m)␛[0m␛[2m. ␛[0m␛[2;38;5;172m•␛[0m␛[2m = saved Bench; ␛[0m␛[2;31m•␛[0m␛[2m = IR; ? = lineup unavailable ␛[0m␛[2;35m/␛[0m␛[2m incomplete total. Current IR rows are last, always Games ␛[0m␛[1;2;36m0␛[0m␛[2m. Inj = reported injury status.␛[0m
+␛[2mGames = remaining scheduled games in saved active ESPN slots ␛[0m␛[1;2m(␛[0m␛[2mtoday included, no lookahead␛[0m␛[1;2m)␛[0m␛[2m. ␛[0m␛[2;38;5;172m○␛[0m␛[2m = saved Bench; ␛[0m␛[2;31m×␛[0m␛[2m = IR; ? = lineup unavailable ␛[0m␛[2;35m/␛[0m␛[2m incomplete total. Current IR rows are last, always Games ␛[0m␛[1;2;36m0␛[0m␛[2m. Inj = reported injury status.␛[0m
 ␛[2mDots show NHL team schedules, not guaranteed player appearances or goalie starts. Open seats/coverage model capacity, not saved lineups; IR rows never fill seats.␛[0m
 
 ␛[1mRoster week 8 (* = streamer)                                                                                              ␛[0m
@@ -122,16 +122,16 @@
 ┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer                 ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGames␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mMon 23␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTue 24␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mWed 25␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mThu 26␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mFri 27␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSat 28␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSun 29␛[0m␛[1;36m ␛[0m┃
 ┡━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━┩
 │␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha C1                │ C    │ DET  │ ?     │     │        │        │        │ •      │        │ ?      │        │
-│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha C2                │ C    │ EDM  │ 1     │ ␛[33mDTD␛[0m │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │        │ •      │        │ ␛[38;5;172m•␛[0m      │        │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha C2                │ C    │ EDM  │ 1     │ ␛[33mDTD␛[0m │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │        │ •      │        │ ␛[38;5;172m○␛[0m      │        │
 │␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha CW1               │ C/LW │ NYR  │ 2     │     │        │ ␛[2m•␛[0m      │        │ •      │        │ •      │        │
-│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha LW1 *             │ LW   │ BOS  │ ?     │     │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │ •      │ ?      │ ␛[38;5;172m•␛[0m      │ •      │        │
-│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha RW1               │ RW   │ FLA  │ ?     │     │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │ ?      │ ␛[38;5;172m•␛[0m      │ •      │ •      │ ?      │
-│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha D1                │ D    │ EDM  │ 1     │     │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │        │ •      │        │ ␛[38;5;172m•␛[0m      │        │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha LW1 *             │ LW   │ BOS  │ ?     │     │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │ •      │ ?      │ ␛[38;5;172m○␛[0m      │ •      │        │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha RW1               │ RW   │ FLA  │ ?     │     │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │ ?      │ ␛[38;5;172m○␛[0m      │ •      │ •      │ ?      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha D1                │ D    │ EDM  │ 1     │     │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │        │ •      │        │ ␛[38;5;172m○␛[0m      │        │
 │␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha D2                │ D    │ DET  │ 2     │     │        │        │        │ •      │        │ •      │        │
-│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha D3                │ D    │ CBJ  │ 0     │     │        │ ␛[2m•␛[0m      │        │ ␛[38;5;172m•␛[0m      │        │ ␛[38;5;172m•␛[0m      │        │
-│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha G1                │ G    │ CHI  │ 3     │     │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │ ␛[38;5;172m•␛[0m      │ •      │ •      │ •      │        │
-│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha G2                │ G    │ MTL  │ ?     │     │        │ ␛[2m•␛[0m      │        │ ␛[38;5;172m•␛[0m      │        │ ␛[38;5;172m•␛[0m      │ ?      │
-│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha RW2 (IR)          │ RW   │ COL  │ 0     │ ␛[31mIR␛[0m  │        │ ␛[2;31m•␛[0m      │        │        │ ␛[31m•␛[0m      │ ␛[31m•␛[0m      │        │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha D3                │ D    │ CBJ  │ 0     │     │        │ ␛[2m•␛[0m      │        │ ␛[38;5;172m○␛[0m      │        │ ␛[38;5;172m○␛[0m      │        │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha G1                │ G    │ CHI  │ 3     │     │ ␛[2m•␛[0m      │ ␛[2m•␛[0m      │ ␛[38;5;172m○␛[0m      │ •      │ •      │ •      │        │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha G2                │ G    │ MTL  │ ?     │     │        │ ␛[2m•␛[0m      │        │ ␛[38;5;172m○␛[0m      │        │ ␛[38;5;172m○␛[0m      │ ?      │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha RW2 (IR)          │ RW   │ COL  │ 0     │ ␛[31mIR␛[0m  │        │ ␛[2;31m×␛[0m      │        │        │ ␛[31m×␛[0m      │ ␛[31m×␛[0m      │        │
 ├───┼─────────────────────────┼──────┼──────┼───────┼─────┼────────┼────────┼────────┼────────┼────────┼────────┼────────┤
 │␛[2;3m ␛[0m␛[2;3m ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m(open skater seats)    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m   ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m      ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m      ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m5     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m5     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m6     ␛[0m␛[2;3m ␛[0m│
 │␛[2;3m ␛[0m␛[2;3m ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m(open goalie seats)    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m    ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m   ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m      ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m      ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m-     ␛[0m␛[2;3m ␛[0m│

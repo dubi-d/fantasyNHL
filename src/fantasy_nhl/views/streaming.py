@@ -97,16 +97,17 @@ def _tones(frame: pd.DataFrame, columns: dict[str, list[Tone]]) -> pd.DataFrame:
 
 
 def build_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
-                         streamers: list[str],
+                         streamers: list[PreviewPlayer],
                          simulated_from: str | None = None) -> View:
     """
     The planner of one team and week: legend, the ROSTER grid and, while
     days remain, the open seats per lineup SLOTS and the COVERAGE of the
     open days by NHL teams (missing when no seat is open).
 
-    :param streamers: names of roster players treated as dropped
+    :param streamers: the roster players treated as dropped
     :param simulated_from: label of the day a finished week is replayed from
     """
+    dropped = {id(player) for player in streamers}  # namesakes stay apart
     look = ctx.lookahead_periods
     labels = day_labels(ctx.periods + look, ctx.period_dates)
     elapsed = [p for p in ctx.periods if p not in set(ctx.actionable_periods)]
@@ -138,8 +139,8 @@ def build_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
             "the coverage ranking.", level=INFO))
     view.blocks += [
         note("Games = remaining scheduled games in saved active ESPN slots "
-             "(today included, no lookahead). ", Span("•", BENCH),
-             " = saved Bench; ", Span("•", DANGER),
+             "(today included, no lookahead). ", Span("○", BENCH),
+             " = saved Bench; ", Span("×", DANGER),
              " = IR; ? = lineup unavailable / incomplete total. "
              "Current IR rows are last, always Games 0. Inj = reported "
              "injury status.", level=INFO),
@@ -157,20 +158,21 @@ def build_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
 
     def marker(player: PreviewPlayer, day: int,
                ir: bool) -> tuple[str, str | None]:
-        """A day's cell and tone: a dot where the player's team plays."""
+        """A day's cell and tone: a mark where the player's team plays
+        (the symbol tells Bench and IR apart without the colour)."""
         if player.pro_team not in ctx.playing_by_period.get(day, set()):
             return "", None
         if ir:
-            return "•", DANGER
+            return "×", DANGER
         if day not in actionable:
             return "•", None
         slot = ctx.daily_lineup_slots.get(day, {}).get(player.player_id)
         if player.player_id <= 0:
             return "?", None
         if slot == "Bench":
-            return "•", BENCH
+            return "○", BENCH
         if slot == "IR":
-            return "•", DANGER
+            return "×", DANGER
         return ("•" if slot in ctx.slot_counts else "?"), None
 
     rows = []
@@ -183,7 +185,7 @@ def build_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
             inj = INJURY_ABBREV.get(player.injury, player.injury[:3])
             rows.append({
                 "Player": player.name + (" (IR)" if ir else
-                          " *" if player.name in streamers else ""),
+                          " *" if id(player) in dropped else ""),
                 "Pos": position_label(player.eligible_slots)
                        or getattr(player, "position", ""),
                 "Team": player.pro_team,
@@ -202,7 +204,7 @@ def build_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
     grid_tones = pd.DataFrame(row_tones, index=grid.index,
                               columns=["Inj", *labels.values()], dtype=object)
 
-    keep = [p for p in ctx.roster if p.name not in streamers]
+    keep = [p for p in ctx.roster if id(p) not in dropped]
     seat_periods = ctx.actionable_periods + look
     open_current = open_seat_counts(ctx.roster, ctx.slot_counts,
                                     ctx.playing_by_period, seat_periods)
@@ -282,8 +284,8 @@ def build_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
     return view
 
 
-def candidates_title(first: int, last: int, total: int, streamers: list[str],
-                     basis: StatBasis) -> str:
+def candidates_title(first: int, last: int, total: int,
+                     streamers: list[PreviewPlayer], basis: StatBasis) -> str:
     """Title of the candidates ranked ``first``..``last`` of ``total``."""
     return with_basis(
         f"Free agent candidates {first}–{last} of {total} by open days "
@@ -293,13 +295,17 @@ def candidates_title(first: int, last: int, total: int, streamers: list[str],
 
 def build_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
                      categories: list[Category], basis: StatBasis,
-                     streamers: list[str]) -> View:
+                     streamers: list[PreviewPlayer]) -> View:
     """Free agents ranked by the open days they would fill a lineup seat
     on, with per-game rates (on the given stat basis) for the skater
-    categories; one table of all candidates, best fit first."""
+    categories; one table of all candidates, best fit first.
+
+    :param streamers: the roster players treated as dropped
+    """
     look = ctx.lookahead_periods
     labels = day_labels(ctx.periods + look, ctx.period_dates)
-    keep = [p for p in ctx.roster if p.name not in streamers]
+    dropped = {id(player) for player in streamers}
+    keep = [p for p in ctx.roster if id(p) not in dropped]
     ranked = rank_streaming_candidates(candidates, keep, ctx.slot_counts,
                                        ctx.playing_by_period,
                                        ctx.actionable_periods)
@@ -312,7 +318,6 @@ def build_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
     if warning:
         view.blocks.append(warning)
 
-    by_name = {c.name: c for c in candidates}
     marker = {"fit": "•", "play": "·", "": ""}
     # candidates are skaters only, so goalie categories carry no signal
     rate_cats = [c for c in categories
@@ -320,7 +325,7 @@ def build_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
                  and c.name not in GOALIE_CATEGORIES]
     rows = []
     for _, r in ranked.iterrows():
-        cand = by_name[r["Player"]]
+        cand = candidates[r["Candidate"]]
         rates = {cat.name: player_rate(cand, cat.name, basis)
                  for cat in rate_cats}
         unprojected = (not basis.season_only and has_season_games(cand)

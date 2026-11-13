@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/leagues/{league}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Matchup Preview */
+        get: operations["matchup_preview_api_leagues__league__preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/leagues/{league}/reload": {
         parameters: {
             query?: never;
@@ -58,238 +75,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/leagues/{league}/weekly/scores": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Weekly Scores */
-        get: operations["weekly_scores_api_leagues__league__weekly_scores_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/weekly/awards": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Weekly Awards */
-        get: operations["weekly_awards_api_leagues__league__weekly_awards_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/standings/accumulated": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Accumulated Scores */
-        get: operations["accumulated_scores_api_leagues__league__standings_accumulated_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/standings/luck": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Luck Ranking */
-        get: operations["luck_ranking_api_leagues__league__standings_luck_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/standings/power-rankings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Power Rankings */
-        get: operations["power_rankings_api_leagues__league__standings_power_rankings_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/standings/category-profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Category Profile */
-        get: operations["category_profile_api_leagues__league__standings_category_profile_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Matchup Preview */
-        get: operations["matchup_preview_api_leagues__league__preview_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/streaming/plan": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Streaming Plan */
-        get: operations["streaming_plan_api_leagues__league__streaming_plan_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/streaming/candidates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Streaming Candidates */
-        get: operations["streaming_candidates_api_leagues__league__streaming_candidates_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/schedule/outlook": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Schedule Outlook */
-        get: operations["schedule_outlook_api_leagues__league__schedule_outlook_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/schedule/calibration": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Store Calibration
-         * @description Calibrate the schedule scoring on a source league season and keep
-         *     it for this league (calibration.yaml).
-         */
-        put: operations["store_calibration_api_leagues__league__schedule_calibration_put"];
-        /**
-         * Preview Calibration
-         * @description The night-value curve a source league season would calibrate.
-         */
-        post: operations["preview_calibration_api_leagues__league__schedule_calibration_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/review/options": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Review Options
-         * @description What the player, roster and draft views can be asked for.
-         */
-        get: operations["review_options_api_leagues__league__review_options_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/review/leaders": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Review Leaders */
-        get: operations["review_leaders_api_leagues__league__review_leaders_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/leagues/{league}/review/compare": {
         parameters: {
             query?: never;
@@ -299,40 +84,6 @@ export interface paths {
         };
         /** Review Compare */
         get: operations["review_compare_api_leagues__league__review_compare_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/review/origins": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Review Origins */
-        get: operations["review_origins_api_leagues__league__review_origins_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/review/outlook": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Review Outlook */
-        get: operations["review_outlook_api_leagues__league__review_outlook_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -375,6 +126,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/leagues/{league}/review/gaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Review Gaps */
+        get: operations["review_gaps_api_leagues__league__review_gaps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/review/leaders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Review Leaders */
+        get: operations["review_leaders_api_leagues__league__review_leaders_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/review/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Review Options
+         * @description What the player, roster and draft views can be asked for.
+         */
+        get: operations["review_options_api_leagues__league__review_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/review/origins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Review Origins */
+        get: operations["review_origins_api_leagues__league__review_origins_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/review/outlook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Review Outlook */
+        get: operations["review_outlook_api_leagues__league__review_outlook_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/leagues/{league}/review/pickups": {
         parameters: {
             query?: never;
@@ -384,23 +223,6 @@ export interface paths {
         };
         /** Review Pickups */
         get: operations["review_pickups_api_leagues__league__review_pickups_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/leagues/{league}/review/trades": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Review Trades */
-        get: operations["review_trades_api_leagues__league__review_trades_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -426,15 +248,193 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/leagues/{league}/review/gaps": {
+    "/api/leagues/{league}/review/trades": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Review Gaps */
-        get: operations["review_gaps_api_leagues__league__review_gaps_get"];
+        /** Review Trades */
+        get: operations["review_trades_api_leagues__league__review_trades_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/schedule/calibration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Store Calibration
+         * @description Calibrate the schedule scoring on a source league season and keep
+         *     it for this league (calibration.yaml).
+         */
+        put: operations["store_calibration_api_leagues__league__schedule_calibration_put"];
+        /**
+         * Preview Calibration
+         * @description The night-value curve a source league season would calibrate.
+         */
+        post: operations["preview_calibration_api_leagues__league__schedule_calibration_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/schedule/outlook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Schedule Outlook */
+        get: operations["schedule_outlook_api_leagues__league__schedule_outlook_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/standings/accumulated": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Accumulated Scores */
+        get: operations["accumulated_scores_api_leagues__league__standings_accumulated_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/standings/category-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Category Profile */
+        get: operations["category_profile_api_leagues__league__standings_category_profile_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/standings/luck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Luck Ranking */
+        get: operations["luck_ranking_api_leagues__league__standings_luck_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/standings/power-rankings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Power Rankings */
+        get: operations["power_rankings_api_leagues__league__standings_power_rankings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/streaming/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Streaming Candidates */
+        get: operations["streaming_candidates_api_leagues__league__streaming_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/streaming/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Streaming Plan */
+        get: operations["streaming_plan_api_leagues__league__streaming_plan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/weekly/awards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Weekly Awards */
+        get: operations["weekly_awards_api_leagues__league__weekly_awards_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leagues/{league}/weekly/scores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Weekly Scores */
+        get: operations["weekly_scores_api_leagues__league__weekly_scores_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -449,10 +449,10 @@ export interface components {
     schemas: {
         /** CalibrationInfo */
         CalibrationInfo: {
-            /** Source */
-            source: string;
             /** Calibrated */
             calibrated: string;
+            /** Source */
+            source: string;
         };
         /** CalibrationRequest */
         CalibrationRequest: {
@@ -461,19 +461,19 @@ export interface components {
         };
         /** CategoryInfo */
         CategoryInfo: {
-            /** Name */
-            name: string;
             /** Inverted */
             inverted: boolean;
+            /** Name */
+            name: string;
         };
         /** Cell */
         Cell: {
             /** Text */
             text: string;
-            /** Value */
-            value: number | string | boolean | null;
             /** Tone */
             tone: number | string | null;
+            /** Value */
+            value: number | string | boolean | null;
         };
         /** Choice */
         Choice: {
@@ -484,30 +484,65 @@ export interface components {
         };
         /** Column */
         Column: {
-            /** Name */
-            name: string;
             /**
              * Align
              * @enum {string}
              */
             align: "left" | "right";
+            /** Key */
+            key: string;
             /** Muted */
             muted: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "number" | "text";
+        };
+        /** DayInfo */
+        DayInfo: {
+            /** Label */
+            label: string;
+            /** Period */
+            period: number;
         };
         /** FigureBlockModel */
         FigureBlockModel: {
+            /** Data */
+            data: {
+                [key: string]: components["schemas"]["FrameData"] | components["schemas"]["SeriesData"] | {
+                    [key: string]: components["schemas"]["SeriesData"];
+                } | (number | string | boolean | null)[] | number | string | boolean | null;
+            };
+            /** Kind */
+            kind: string;
+            /** Title */
+            title: string;
             /**
              * Type
              * @default figure
              * @constant
              */
             type: "figure";
-            /** Kind */
-            kind: string;
-            /** Title */
-            title: string;
             /** Url */
             url: string;
+        };
+        /** FrameData */
+        FrameData: {
+            /** Columns */
+            columns: string[];
+            /** Index */
+            index: (number | string | boolean | null)[];
+            /** Rows */
+            rows: (number | string | boolean | null)[][];
+            /**
+             * Type
+             * @default frame
+             * @constant
+             */
+            type: "frame";
         };
         /** GroupChoice */
         GroupChoice: {
@@ -525,78 +560,153 @@ export interface components {
         };
         /** LeagueInfo */
         LeagueInfo: {
+            /** Default */
+            default: boolean;
             /** Id */
             id: string;
             /** Name */
             name: string;
             /** Year */
             year: number;
-            /** Default */
-            default: boolean;
         };
         /** LeagueMeta */
         LeagueMeta: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Year */
-            year: number;
-            /** Default */
-            default: boolean;
-            /** Teams */
-            teams: string[];
-            /** Current Week */
-            current_week: number;
-            /** Completed Matchups */
-            completed_matchups: number;
-            /** Weeks */
-            weeks: components["schemas"]["WeekInfo"][];
+            calibration: components["schemas"]["CalibrationInfo"] | null;
             /** Categories */
             categories: components["schemas"]["CategoryInfo"][];
-            calibration: components["schemas"]["CalibrationInfo"] | null;
+            /** Completed Matchups */
+            completed_matchups: number;
+            /** Current Week */
+            current_week: number;
+            /** Default */
+            default: boolean;
+            /** Id */
+            id: string;
+            /**
+             * Loaded At
+             * Format: date-time
+             */
+            loaded_at: string;
+            /** Name */
+            name: string;
+            /** Teams */
+            teams: string[];
+            /** Warnings */
+            warnings: string[];
+            /** Weeks */
+            weeks: components["schemas"]["WeekInfo"][];
+            /** Year */
+            year: number;
         };
         /** NoteBlock */
         NoteBlock: {
+            /** Level */
+            level: string;
+            /** Space Before */
+            space_before: boolean;
+            /** Spans */
+            spans: components["schemas"]["SpanModel"][];
             /**
              * Type
              * @default note
              * @constant
              */
             type: "note";
-            /** Level */
-            level: string;
-            /** Spans */
-            spans: components["schemas"]["SpanModel"][];
-            /** Space Before */
-            space_before: boolean;
+        };
+        /** OutlookMeta */
+        OutlookMeta: {
+            /**
+             * Blends Playoffs
+             * @default false
+             */
+            blends_playoffs: boolean;
+            /**
+             * Sorts
+             * @default []
+             */
+            sorts: string[];
+        };
+        /** OutlookView */
+        OutlookView: {
+            /** Blocks */
+            blocks: (components["schemas"]["TableBlock"] | components["schemas"]["NoteBlock"] | components["schemas"]["TextBlockModel"] | components["schemas"]["FigureBlockModel"])[];
+            meta: components["schemas"]["OutlookMeta"];
+        };
+        /** PlanMeta */
+        PlanMeta: {
+            /**
+             * Days
+             * @default []
+             */
+            days: components["schemas"]["DayInfo"][];
+            /**
+             * Finished
+             * @default false
+             */
+            finished: boolean;
+            /**
+             * Has Open Days
+             * @default false
+             */
+            has_open_days: boolean;
+            /**
+             * Roster
+             * @default []
+             */
+            roster: components["schemas"]["RosterChoice"][];
+        };
+        /** PlanView */
+        PlanView: {
+            /** Blocks */
+            blocks: (components["schemas"]["TableBlock"] | components["schemas"]["NoteBlock"] | components["schemas"]["TextBlockModel"] | components["schemas"]["FigureBlockModel"])[];
+            meta: components["schemas"]["PlanMeta"];
         };
         /** PlayerChoice */
         PlayerChoice: {
+            /** Goalie */
+            goalie: boolean;
             /** Id */
             id: number;
             /** Label */
             label: string;
-            /** Goalie */
-            goalie: boolean;
         };
         /** ReviewOptions */
         ReviewOptions: {
-            /** Drafted */
-            drafted: boolean;
-            /** Players */
-            players: components["schemas"]["PlayerChoice"][];
-            /** Groups */
-            groups: components["schemas"]["GroupChoice"][];
             /** Cells */
             cells: components["schemas"]["Choice"][];
+            /** Drafted */
+            drafted: boolean;
+            /** Groups */
+            groups: components["schemas"]["GroupChoice"][];
+            /** Players */
+            players: components["schemas"]["PlayerChoice"][];
+        };
+        /** RosterChoice */
+        RosterChoice: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /** Row */
         Row: {
-            /** Label */
-            label: string;
             /** Cells */
             cells: components["schemas"]["Cell"][];
+            /** Label */
+            label: string;
+        };
+        /** SeriesData */
+        SeriesData: {
+            /** Index */
+            index: (number | string | boolean | null)[];
+            /**
+             * Type
+             * @default series
+             * @constant
+             */
+            type: "series";
+            /** Values */
+            values: (number | string | boolean | null)[];
         };
         /** SpanModel */
         SpanModel: {
@@ -607,64 +717,60 @@ export interface components {
         };
         /** TableBlock */
         TableBlock: {
+            /** Columns */
+            columns: components["schemas"]["Column"][];
+            /** Footer */
+            footer: components["schemas"]["Row"][];
+            /** Key */
+            key: string;
+            /** Rows */
+            rows: components["schemas"]["Row"][];
+            /** Title */
+            title: string;
             /**
              * Type
              * @default table
              * @constant
              */
             type: "table";
-            /** Key */
-            key: string;
-            /** Title */
-            title: string;
-            /** Columns */
-            columns: components["schemas"]["Column"][];
-            /** Rows */
-            rows: components["schemas"]["Row"][];
-            /** Footer */
-            footer: components["schemas"]["Row"][];
         };
         /** TextBlockModel */
         TextBlockModel: {
+            /** Text */
+            text: string;
             /**
              * Type
              * @default text
              * @constant
              */
             type: "text";
-            /** Text */
-            text: string;
         };
         /** ValidationError */
         ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */
             msg: string;
             /** Error Type */
             type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
         };
         /** ViewModel */
         ViewModel: {
             /** Blocks */
             blocks: (components["schemas"]["TableBlock"] | components["schemas"]["NoteBlock"] | components["schemas"]["TextBlockModel"] | components["schemas"]["FigureBlockModel"])[];
-            /** Meta */
-            meta: {
-                [key: string]: unknown;
-            };
         };
         /** WeekInfo */
         WeekInfo: {
-            /** Week */
-            week: number;
-            /** Label */
-            label: string;
             /** Completed */
             completed: boolean;
+            /** Label */
+            label: string;
+            /** Week */
+            week: number;
         };
     };
     responses: never;
@@ -726,227 +832,6 @@ export interface operations {
             };
         };
     };
-    reload_api_leagues__league__reload_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeagueInfo"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    weekly_scores_api_leagues__league__weekly_scores_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    weekly_awards_api_leagues__league__weekly_awards_get: {
-        parameters: {
-            query?: {
-                week?: number | null;
-            };
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    accumulated_scores_api_leagues__league__standings_accumulated_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    luck_ranking_api_leagues__league__standings_luck_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    power_rankings_api_leagues__league__standings_power_rankings_get: {
-        parameters: {
-            query?: {
-                window?: number | null;
-            };
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    category_profile_api_leagues__league__standings_category_profile_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     matchup_preview_api_leagues__league__preview_get: {
         parameters: {
             query?: {
@@ -981,14 +866,9 @@ export interface operations {
             };
         };
     };
-    streaming_plan_api_leagues__league__streaming_plan_get: {
+    reload_api_leagues__league__reload_post: {
         parameters: {
-            query: {
-                team: number;
-                week?: number | null;
-                streamers?: string[];
-                simulate?: number | null;
-            };
+            query?: never;
             header?: never;
             path: {
                 league: string;
@@ -1003,7 +883,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ViewModel"];
+                    "application/json": components["schemas"]["LeagueInfo"];
                 };
             };
             /** @description Validation Error */
@@ -1017,13 +897,10 @@ export interface operations {
             };
         };
     };
-    streaming_candidates_api_leagues__league__streaming_candidates_get: {
+    review_compare_api_leagues__league__review_compare_get: {
         parameters: {
             query: {
-                team: number;
-                week?: number | null;
-                streamers?: string[];
-                simulate?: number | null;
+                players: number[];
                 stats?: "blended" | "season";
             };
             header?: never;
@@ -1054,13 +931,316 @@ export interface operations {
             };
         };
     };
-    schedule_outlook_api_leagues__league__schedule_outlook_get: {
+    review_draft_grades_api_leagues__league__review_draft_grades_get: {
         parameters: {
             query?: {
-                scope?: "full" | "remaining" | "playoffs";
-                playoff_weight?: number;
-                fit_team?: number | null;
-                sort?: string | null;
+                stats?: "blended" | "season";
+            };
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_draft_return_api_leagues__league__review_draft_return_get: {
+        parameters: {
+            query?: {
+                stats?: "blended" | "season";
+            };
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_gaps_api_leagues__league__review_gaps_get: {
+        parameters: {
+            query: {
+                team: number;
+                stats?: "blended" | "season";
+            };
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_leaders_api_leagues__league__review_leaders_get: {
+        parameters: {
+            query?: {
+                scope?: "all" | "fa" | "team";
+                team?: number | null;
+                group?: "F" | "D" | "FD" | "G";
+                sort?: string;
+                cells?: "pct" | "rate" | "total";
+                stats?: "blended" | "season";
+            };
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_options_api_leagues__league__review_options_get: {
+        parameters: {
+            query?: {
+                stats?: "blended" | "season";
+            };
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewOptions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_origins_api_leagues__league__review_origins_get: {
+        parameters: {
+            query?: {
+                stats?: "blended" | "season";
+            };
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_outlook_api_leagues__league__review_outlook_get: {
+        parameters: {
+            query?: {
+                source?: "draft" | "current";
+                stats?: "blended" | "season";
+            };
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_pickups_api_leagues__league__review_pickups_get: {
+        parameters: {
+            query?: {
+                stats?: "blended" | "season";
+            };
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_team_api_leagues__league__review_team_get: {
+        parameters: {
+            query: {
+                team: number;
+                source?: "draft" | "current";
+                stats?: "blended" | "season";
+            };
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_trades_api_leagues__league__review_trades_get: {
+        parameters: {
+            query?: {
+                stats?: "blended" | "season";
             };
             header?: never;
             path: {
@@ -1160,10 +1340,13 @@ export interface operations {
             };
         };
     };
-    review_options_api_leagues__league__review_options_get: {
+    schedule_outlook_api_leagues__league__schedule_outlook_get: {
         parameters: {
             query?: {
-                stats?: "blended" | "season";
+                scope?: "full" | "remaining" | "playoffs";
+                playoff_weight?: number;
+                fit_team?: number | null;
+                sort?: string | null;
             };
             header?: never;
             path: {
@@ -1179,7 +1362,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReviewOptions"];
+                    "application/json": components["schemas"]["OutlookView"];
                 };
             };
             /** @description Validation Error */
@@ -1193,15 +1376,103 @@ export interface operations {
             };
         };
     };
-    review_leaders_api_leagues__league__review_leaders_get: {
+    accumulated_scores_api_leagues__league__standings_accumulated_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    category_profile_api_leagues__league__standings_category_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    luck_ranking_api_leagues__league__standings_luck_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    power_rankings_api_leagues__league__standings_power_rankings_get: {
         parameters: {
             query?: {
-                scope?: "all" | "fa" | "team";
-                team?: number | null;
-                group?: "F" | "D" | "FD" | "G";
-                sort?: string;
-                cells?: "pct" | "rate" | "total";
-                stats?: "blended" | "season";
+                window?: number | null;
             };
             header?: never;
             path: {
@@ -1231,244 +1502,13 @@ export interface operations {
             };
         };
     };
-    review_compare_api_leagues__league__review_compare_get: {
-        parameters: {
-            query: {
-                players: number[];
-                stats?: "blended" | "season";
-            };
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    review_origins_api_leagues__league__review_origins_get: {
-        parameters: {
-            query?: {
-                stats?: "blended" | "season";
-            };
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    review_outlook_api_leagues__league__review_outlook_get: {
-        parameters: {
-            query?: {
-                source?: "draft" | "current";
-                stats?: "blended" | "season";
-            };
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    review_draft_grades_api_leagues__league__review_draft_grades_get: {
-        parameters: {
-            query?: {
-                stats?: "blended" | "season";
-            };
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    review_draft_return_api_leagues__league__review_draft_return_get: {
-        parameters: {
-            query?: {
-                stats?: "blended" | "season";
-            };
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    review_pickups_api_leagues__league__review_pickups_get: {
-        parameters: {
-            query?: {
-                stats?: "blended" | "season";
-            };
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    review_trades_api_leagues__league__review_trades_get: {
-        parameters: {
-            query?: {
-                stats?: "blended" | "season";
-            };
-            header?: never;
-            path: {
-                league: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ViewModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    review_team_api_leagues__league__review_team_get: {
+    streaming_candidates_api_leagues__league__streaming_candidates_get: {
         parameters: {
             query: {
                 team: number;
-                source?: "draft" | "current";
+                week?: number | null;
+                streamers?: number[];
+                simulate?: number | null;
                 stats?: "blended" | "season";
             };
             header?: never;
@@ -1499,12 +1539,78 @@ export interface operations {
             };
         };
     };
-    review_gaps_api_leagues__league__review_gaps_get: {
+    streaming_plan_api_leagues__league__streaming_plan_get: {
         parameters: {
             query: {
                 team: number;
-                stats?: "blended" | "season";
+                week?: number | null;
+                streamers?: number[];
+                simulate?: number | null;
             };
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    weekly_awards_api_leagues__league__weekly_awards_get: {
+        parameters: {
+            query?: {
+                week?: number | null;
+            };
+            header?: never;
+            path: {
+                league: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    weekly_scores_api_leagues__league__weekly_scores_get: {
+        parameters: {
+            query?: never;
             header?: never;
             path: {
                 league: string;

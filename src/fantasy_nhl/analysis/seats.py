@@ -220,13 +220,14 @@ def rank_streaming_candidates(candidates: list[PreviewPlayer],
     :param playing_by_period: scoring period -> NHL teams with a game that day
     :param periods: the (actionable) periods to consider
     :return: DataFrame with Player, Team, Injury, Slots (eligible slots), one
-        column per period ('fit', 'play' or ''), Fit (days seated) and Games
-        (days with a game); best fit first, then most games
+        column per period ('fit', 'play' or ''), Fit (days seated), Games
+        (days with a game) and Candidate (position in ``candidates``);
+        best fit first, then most games
     """
     base = open_seat_counts(keep_roster, slot_counts, playing_by_period,
                             periods)
     rows = []
-    for cand in candidates:
+    for position, cand in enumerate(candidates):
         added = open_seat_counts(keep_roster + [cand], slot_counts,
                                  playing_by_period, periods)
         days = {}
@@ -241,9 +242,11 @@ def rank_streaming_candidates(candidates: list[PreviewPlayer],
                      "Injury": cand.injury, "Slots": cand.eligible_slots,
                      **days,
                      "Fit": sum(v == "fit" for v in days.values()),
-                     "Games": sum(v != "" for v in days.values())})
+                     "Games": sum(v != "" for v in days.values()),
+                     "Candidate": position})
     table = pd.DataFrame(rows, columns=["Player", "Team", "Injury", "Slots",
-                                        *periods, "Fit", "Games"])
+                                        *periods, "Fit", "Games",
+                                        "Candidate"])
     return table.sort_values(["Fit", "Games"], ascending=False,
                              kind="stable", ignore_index=True)
 

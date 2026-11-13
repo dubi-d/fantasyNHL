@@ -1,4 +1,5 @@
 """Matplotlib figure rendering (kept out of the rich-only display module)."""
+from io import BytesIO
 from pathlib import Path
 
 import matplotlib
@@ -15,8 +16,21 @@ from .analysis import PEAK_CATS, SPEC_HIGH, SPEC_LOW, TIER_ELITE, TIER_SOLID
 
 def save_figure(fig: Figure, path: Path) -> None:
     """Write a figure as PNG and release it."""
-    fig.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+    try:
+        fig.savefig(path, dpi=150, bbox_inches="tight")
+    finally:
+        plt.close(fig)
+
+
+def render_png(kind: str, inputs: dict) -> bytes:
+    """The figure ``<kind>_figure(**inputs)`` as PNG; leaves none open
+    even if building it fails."""
+    png = BytesIO()
+    try:
+        save_figure(globals()[f"{kind}_figure"](**inputs), png)
+    finally:
+        plt.close("all")
+    return png.getvalue()
 
 # distinct marker per team so lines stay tellable apart where they cross
 _MARKERS = ["o", "s", "^", "D", "v", "P", "X", "*", "p", "h"]
@@ -226,12 +240,20 @@ def category_radar_figure(pcts: pd.DataFrame, title: str) -> Figure:
                            subplot_kw={"projection": "polar"})
     fig.suptitle(title, fontsize=14, fontweight="bold")
     for label, row in pcts.iterrows():
-        values = row.fillna(0).to_list()
+        # a category without data is left out, not drawn as a 0
+        known = [(angle, value) for angle, value in zip(angles, row)
+                 if not pd.isna(value)]
+        missing = [cat for cat, value in zip(cats, row) if pd.isna(value)]
+        xs = [angle for angle, _ in known]
+        values = [value for _, value in known]
         style = styles[str(label)]
-        ax.plot(angles + angles[:1], values + values[:1], linewidth=2,
-                color=style["color"], marker=style["marker"], label=str(label))
-        ax.fill(angles + angles[:1], values + values[:1],
-                color=style["color"], alpha=0.12)
+        ax.plot(xs + xs[:1], values + values[:1], linewidth=2,
+                color=style["color"], marker=style["marker"],
+                label=str(label) + (f" (no data: {', '.join(missing)})"
+                                    if missing else ""))
+        if len(xs) > 2:
+            ax.fill(xs + xs[:1], values + values[:1],
+                    color=style["color"], alpha=0.12)
     ax.set_theta_offset(np.pi / 2)
     ax.set_theta_direction(-1)
     ax.set_xticks(angles, cats, fontsize=11, fontweight="bold")

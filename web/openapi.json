@@ -1,0 +1,2542 @@
+{
+  "components": {
+    "schemas": {
+      "CalibrationInfo": {
+        "properties": {
+          "calibrated": {
+            "title": "Calibrated",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "calibrated"
+        ],
+        "title": "CalibrationInfo",
+        "type": "object"
+      },
+      "CalibrationRequest": {
+        "properties": {
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "CalibrationRequest",
+        "type": "object"
+      },
+      "CategoryInfo": {
+        "properties": {
+          "inverted": {
+            "title": "Inverted",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "inverted"
+        ],
+        "title": "CategoryInfo",
+        "type": "object"
+      },
+      "Cell": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "tone": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tone"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "text",
+          "value",
+          "tone"
+        ],
+        "title": "Cell",
+        "type": "object"
+      },
+      "Choice": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "Choice",
+        "type": "object"
+      },
+      "Column": {
+        "properties": {
+          "align": {
+            "enum": [
+              "left",
+              "right"
+            ],
+            "title": "Align",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "muted": {
+            "title": "Muted",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "number",
+              "text"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "type",
+          "align",
+          "muted"
+        ],
+        "title": "Column",
+        "type": "object"
+      },
+      "DayInfo": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "period": {
+            "title": "Period",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "period",
+          "label"
+        ],
+        "title": "DayInfo",
+        "type": "object"
+      },
+      "FigureBlockModel": {
+        "properties": {
+          "data": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/FrameData"
+                },
+                {
+                  "$ref": "#/components/schemas/SeriesData"
+                },
+                {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/SeriesData"
+                  },
+                  "type": "object"
+                },
+                {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Data",
+            "type": "object"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "figure",
+            "default": "figure",
+            "title": "Type",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "url",
+          "data"
+        ],
+        "title": "FigureBlockModel",
+        "type": "object"
+      },
+      "FrameData": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "index": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Index",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "type": {
+            "const": "frame",
+            "default": "frame",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "columns",
+          "rows"
+        ],
+        "title": "FrameData",
+        "type": "object"
+      },
+      "GroupChoice": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "sorts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sorts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "sorts"
+        ],
+        "title": "GroupChoice",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "LeagueInfo": {
+        "properties": {
+          "default": {
+            "title": "Default",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "year",
+          "default"
+        ],
+        "title": "LeagueInfo",
+        "type": "object"
+      },
+      "LeagueMeta": {
+        "properties": {
+          "calibration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalibrationInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryInfo"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "completed_matchups": {
+            "title": "Completed Matchups",
+            "type": "integer"
+          },
+          "current_week": {
+            "title": "Current Week",
+            "type": "integer"
+          },
+          "default": {
+            "title": "Default",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "loaded_at": {
+            "format": "date-time",
+            "title": "Loaded At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "teams": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Teams",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          },
+          "weeks": {
+            "items": {
+              "$ref": "#/components/schemas/WeekInfo"
+            },
+            "title": "Weeks",
+            "type": "array"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "year",
+          "default",
+          "teams",
+          "current_week",
+          "completed_matchups",
+          "weeks",
+          "categories",
+          "calibration",
+          "loaded_at",
+          "warnings"
+        ],
+        "title": "LeagueMeta",
+        "type": "object"
+      },
+      "NoteBlock": {
+        "properties": {
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "space_before": {
+            "title": "Space Before",
+            "type": "boolean"
+          },
+          "spans": {
+            "items": {
+              "$ref": "#/components/schemas/SpanModel"
+            },
+            "title": "Spans",
+            "type": "array"
+          },
+          "type": {
+            "const": "note",
+            "default": "note",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "spans",
+          "space_before"
+        ],
+        "title": "NoteBlock",
+        "type": "object"
+      },
+      "OutlookMeta": {
+        "properties": {
+          "blends_playoffs": {
+            "default": false,
+            "title": "Blends Playoffs",
+            "type": "boolean"
+          },
+          "sorts": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Sorts",
+            "type": "array"
+          }
+        },
+        "title": "OutlookMeta",
+        "type": "object"
+      },
+      "OutlookView": {
+        "properties": {
+          "blocks": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TableBlock"
+                },
+                {
+                  "$ref": "#/components/schemas/NoteBlock"
+                },
+                {
+                  "$ref": "#/components/schemas/TextBlockModel"
+                },
+                {
+                  "$ref": "#/components/schemas/FigureBlockModel"
+                }
+              ]
+            },
+            "title": "Blocks",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/OutlookMeta"
+          }
+        },
+        "required": [
+          "blocks",
+          "meta"
+        ],
+        "title": "OutlookView",
+        "type": "object"
+      },
+      "PlanMeta": {
+        "properties": {
+          "days": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DayInfo"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "finished": {
+            "default": false,
+            "title": "Finished",
+            "type": "boolean"
+          },
+          "has_open_days": {
+            "default": false,
+            "title": "Has Open Days",
+            "type": "boolean"
+          },
+          "roster": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RosterChoice"
+            },
+            "title": "Roster",
+            "type": "array"
+          }
+        },
+        "title": "PlanMeta",
+        "type": "object"
+      },
+      "PlanView": {
+        "properties": {
+          "blocks": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TableBlock"
+                },
+                {
+                  "$ref": "#/components/schemas/NoteBlock"
+                },
+                {
+                  "$ref": "#/components/schemas/TextBlockModel"
+                },
+                {
+                  "$ref": "#/components/schemas/FigureBlockModel"
+                }
+              ]
+            },
+            "title": "Blocks",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PlanMeta"
+          }
+        },
+        "required": [
+          "blocks",
+          "meta"
+        ],
+        "title": "PlanView",
+        "type": "object"
+      },
+      "PlayerChoice": {
+        "properties": {
+          "goalie": {
+            "title": "Goalie",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "goalie"
+        ],
+        "title": "PlayerChoice",
+        "type": "object"
+      },
+      "ReviewOptions": {
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "drafted": {
+            "title": "Drafted",
+            "type": "boolean"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupChoice"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerChoice"
+            },
+            "title": "Players",
+            "type": "array"
+          }
+        },
+        "required": [
+          "drafted",
+          "players",
+          "groups",
+          "cells"
+        ],
+        "title": "ReviewOptions",
+        "type": "object"
+      },
+      "RosterChoice": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "RosterChoice",
+        "type": "object"
+      },
+      "Row": {
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/Cell"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "cells"
+        ],
+        "title": "Row",
+        "type": "object"
+      },
+      "SeriesData": {
+        "properties": {
+          "index": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Index",
+            "type": "array"
+          },
+          "type": {
+            "const": "series",
+            "default": "series",
+            "title": "Type",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "index",
+          "values"
+        ],
+        "title": "SeriesData",
+        "type": "object"
+      },
+      "SpanModel": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "tone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tone"
+          }
+        },
+        "required": [
+          "text",
+          "tone"
+        ],
+        "title": "SpanModel",
+        "type": "object"
+      },
+      "TableBlock": {
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/Column"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "footer": {
+            "items": {
+              "$ref": "#/components/schemas/Row"
+            },
+            "title": "Footer",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/Row"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "table",
+            "default": "table",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "columns",
+          "rows",
+          "footer"
+        ],
+        "title": "TableBlock",
+        "type": "object"
+      },
+      "TextBlockModel": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "text",
+            "default": "text",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "TextBlockModel",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "ViewModel": {
+        "properties": {
+          "blocks": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TableBlock"
+                },
+                {
+                  "$ref": "#/components/schemas/NoteBlock"
+                },
+                {
+                  "$ref": "#/components/schemas/TextBlockModel"
+                },
+                {
+                  "$ref": "#/components/schemas/FigureBlockModel"
+                }
+              ]
+            },
+            "title": "Blocks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "blocks"
+        ],
+        "title": "ViewModel",
+        "type": "object"
+      },
+      "WeekInfo": {
+        "properties": {
+          "completed": {
+            "title": "Completed",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "week": {
+            "title": "Week",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "week",
+          "label",
+          "completed"
+        ],
+        "title": "WeekInfo",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "fantasyNHL",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/leagues": {
+      "get": {
+        "operationId": "leagues_api_leagues_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LeagueInfo"
+                  },
+                  "title": "Response Leagues Api Leagues Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Leagues"
+      }
+    },
+    "/api/leagues/{league}": {
+      "get": {
+        "operationId": "league_meta_api_leagues__league__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeagueMeta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "League Meta"
+      }
+    },
+    "/api/leagues/{league}/preview": {
+      "get": {
+        "operationId": "matchup_preview_api_leagues__league__preview_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "week",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Week"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Matchup Preview"
+      }
+    },
+    "/api/leagues/{league}/reload": {
+      "post": {
+        "description": "Drop everything fetched for the league (after roster moves etc.).",
+        "operationId": "reload_api_leagues__league__reload_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeagueInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reload"
+      }
+    },
+    "/api/leagues/{league}/review/compare": {
+      "get": {
+        "operationId": "review_compare_api_leagues__league__review_compare_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "players",
+            "required": true,
+            "schema": {
+              "items": {
+                "type": "integer"
+              },
+              "title": "Players",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Compare"
+      }
+    },
+    "/api/leagues/{league}/review/draft-grades": {
+      "get": {
+        "operationId": "review_draft_grades_api_leagues__league__review_draft_grades_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Draft Grades"
+      }
+    },
+    "/api/leagues/{league}/review/draft-return": {
+      "get": {
+        "operationId": "review_draft_return_api_leagues__league__review_draft_return_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Draft Return"
+      }
+    },
+    "/api/leagues/{league}/review/gaps": {
+      "get": {
+        "operationId": "review_gaps_api_leagues__league__review_gaps_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team",
+            "required": true,
+            "schema": {
+              "title": "Team",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Gaps"
+      }
+    },
+    "/api/leagues/{league}/review/leaders": {
+      "get": {
+        "operationId": "review_leaders_api_leagues__league__review_leaders_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "fa",
+                "team"
+              ],
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {
+              "default": "F",
+              "enum": [
+                "F",
+                "D",
+                "FD",
+                "G"
+              ],
+              "title": "Group",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "Score",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cells",
+            "required": false,
+            "schema": {
+              "default": "pct",
+              "enum": [
+                "pct",
+                "rate",
+                "total"
+              ],
+              "title": "Cells",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Leaders"
+      }
+    },
+    "/api/leagues/{league}/review/options": {
+      "get": {
+        "description": "What the player, roster and draft views can be asked for.",
+        "operationId": "review_options_api_leagues__league__review_options_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Options"
+      }
+    },
+    "/api/leagues/{league}/review/origins": {
+      "get": {
+        "operationId": "review_origins_api_leagues__league__review_origins_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Origins"
+      }
+    },
+    "/api/leagues/{league}/review/outlook": {
+      "get": {
+        "operationId": "review_outlook_api_leagues__league__review_outlook_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "current",
+              "enum": [
+                "draft",
+                "current"
+              ],
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Outlook"
+      }
+    },
+    "/api/leagues/{league}/review/pickups": {
+      "get": {
+        "operationId": "review_pickups_api_leagues__league__review_pickups_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Pickups"
+      }
+    },
+    "/api/leagues/{league}/review/team": {
+      "get": {
+        "operationId": "review_team_api_leagues__league__review_team_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team",
+            "required": true,
+            "schema": {
+              "title": "Team",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "current",
+              "enum": [
+                "draft",
+                "current"
+              ],
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Team"
+      }
+    },
+    "/api/leagues/{league}/review/trades": {
+      "get": {
+        "operationId": "review_trades_api_leagues__league__review_trades_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Trades"
+      }
+    },
+    "/api/leagues/{league}/schedule/calibration": {
+      "post": {
+        "description": "The night-value curve a source league season would calibrate.",
+        "operationId": "preview_calibration_api_leagues__league__schedule_calibration_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalibrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Calibration"
+      },
+      "put": {
+        "description": "Calibrate the schedule scoring on a source league season and keep\nit for this league (calibration.yaml).",
+        "operationId": "store_calibration_api_leagues__league__schedule_calibration_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalibrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Store Calibration"
+      }
+    },
+    "/api/leagues/{league}/schedule/outlook": {
+      "get": {
+        "operationId": "schedule_outlook_api_leagues__league__schedule_outlook_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "full",
+              "enum": [
+                "full",
+                "remaining",
+                "playoffs"
+              ],
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "playoff_weight",
+            "required": false,
+            "schema": {
+              "default": 0.4,
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Playoff Weight",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fit_team",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fit Team"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutlookView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Schedule Outlook"
+      }
+    },
+    "/api/leagues/{league}/standings/accumulated": {
+      "get": {
+        "operationId": "accumulated_scores_api_leagues__league__standings_accumulated_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accumulated Scores"
+      }
+    },
+    "/api/leagues/{league}/standings/category-profile": {
+      "get": {
+        "operationId": "category_profile_api_leagues__league__standings_category_profile_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Category Profile"
+      }
+    },
+    "/api/leagues/{league}/standings/luck": {
+      "get": {
+        "operationId": "luck_ranking_api_leagues__league__standings_luck_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Luck Ranking"
+      }
+    },
+    "/api/leagues/{league}/standings/power-rankings": {
+      "get": {
+        "operationId": "power_rankings_api_leagues__league__standings_power_rankings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Window"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Power Rankings"
+      }
+    },
+    "/api/leagues/{league}/streaming/candidates": {
+      "get": {
+        "operationId": "streaming_candidates_api_leagues__league__streaming_candidates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team",
+            "required": true,
+            "schema": {
+              "title": "Team",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "week",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Week"
+            }
+          },
+          {
+            "in": "query",
+            "name": "streamers",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "integer"
+              },
+              "title": "Streamers",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "simulate",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Simulate"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stats",
+            "required": false,
+            "schema": {
+              "default": "blended",
+              "enum": [
+                "blended",
+                "season"
+              ],
+              "title": "Stats",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Streaming Candidates"
+      }
+    },
+    "/api/leagues/{league}/streaming/plan": {
+      "get": {
+        "operationId": "streaming_plan_api_leagues__league__streaming_plan_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team",
+            "required": true,
+            "schema": {
+              "title": "Team",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "week",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Week"
+            }
+          },
+          {
+            "in": "query",
+            "name": "streamers",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "integer"
+              },
+              "title": "Streamers",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "simulate",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Simulate"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Streaming Plan"
+      }
+    },
+    "/api/leagues/{league}/weekly/awards": {
+      "get": {
+        "operationId": "weekly_awards_api_leagues__league__weekly_awards_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "week",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Week"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Weekly Awards"
+      }
+    },
+    "/api/leagues/{league}/weekly/scores": {
+      "get": {
+        "operationId": "weekly_scores_api_leagues__league__weekly_scores_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "league",
+            "required": true,
+            "schema": {
+              "title": "League",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Weekly Scores"
+      }
+    }
+  }
+}

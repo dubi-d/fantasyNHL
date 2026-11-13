@@ -24,7 +24,17 @@ import questionary
 from rich.console import Console
 
 from fantasy_nhl.config import ScheduleCalibration
-from support import FakeLeague, lookup, patch_everywhere
+from support import (
+    FakeLeague,
+    finished,
+    lookup,
+    midseason,
+    opening_day,
+    patch_everywhere,
+    pre_draft,
+    preseason,
+    undrafted,
+)
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
 BACK = lookup("BACK")
@@ -218,29 +228,6 @@ PLANNER = ["Roster planning", "Plan streaming week"]
 SCHEDULE = ["Roster planning", "Show NHL schedule outlook"]
 
 
-def midseason(**kwargs) -> FakeLeague:
-    return FakeLeague(**kwargs)
-
-
-def finished() -> FakeLeague:
-    return FakeLeague(current_week=8, today=60, season_over=True,
-                      constant_adp=True, blend_weight=1.0, add_limit=None)
-
-
-def opening_day() -> FakeLeague:
-    return FakeLeague(current_week=1, today=1, season_stats=False,
-                      blend_weight=0.0)
-
-
-def preseason() -> FakeLeague:
-    return FakeLeague(current_week=1, today=1, rostered=False,
-                      blend_weight=0.0)
-
-
-def undrafted() -> FakeLeague:
-    return FakeLeague(drafted=False, trades=False, empty_rosters=(3,))
-
-
 # case -> (league factory, scripted answers); a script that runs out ends
 # the session wherever it is
 CASES = {
@@ -360,6 +347,12 @@ CASES = {
         "Season standings", "Show accumulated scores", "Show luck ranking",
         "Show power rankings over time", "Show category strength profile",
         BACK, REVIEW, *PREVIEW, "Matchup 1"]),
+    "review_pre_draft": (pre_draft, [
+        REVIEW, "Category leaderboard", "Free agents", "Forwards",
+        "Score", "Percentiles", "Category leaderboard", "One team", "Alpha",
+        "Forwards", "Score", "Percentiles", "Roster origins",
+        "Category outlook", "Waiver pickups", "Team roster", "Alpha",
+        "Draft grades vs ADP"]),
     "stats_setting": (midseason, [
         "Player stats: Blended", "This season only",
         "Player stats: This season only", BACK,

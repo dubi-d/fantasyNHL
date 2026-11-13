@@ -61,7 +61,7 @@ def rendered(monkeypatch):
 def test_roster_games_colors_injuries_ir_order_and_blanks(rendered):
     console, output, calls = rendered
     ctx = _context()
-    assert tools._render_streaming_plan(ctx, 1, "Test", ["First"]) is not None
+    assert tools._render_streaming_plan(ctx, 1, "Test", ctx.roster[:1]) is not None
     grid, _, kwargs = calls[0]
     assert list(grid.columns[:5]) == ["Player", "Pos", "Team", "Games", "Inj"]
     assert grid["Games"].tolist() == ["1", "1", "2", "?", "0"]
@@ -70,11 +70,11 @@ def test_roster_games_colors_injuries_ir_order_and_blanks(rendered):
     assert grid.iloc[-1]["Pos"] == "Center"  # IR without active eligibility
     assert grid.iloc[0]["Day 2"] == "•"
     tones = kwargs["cell_styles"]
-    assert grid.iloc[0]["Day 3"] == "•" and tones.iloc[0]["Day 3"] == "orange3"
-    assert grid.iloc[1]["Day 2"] == "•" and tones.iloc[1]["Day 2"] == "orange3"
+    assert grid.iloc[0]["Day 3"] == "○" and tones.iloc[0]["Day 3"] == "orange3"
+    assert grid.iloc[1]["Day 2"] == "○" and tones.iloc[1]["Day 2"] == "orange3"
     assert grid.iloc[3]["Day 2"] == "?"
     # wins over future activation
-    assert grid.iloc[-1]["Day 2"] == "•" and tones.iloc[-1]["Day 2"] == "red"
+    assert grid.iloc[-1]["Day 2"] == "×" and tones.iloc[-1]["Day 2"] == "red"
     assert grid.iloc[-1]["Day 4"] == ""
     assert "Games" not in kwargs["footer"] and "Inj" not in kwargs["footer"]
     assert "lineup unavailable" in Text.from_ansi(output.getvalue()).plain
@@ -82,7 +82,7 @@ def test_roster_games_colors_injuries_ir_order_and_blanks(rendered):
     # Inspect actual terminal-rendered spans, including nested dim+red styles.
     lines = [Text.from_ansi(line) for line in output.getvalue().splitlines()]
     ir_line = next(line for line in lines if "Reserved (IR)" in line.plain)
-    dots = [i for i, c in enumerate(ir_line.plain) if c == "•"]
+    dots = [i for i, c in enumerate(ir_line.plain) if c == "×"]
     assert len(dots) == 4
     for i in dots:
         assert ir_line.get_style_at_offset(console, i).color.get_truecolor() == console.get_style("red").color.get_truecolor()
@@ -90,8 +90,8 @@ def test_roster_games_colors_injuries_ir_order_and_blanks(rendered):
     assert not ir_line.get_style_at_offset(console, dots[1]).dim
     assert ir_line.get_style_at_offset(console, dots[-1]).dim
     bench_line = next(line for line in lines if "Second" in line.plain)
-    dots = [i for i, c in enumerate(bench_line.plain) if c == "•"]
-    assert bench_line.get_style_at_offset(console, dots[1]).color.get_truecolor() == console.get_style("orange3").color.get_truecolor()
+    benched = bench_line.plain.index("○")
+    assert bench_line.get_style_at_offset(console, benched).color.get_truecolor() == console.get_style("orange3").color.get_truecolor()
     assert bench_line.get_style_at_offset(console, bench_line.plain.index("OUT")).color.get_truecolor() == console.get_style("red").color.get_truecolor()
     first_line = next(line for line in lines if "First *" in line.plain)
     assert first_line.get_style_at_offset(console, first_line.plain.index("DTD")).color.get_truecolor() == console.get_style("yellow").color.get_truecolor()
@@ -109,7 +109,7 @@ def test_ir_and_streamer_flags_do_not_change_saved_counts_or_capacity(rendered):
     pd.testing.assert_frame_equal(with_ir[0][2]["footer"], calls[0][2]["footer"])
     original = calls[0][0]
     calls.clear()
-    tools._render_streaming_plan(ctx, 1, "Test", ["Second"])
+    tools._render_streaming_plan(ctx, 1, "Test", ctx.roster[1:2])
     assert calls[0][0]["Games"].tolist()[:4] == original["Games"].tolist()
     assert calls[0][0]["Day 2"].tolist()[:4] == original["Day 2"].tolist()
 
@@ -141,7 +141,7 @@ def test_future_ir_assignment_is_red_and_not_counted(rendered):
     ctx = _context()
     ctx.daily_lineup_slots[2][1] = "IR"
     tools._render_streaming_plan(ctx, 1, "Test", [])
-    assert calls[0][0].iloc[0]["Day 2"] == "•"
+    assert calls[0][0].iloc[0]["Day 2"] == "×"
     assert calls[0][2]["cell_styles"].iloc[0]["Day 2"] == "red"
     assert calls[0][0].iloc[0]["Games"] == "0"
 
@@ -149,11 +149,11 @@ def test_future_ir_assignment_is_red_and_not_counted(rendered):
 def test_actionable_day_columns_align_including_candidates(rendered):
     _, output, _ = rendered
     ctx = _context()
-    align = tools._render_streaming_plan(ctx, 1, "Test", ["First"])
+    align = tools._render_streaming_plan(ctx, 1, "Test", ctx.roster[:1])
     candidate = PreviewPlayer("Candidate", "BOS", ["Center", "Forward", "Util"],
                               injury="SUSPENSION", player_id=9)
     tools._render_candidates(ctx, [candidate], [], StatBasis.blended(0.0),
-                             ["First"], align)
+                             ctx.roster[:1], align)
     lines = Text.from_ansi(output.getvalue()).plain.splitlines()
     headers = [line for line in lines if "#" in line and "Day 2" in line]
     assert len(headers) == 4
@@ -272,12 +272,12 @@ def test_candidate_rates_follow_the_stat_basis(rendered, basis, projected,
                                                name, rate, label):
     _, output, calls = rendered
     ctx = _context()
-    align = tools._render_streaming_plan(ctx, 1, "Test", ["First"])
+    align = tools._render_streaming_plan(ctx, 1, "Test", ctx.roster[:1])
     candidate = PreviewPlayer("Candidate", "BOS", ["Center", "Forward", "Util"],
                               season_stats={"GP": 10, "G": 5},
                               projected_stats=projected, player_id=9)
     tools._render_candidates(ctx, [candidate], [Category("G")], basis,
-                             ["First"], align)
+                             ctx.roster[:1], align)
     table, title, _ = calls[-1]
     assert table["Player"].tolist() == [name]
     assert table["G"].tolist() == [rate]
@@ -289,11 +289,11 @@ def test_candidate_rates_follow_the_stat_basis(rendered, basis, projected,
 def test_candidates_without_season_games_hint(rendered):
     _, output, calls = rendered
     ctx = _context()
-    align = tools._render_streaming_plan(ctx, 1, "Test", ["First"])
+    align = tools._render_streaming_plan(ctx, 1, "Test", ctx.roster[:1])
     rookie = PreviewPlayer("Rookie", "BOS", ["Center", "Forward", "Util"],
                            projected_stats={"GP": 10, "G": 10}, player_id=9)
     tools._render_candidates(ctx, [rookie], [Category("G")],
-                             StatBasis.season(0.0), ["First"], align)
+                             StatBasis.season(0.0), ctx.roster[:1], align)
     assert pd.isna(calls[-1][0].loc[1, "G"])  # no fallback to the projection
     assert "Nobody here has played this season yet" in _plain(output)
 
@@ -469,7 +469,7 @@ def test_profile_views_this_season_only(monkeypatch, rendered, prompts,
     assert leaders["Player"].tolist() == ["Banger", "Sniper"]
     assert leaders["HIT"].tolist() == [90, 5]  # season totals
     # colored by percentile (Banger tops HIT), not by the displayed total
-    assert kwargs["cell_styles"].loc[1, "HIT"] == display.heatmap_style(0.875)
+    assert kwargs["cell_styles"].loc[1, "HIT"] == "white on rgb(15,116,15)"
 
     answers += ["compare", "Sniper (C, Alpha)", "Twin (C, FA)", ""]
     step = _show(wizard, step)

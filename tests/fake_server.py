@@ -1,6 +1,9 @@
 """The web backend on the synthetic league, for frontend work without ESPN:
 
-    .venv/bin/python tests/fake_server.py [--finished]
+    .venv/bin/python tests/fake_server.py [scenario]
+
+with a scenario of tests/support.py: midseason (default), finished,
+opening_day, preseason, pre_draft or undrafted.
 """
 import sys
 
@@ -9,15 +12,11 @@ from pytest import MonkeyPatch
 
 from fantasy_nhl.api import create_app
 from fantasy_nhl.api.app import HOST, PORT
-from support import FakeLeague, patch_everywhere
+from support import SCENARIOS, FakeLeague, patch_everywhere
 
 
 def main() -> None:
-    league = FakeLeague()
-    if "--finished" in sys.argv:  # the season is over
-        league = FakeLeague(current_week=8, today=60, season_over=True,
-                            constant_adp=True, blend_weight=1.0,
-                            add_limit=None)
+    league = SCENARIOS[sys.argv[1] if len(sys.argv) > 1 else "midseason"]()
     patches = MonkeyPatch()
     for name in FakeLeague.FETCHERS:
         patch_everywhere(patches, name, getattr(league, name))

@@ -1,6 +1,5 @@
 """Rich console rendering helpers."""
 import math
-from collections.abc import Callable
 
 import pandas as pd
 from rich.console import Console
@@ -21,12 +20,11 @@ from ..views.model import (
     WARNING,
     Note,
     Tone,
+    cell_text,
+    cell_texts,
 )
 
 console = Console()
-
-# style callback: cell value -> rich style string
-StyleFn = Callable[[object], str]
 
 _NEUTRAL = (60, 60, 60)
 _GREEN = (0, 135, 0)
@@ -60,39 +58,19 @@ def note_markup(note: Note) -> tuple[str, str | None]:
     return ("\n" if note.space_before else "") + text, _LEVEL_STYLES.get(note.level)
 
 
-def diverging_style(value: float, scale: float) -> str:
-    """Gradient background: neutral at 0, green toward +scale, red toward -scale."""
-    if scale <= 0 or pd.isna(value):
-        return ""
-    t = min(abs(value) / scale, 1.0)
-    return _blend(t, _NEUTRAL, _GREEN if value >= 0 else _RED)
-
-
-def heatmap_style(rate: float) -> str:
-    """Win-rate gradient: 0.0 red, 0.5 neutral, 1.0 green."""
-    return diverging_style(rate - 0.5, 0.5)
-
-
-def result_style(result: str) -> str:
-    return {"W": "bold green", "L": "bold red", "T": "bold yellow"}.get(result, "")
-
-
 def print_df(df: pd.DataFrame, title: str,
-             styles: dict[str, StyleFn] | None = None,
              footer: pd.DataFrame | None = None,
              widths: dict[str, int] | None = None,
              header_styles: dict[str, str] | None = None,
              cell_styles: pd.DataFrame | None = None) -> None:
     """Render a DataFrame as a rich table, index shown as '#'.
 
-    styles maps column name -> (value -> style string) for per-cell styling.
     footer rows are appended dim in a separate section.
     widths maps column name -> minimum content width.
     header_styles maps column name -> extra style layered on the header.
-    cell_styles (same rows, subset of columns) holds style strings that
-    override styles where present (style a cell by another table's value).
+    cell_styles (same rows, subset of columns) holds the style strings of
+    the cells.
     """
-    styles = styles or {}
     widths = widths or {}
     header_styles = header_styles or {}
     table = Table(title=title, title_style="bold", title_justify="left",
@@ -104,22 +82,21 @@ def print_df(df: pd.DataFrame, title: str,
                          min_width=widths.get(str(col)),
                          header_style=header_styles.get(str(col)))
 
-    def cell(i: int, col: str, value: object) -> str:
-        style = styles.get(col, lambda _: "")(value)
+    def cell(i: int, col: str, text: str) -> str:
+        style = ""
         if cell_styles is not None and col in cell_styles.columns:
             # by position: row labels may repeat
-            style = cell_styles[col].iat[i] or style
-        text = "" if pd.isna(value) else str(value)
+            style = cell_styles[col].iat[i]
         return f"[{style}]{text}[/]" if style else text
 
-    for i, (idx, row) in enumerate(df.iterrows()):
-        table.add_row(str(idx), *(cell(i, col, row[col])
-                                  for col in df.columns))
+    for i, (idx, texts) in enumerate(zip(df.index, cell_texts(df))):
+        table.add_row(str(idx), *(cell(i, col, text)
+                                  for col, text in zip(df.columns, texts)))
 
     if footer is not None:
         table.add_section()
         for idx, row in footer.iterrows():
-            table.add_row(str(idx), *("" if pd.isna(row.get(col)) else str(row.get(col, ""))
+            table.add_row(str(idx), *(cell_text(row.get(col))
                                       for col in df.columns), style="italic dim")
 
     console.print()
