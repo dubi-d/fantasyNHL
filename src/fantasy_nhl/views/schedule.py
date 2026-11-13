@@ -39,8 +39,9 @@ class ScheduleSelection:
     @property
     def blends_playoffs(self) -> bool:
         """Whether the scope mixes regular-season and playoff weeks."""
-        return self.scope != "playoffs" and any(
-            w in self.week_periods for w in self.playoff_weeks)
+        weeks = set(self.week_periods)
+        return (self.scope != "playoffs" and bool(weeks & self.playoff_weeks)
+                and bool(weeks - self.playoff_weeks))
 
 
 def select_schedule(data: "LeagueData", schedule: "ScheduleData",
@@ -117,8 +118,10 @@ def schedule_scores(schedule: "ScheduleData", selection: ScheduleSelection,
         return scores
 
     near_n = len(score_wp)
-    scores = {f"Reg Score next {near_n}": effective_games(
-        playing, reg_wp, seats_generic)}
+    scores = {}
+    if reg_wp:  # none once only playoff matchups remain
+        scores[f"Reg Score next {near_n}"] = effective_games(
+            playing, reg_wp, seats_generic)
     rest_wp = {w: p for w, p in week_periods.items()
                if w not in playoff_weeks and w not in score_wp}
     if rest_wp:
@@ -126,6 +129,7 @@ def schedule_scores(schedule: "ScheduleData", selection: ScheduleSelection,
                                                    seats_generic)
     if po_wp:
         scores["PO Score"] = effective_games(playing, po_wp, seats_generic)
+    if po_wp and reg_wp:
         # Combined uses the WHOLE remaining regular season, not just
         # the "rest" portion (near-term N is informational only)
         all_reg_wp = {w: p for w, p in week_periods.items()
@@ -180,7 +184,8 @@ def build_schedule_outlook(data: "LeagueData", schedule: "ScheduleData",
     games_df, off_df = team_week_schedule(schedule.playing_by_period,
                                           selection.week_periods, off_periods)
     summary = schedule_summary(
-        games_df, off_df, set() if scope == "playoffs" else playoff_weeks,
+        games_df, off_df,
+        playoff_weeks if selection.blends_playoffs else set(),
         near_weeks=selection.near_weeks, scores=scores)
     tones = {col: _range_tones(summary[col], summary[col])
              for col in summary.columns if col != "Team"}
@@ -208,8 +213,11 @@ def build_schedule_outlook(data: "LeagueData", schedule: "ScheduleData",
     po_note = (f" PO Score/Combined isolate playoff-week schedule "
                f"strength ({round((1 - playoff_weight) * 100)}/"
                f"{round(playoff_weight * 100)} blend)."
-               if "PO Score" in scores else "")
-    score_label = "Score" if scope == "playoffs" else "Reg Score"
+               if selection.blends_playoffs else "")
+    score_label = ("Score" if scope == "playoffs"
+                   else "Reg Score" if any("Reg Score" in name
+                                           for name in scores)
+                   else "PO Score")
 
     figure = {"games": games_df.loc[order], "off": off_df.loc[order],
               "off_label": off_label,

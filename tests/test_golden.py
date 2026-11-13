@@ -299,7 +299,8 @@ CASES = {
         "Calibrate scoring", "Test League (2027)", True, "Playoffs only",
         "Skip", "Full season", "1"]),
     "schedule_finished": (finished, [
-        *SCHEDULE, "Full season", "0.4", "Playoffs only", "Skip"]),
+        *SCHEDULE, "Full season", "0.4", "Playoffs only", "Skip",
+        "Remaining", "Skip", "Remaining", "Alpha"]),
     "review_leaders": (midseason, [
         REVIEW,
         "Category leaderboard", "Whole pool", "Forwards", "Score",

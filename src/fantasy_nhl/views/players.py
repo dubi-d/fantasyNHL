@@ -176,6 +176,9 @@ def build_compare(ctx: ReviewContext, ids: tuple[int, ...]) -> View:
     if len(set(labels)) < len(labels):
         labels = [f"{name} ({info.at[pid, 'Team']})"
                   for name, pid in zip(labels, ids)]
+    # namesakes on one team: tell them apart like the pick list does
+    labels = [f"{label} #{pid}" if label in labels[:i] else label
+              for i, (label, pid) in enumerate(zip(labels, ids))]
     labels = [f"{label} {NO_PROJECTION}" if info.at[pid, "NoProj"]
               else label for label, pid in zip(labels, ids)]
 

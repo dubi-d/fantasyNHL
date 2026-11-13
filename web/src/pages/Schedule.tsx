@@ -6,7 +6,7 @@ import { Field, Page, Select, useTeamOptions } from "../components/controls";
 import { useView, ViewBlocks, ViewPanel } from "../components/View";
 import { useSession } from "../session";
 
-type OutlookMeta = { sorts?: string[] };
+type OutlookMeta = { sorts?: string[]; blends_playoffs?: boolean };
 
 export function ScheduleOutlook() {
   const { meta } = useSession();
@@ -23,7 +23,10 @@ export function ScheduleOutlook() {
     fit_team: fitted ? fitTeam : null,
     sort,
   });
-  const sorts = ((outlook.data?.meta ?? {}) as OutlookMeta).sorts ?? [];
+  const outlookMeta = (outlook.data?.meta ?? {}) as OutlookMeta;
+  const sorts = outlookMeta.sorts ?? [];
+  // nothing to weight in a scope without both season and playoff matchups
+  const blends = outlookMeta.blends_playoffs ?? scope !== "playoffs";
 
   return (
     <Page
@@ -46,7 +49,7 @@ export function ScheduleOutlook() {
               setSort("");
             }}
           />
-          {scope !== "playoffs" && (
+          {blends && (
             <Field label="Playoff weight in Combined score (0-1)">
               <input
                 type="number"
