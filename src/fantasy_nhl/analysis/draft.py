@@ -11,7 +11,7 @@ _GOALIE_POSITION = "Goalie"
 def draft_pick_table(picks: list[DraftPick], team_names: list[str],
                      n_teams: int) -> pd.DataFrame:
     """
-    One row per draft pick in draft order. Value = ADP − overall pick, so a
+    One row per draft pick in draft order. Value = overall pick − ADP, so a
     positive value means the player went later than ESPN's average draft
     position (a steal), negative means a reach. Players without an ESPN ADP
     are floored at one pick after the last one (flagged in 'ADP?').
@@ -33,8 +33,8 @@ def draft_pick_table(picks: list[DraftPick], team_names: list[str],
             "Pos": p.position,
             "ADP": adp,
             "ADP?": missing,
-            "Value": adp - p.overall,
-            "ValueRd": (adp - p.overall) / n_teams,
+            "Value": p.overall - adp,
+            "ValueRd": (p.overall - adp) / n_teams,
             "Own%": p.pct_owned,
             "Chg": p.pct_change,
             "Rank": p.espn_rank,

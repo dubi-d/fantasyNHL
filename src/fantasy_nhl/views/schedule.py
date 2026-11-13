@@ -226,9 +226,11 @@ def build_schedule_outlook(data: "LeagueData", schedule: "ScheduleData",
               "scores": {name: s.reindex(order) for name, s in scores.items()}}
     if scope != "playoffs":
         figure["playoff_weeks"] = playoff_weeks
+    first, last = selection.selected[0], selection.selected[-1]
+    matchups = (f"matchup {first}" if first == last
+                else f"matchups {first}–{last}")
     return View([
-        TableView(f"NHL Schedule Outlook ({scope_label}, "
-                  f"matchups {selection.selected[0]}–{selection.selected[-1]}, "
+        TableView(f"NHL Schedule Outlook ({scope_label}, {matchups}, "
                   f"{off_label})", summary,
                   pd.DataFrame(tones, index=summary.index, dtype=object)),
         note(f"{score_label} = effective games per matchup, games "

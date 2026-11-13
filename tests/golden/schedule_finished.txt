@@ -302,7 +302,7 @@ Saved ␛[1mplots/schedule_playoffs_test_league.png␛[0m
     * Delta
   > 'Skip'
 
-␛[1mNHL Schedule Outlook (remaining matchups, matchups 8–8, off-night = ≤16 teams   ␛[0m
+␛[1mNHL Schedule Outlook (remaining matchups, matchup 8, off-night = ≤16 teams      ␛[0m
 ␛[1mplaying)                                                                        ␛[0m
 ┏━━━━┳━━━━━━┳━━━━━━━━━━┳━━━━━━━┳━━━━━┳━━━━━┳━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
 ┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPO Score␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGames␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mOff␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mG/M␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mOff/M␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mG/M next 1␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mOff/M next 1␛[0m␛[1;36m ␛[0m┃
@@ -422,7 +422,7 @@ Saved ␛[1mplots/schedule_remaining_test_league.png␛[0m
 [status] Fetching rosters...
 [fetch] fetch_rosters_and_slots()
 
-␛[1mNHL Schedule Outlook (remaining matchups, matchups 8–8, off-night = ≤16 teams playing)       ␛[0m
+␛[1mNHL Schedule Outlook (remaining matchups, matchup 8, off-night = ≤16 teams playing)          ␛[0m
 ┏━━━━┳━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━┳━━━━━┳━━━━━┳━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
 ┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mFit next 1␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPO Score␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGames␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mOff␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mG/M␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mOff/M␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mG/M next 1␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mOff/M next 1␛[0m␛[1;36m ␛[0m┃
 ┡━━━━╇━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━╇━━━━━╇━━━━━╇━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩

@@ -222,7 +222,7 @@ it, `npm run types` (backend running) regenerates the frontend's types in
     rest of the league, with balance indicators (see *Category outlook*
     below).
   - *Draft* — **Draft grades vs ADP**: each pick's *value* is
-    `ADP − overall pick` — positive means the player went later than the
+    `overall pick − ADP` — positive means the player went later than the
     ESPN crowd takes him (a steal), negative a reach; players without an
     ESPN ADP count as one pick after the last one. Per-team summary
     (average and total value, best steal, biggest reach, goalies and

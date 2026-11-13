@@ -54,7 +54,7 @@ def build_draft_grades(ctx: ReviewContext) -> View:
     summary = ranked(summary.drop(columns="Picks"), by="Avg value")
     n_rounds = int(pick_table["Rd"].max())
     blocks.append(TableView(
-        "Draft Grades (pick value = ESPN ADP − pick; positive = later than "
+        "Draft Grades (pick value = pick − ESPN ADP; positive = later than "
         "ADP)", summary, column_tones(summary, {
             "Avg value": value_tone,
             "Total": lambda v: diverging(v, n_teams * n_rounds / 4)})))
@@ -127,7 +127,7 @@ def build_team_draft(ctx: ReviewContext, row: int) -> View:
                                "Value", "Rounds", "Rank", "GP", "Own%",
                                "Score", "Return", "NowOn"])
     return View([TableView(with_basis(
-        f"{data.team_names[row]} — draft picks (Value = ADP − pick, Rounds = "
+        f"{data.team_names[row]} — draft picks (Value = pick − ADP, Rounds = "
         f"Value / {ctx.n_teams})", ctx.basis), view,
         column_tones(view, {**PLAYER_TONES, "Value": _value_tone(ctx),
                             "Rounds": lambda v: diverging(v, 1)})),
