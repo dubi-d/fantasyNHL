@@ -1,0 +1,299 @@
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: Blended (season + projection)
+    * Quit
+  > 'Players, rosters & draft'
+[status] Fetching rosters, free agents and draft...
+[fetch] fetch_roster_review()
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Category leaderboard'
+? Players: [select]
+    * Whole pool
+    * Free agents
+    * One team
+  > 'Free agents'
+? Position: [select]
+    * Forwards
+    * Defense
+    * Skaters (F + D)
+    * Goalies
+  > 'Forwards'
+? Sort by: [select]
+    * Score
+    * Spec
+    * Elite
+    * G
+    * A
+    * PPP
+    * HIT
+  > 'Score'
+? Cells show: [select]
+    * Percentiles
+    * Per-game rates
+  > 'Percentiles'
+
+␛[1mCategory leaderboard — Forwards, free agents (cells: percentiles, colored by percentile; by Score) — stats: blended: 0% season /    ␛[0m
+␛[1m100% projection                                                                                                                     ␛[0m
+┏━━━━┳━━━━━━━━━━┳━━━━━┳━━━━━━┳━━━━┳━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━┳━━━━┳━━━━━┳━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer  ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mScore␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mLevel␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSpec␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mElite␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHoles␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mType             ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mBest   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m G␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m A␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPPP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHIT␛[0m␛[1;36m ␛[0m┃
+┡━━━━╇━━━━━━━━━━╇━━━━━╇━━━━━━╇━━━━╇━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━╇━━━━╇━━━━━╇━━━━━┩
+│␛[2m ␛[0m␛[2m 1␛[0m␛[2m ␛[0m│ Free CW4 │ C   │ FA   │  0 │     │  ␛[37;48;2;36;90;36m0.61␛[0m │   ␛[37;48;2;0;135;0m100␛[0m │   57 │     ␛[37;48;2;40;85;40m1␛[0m │     ␛[37;48;2;60;60;60m0␛[0m │ Elite specialist  │ G/PPP   │ ␛[37;48;2;3;131;3m98␛[0m │ ␛[37;48;2;93;43;43m36␛[0m │  ␛[37;48;2;14;117;14m88␛[0m │  ␛[37;48;2;93;43;43m36␛[0m │
+│␛[2m ␛[0m␛[2m 2␛[0m␛[2m ␛[0m│ Free C6  │ C   │ FA   │  0 │     │  ␛[37;48;2;38;88;38m0.56␛[0m │    ␛[37;48;2;6;128;6m95␛[0m │   45 │     ␛[37;48;2;40;85;40m1␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Elite specialist  │ PPP/HIT │ ␛[37;48;2;31;96;31m74␛[0m │ ␛[37;48;2;148;14;14m12␛[0m │  ␛[37;48;2;3;131;3m98␛[0m │  ␛[37;48;2;26;103;26m79␛[0m │
+│␛[2m ␛[0m␛[2m 3␛[0m␛[2m ␛[0m│ Free RW1 │ RW  │ FA   │  0 │ ␛[33mDTD␛[0m │  ␛[37;48;2;38;87;38m0.54␛[0m │    ␛[37;48;2;12;120;12m90␛[0m │   69 │     ␛[37;48;2;20;110;20m2␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Elite specialist  │ A/G     │ ␛[37;48;2;9;124;9m93␛[0m │ ␛[37;48;2;3;131;3m98␛[0m │  ␛[37;48;2;104;37;37m31␛[0m │  ␛[37;48;2;126;26;26m21␛[0m │
+│␛[2m ␛[0m␛[2m 4␛[0m␛[2m ␛[0m│ Free CW1 │ C   │ FA   │  0 │     │  ␛[37;48;2;43;82;43m0.43␛[0m │    ␛[37;48;2;17;114;17m86␛[0m │   57 │     ␛[37;48;2;40;85;40m1␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Solid specialist  │ PPP/A   │ ␛[37;48;2;126;26;26m21␛[0m │ ␛[37;48;2;14;117;14m88␛[0m │  ␛[37;48;2;9;124;9m93␛[0m │  ␛[37;48;2;71;54;54m45␛[0m │
+│␛[2m ␛[0m␛[2m 5␛[0m␛[2m ␛[0m│ Free RW4 │ RW  │ FA   │  0 │     │  ␛[37;48;2;48;74;48m0.29␛[0m │    ␛[37;48;2;23;106;23m81␛[0m │   50 │     ␛[37;48;2;40;85;40m1␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Solid specialist  │ HIT/A   │ ␛[37;48;2;60;60;60m50␛[0m │ ␛[37;48;2;43;81;43m64␛[0m │  ␛[37;48;2;148;14;14m12␛[0m │  ␛[37;48;2;3;131;3m98␛[0m │
+│␛[2m ␛[0m␛[2m 6␛[0m␛[2m ␛[0m│ Twin     │ C   │ FA   │  0 │     │  ␛[37;48;2;50;73;50m0.26␛[0m │    ␛[37;48;2;29;99;29m76␛[0m │   23 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;60;60;60m0␛[0m │ Solid all-rounder │ G/A     │ ␛[37;48;2;20;110;20m83␛[0m │ ␛[37;48;2;51;71;51m57␛[0m │  ␛[37;48;2;54;67;54m55␛[0m │  ␛[37;48;2;82;49;49m40␛[0m │
+│␛[2m ␛[0m␛[2m 7␛[0m␛[2m ␛[0m│ Free LW2 │ LW  │ FA   │  0 │ ␛[1;31mOUT␛[0m │  ␛[37;48;2;50;72;50m0.25␛[0m │    ␛[37;48;2;35;92;35m71␛[0m │   43 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Solid specialist  │ HIT/A   │ ␛[37;48;2;148;14;14m12␛[0m │ ␛[37;48;2;31;96;31m74␛[0m │  ␛[37;48;2;43;81;43m64␛[0m │  ␛[37;48;2;14;117;14m88␛[0m │
+│␛[2m ␛[0m␛[2m 8␛[0m␛[2m ␛[0m│ Free RW5 │ RW  │ FA   │  0 │     │  ␛[37;48;2;51;72;51m0.23␛[0m │    ␛[37;48;2;40;86;40m67␛[0m │   45 │     ␛[37;48;2;40;85;40m1␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Solid specialist  │ HIT/G   │ ␛[37;48;2;43;81;43m64␛[0m │ ␛[37;48;2;126;26;26m21␛[0m │  ␛[37;48;2;71;54;54m45␛[0m │  ␛[37;48;2;9;124;9m93␛[0m │
+│␛[2m ␛[0m␛[2m 9␛[0m␛[2m ␛[0m│ Free LW4 │ LW  │ FA   │  0 │     │  ␛[37;48;2;60;60;60m0.01␛[0m │    ␛[37;48;2;46;78;46m62␛[0m │   64 │     ␛[37;48;2;40;85;40m1␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Solid specialist  │ A/PPP   │ ␛[37;48;2;82;49;49m40␛[0m │ ␛[37;48;2;9;124;9m93␛[0m │  ␛[37;48;2;26;103;26m79␛[0m │   ␛[37;48;2;170;3;3m2␛[0m │
+│␛[2m ␛[0m␛[2m10␛[0m␛[2m ␛[0m│ Free CW3 │ C   │ FA   │  0 │     │ ␛[37;48;2;64;58;58m-0.05␛[0m │    ␛[37;48;2;52;70;52m57␛[0m │   40 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Depth specialist  │ PPP/HIT │ ␛[37;48;2;137;20;20m17␛[0m │ ␛[37;48;2;82;49;49m40␛[0m │  ␛[37;48;2;31;96;31m74␛[0m │  ␛[37;48;2;43;81;43m64␛[0m │
+│␛[2m ␛[0m␛[2m11␛[0m␛[2m ␛[0m│ Free LW6 │ LW  │ FA   │  0 │     │ ␛[37;48;2;66;57;57m-0.08␛[0m │    ␛[37;48;2;58;63;58m52␛[0m │   43 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Depth specialist  │ A/PPP   │ ␛[37;48;2;93;43;43m36␛[0m │ ␛[37;48;2;26;103;26m79␛[0m │  ␛[37;48;2;49;74;49m60␛[0m │  ␛[37;48;2;137;20;20m17␛[0m │
+│␛[2m ␛[0m␛[2m12␛[0m␛[2m ␛[0m│ Free LW1 │ LW  │ FA   │  0 │     │ ␛[37;48;2;67;56;56m-0.09␛[0m │    ␛[37;48;2;65;58;58m48␛[0m │   36 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Depth             │ HIT/G   │ ␛[37;48;2;71;54;54m45␛[0m │ ␛[37;48;2;137;20;20m17␛[0m │  ␛[37;48;2;82;49;49m40␛[0m │  ␛[37;48;2;20;110;20m83␛[0m │
+│␛[2m ␛[0m␛[2m13␛[0m␛[2m ␛[0m│ Free C4  │ C   │ FA   │  0 │     │ ␛[37;48;2;70;55;55m-0.13␛[0m │    ␛[37;48;2;76;52;52m43␛[0m │   55 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Depth specialist  │ G/PPP   │ ␛[37;48;2;26;103;26m79␛[0m │ ␛[37;48;2;115;31;31m26␛[0m │  ␛[37;48;2;37;89;37m69␛[0m │  ␛[37;48;2;148;14;14m12␛[0m │
+│␛[2m ␛[0m␛[2m14␛[0m␛[2m ␛[0m│ Free LW5 │ LW  │ FA   │  0 │     │ ␛[37;48;2;71;54;54m-0.14␛[0m │    ␛[37;48;2;88;46;46m38␛[0m │   67 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Depth specialist  │ A/PPP   │  ␛[37;48;2;170;3;3m2␛[0m │ ␛[37;48;2;20;110;20m83␛[0m │  ␛[37;48;2;20;110;20m83␛[0m │  ␛[37;48;2;104;37;37m31␛[0m │
+│␛[2m ␛[0m␛[2m15␛[0m␛[2m ␛[0m│ Free C5  │ C   │ FA   │  0 │     │ ␛[37;48;2;72;54;54m-0.16␛[0m │    ␛[37;48;2;99;40;40m33␛[0m │   37 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Depth             │ HIT/A   │  ␛[37;48;2;159;9;9m7␛[0m │ ␛[37;48;2;51;71;51m57␛[0m │  ␛[37;48;2;60;60;60m50␛[0m │  ␛[37;48;2;31;96;31m74␛[0m │
+│␛[2m ␛[0m␛[2m16␛[0m␛[2m ␛[0m│ Free RW3 │ RW  │ FA   │  0 │     │ ␛[37;48;2;73;53;53m-0.17␛[0m │    ␛[37;48;2;108;35;35m29␛[0m │   52 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Depth specialist  │ G/HIT   │ ␛[37;48;2;14;117;14m88␛[0m │ ␛[37;48;2;104;37;37m31␛[0m │   ␛[37;48;2;159;9;9m7␛[0m │  ␛[37;48;2;54;67;54m55␛[0m │
+│␛[2m ␛[0m␛[2m17␛[0m␛[2m ␛[0m│ Free CW2 │ C   │ FA   │  0 │ ␛[33mSUS␛[0m │  ␛[37;48;2;83;48;48m-0.3␛[0m │    ␛[37;48;2;120;29;29m24␛[0m │   40 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Depth specialist  │ HIT/G   │ ␛[37;48;2;54;67;54m55␛[0m │  ␛[37;48;2;159;9;9m7␛[0m │  ␛[37;48;2;93;43;43m36␛[0m │  ␛[37;48;2;37;89;37m69␛[0m │
+│␛[2m ␛[0m␛[2m18␛[0m␛[2m ␛[0m│ Twin     │ C   │ FA   │  0 │     │ ␛[37;48;2;85;47;47m-0.32␛[0m │    ␛[37;48;2;131;23;23m19␛[0m │   24 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Depth all-rounder │ A/HIT   │ ␛[37;48;2;104;37;37m31␛[0m │ ␛[37;48;2;60;60;60m50␛[0m │  ␛[37;48;2;126;26;26m21␛[0m │  ␛[37;48;2;60;60;60m50␛[0m │
+│␛[2m ␛[0m␛[2m19␛[0m␛[2m ␛[0m│ Free LW3 │ LW  │ FA   │  0 │     │ ␛[37;48;2;96;41;41m-0.47␛[0m │    ␛[37;48;2;143;17;17m14␛[0m │   50 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Depth specialist  │ A/HIT   │ ␛[37;48;2;115;31;31m26␛[0m │ ␛[37;48;2;37;89;37m69␛[0m │   ␛[37;48;2;170;3;3m2␛[0m │  ␛[37;48;2;49;74;49m60␛[0m │
+│␛[2m ␛[0m␛[2m20␛[0m␛[2m ␛[0m│ Free C3  │ C   │ FA   │  0 │     │  ␛[37;48;2;98;40;40m-0.5␛[0m │    ␛[37;48;2;152;12;12m10␛[0m │   36 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;98;40;40m1␛[0m │ Depth             │ G/A     │ ␛[37;48;2;49;74;49m60␛[0m │ ␛[37;48;2;71;54;54m45␛[0m │  ␛[37;48;2;115;31;31m26␛[0m │   ␛[37;48;2;159;9;9m7␛[0m │
+│␛[2m ␛[0m␛[2m21␛[0m␛[2m ␛[0m│ Free CW5 │ C   │ FA   │  0 │     │ ␛[37;48;2;119;29;29m-0.77␛[0m │     ␛[37;48;2;164;6;6m5␛[0m │   38 │     ␛[37;48;2;60;60;60m0␛[0m │     ␛[37;48;2;137;20;20m2␛[0m │ Depth             │ G/HIT   │ ␛[37;48;2;37;89;37m69␛[0m │  ␛[37;48;2;170;3;3m2␛[0m │  ␛[37;48;2;137;20;20m17␛[0m │  ␛[37;48;2;115;31;31m26␛[0m │
+│␛[2m ␛[0m␛[2m22␛[0m␛[2m ␛[0m│ Free RW2 │ RW  │ FA   │  0 │     │       │       │      │       │       │                   │         │    │    │     │     │
+└────┴──────────┴─────┴──────┴────┴─────┴───────┴───────┴──────┴───────┴───────┴───────────────────┴─────────┴────┴────┴─────┴─────┘
+␛[2mPercentile = rank of the per-game rate within the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G␛[0m␛[1;2m)␛[0m␛[2m of the ␛[0m␛[1;2;36m40␛[0m␛[2m-player pool ␛[0m␛[1;2m(␛[0m␛[1;2;36m100␛[0m␛[2m = best, inverted categories flipped␛[0m␛[1;2m)␛[0m␛[2m. Level = Score percentile within the group; Spec = Peak - Breadth, where Peak = mean ␛[0m
+␛[2mpercentile of the best ␛[0m␛[1;2;36m2␛[0m␛[2m categories and Breadth = mean of the rest; Elite = categories >= ␛[0m␛[1;2;36m90␛[0m␛[2m, Holes = categories ␛[0m␛[1;2m<␛[0m␛[2;39m= ␛[0m␛[1;2;36m25␛[0m␛[2;39m. Type = Elite ␛[0m␛[1;2;39m(␛[0m␛[2;39mLevel >= ␛[0m␛[1;2;36m90␛[0m␛[1;2;39m)␛[0m␛[2;39m ␛[0m␛[2;35m/␛[0m␛[2;39m Solid ␛[0m␛[1;2;39m(␛[0m␛[2;39m>= ␛[0m␛[1;2;36m60␛[0m␛[1;2;39m)␛[0m␛[2;39m ␛[0m␛[2;35m/␛[0m␛[2;39m Depth, + specialist ␛[0m␛[1;2;39m(␛[0m␛[2;39mSpec ␛[0m␛[1;2m>␛[0m␛[2m= ␛[0m␛[1;2;36m40␛[0m␛[1;2m)␛[0m␛[2m or all-rounder ␛[0m␛[1;2m(␛[0m␛[2mSpec <= ␛[0m␛[1;2;36m25␛[0m␛[1;2m)␛[0m␛[2m; shape, not ␛[0m
+␛[2mextra value.␛[0m
+␛[2mScore = mean over categories of the rank-based z of the per-game rate within the ␛[0m␛[1;2;36m40␛[0m␛[2m-player pool and the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G; stats: blended: ␛[0m␛[1;2;36m0␛[0m␛[2m% season ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m100␛[0m␛[2m% projection␛[0m␛[1;2m)␛[0m␛[2m. ESPN values as of today.␛[0m
+[status] Rendering figure...
+[figure] level_spec_figure
+    summary = DataFrame ['object', 'float64', 'float64', 'float64', 'float64', 'float64', 'Int64', 'Int64', 'object', 'object']
+    player_id,Group,Score,Level,Peak,Breadth,Spec,Elite,Holes,Best,Type
+    900,F,0.25651041376205547,76.19047619047619,70.23809523809524,47.61904761904762,22.61904761904762,0,0,G/A,Solid all-rounder
+    901,F,-0.09017212673146718,47.61904761904761,64.28571428571429,28.57142857142857,35.71428571428572,0,1,HIT/G,Depth
+    904,F,0.539286752726968,90.47619047619048,95.23809523809524,26.19047619047619,69.04761904761905,2,1,A/G,Elite specialist
+    905,F,0.43342704737854154,85.71428571428571,90.47619047619048,33.333333333333336,57.142857142857146,1,1,PPP/A,Solid specialist
+    908,F,-0.3222097946062321,19.047619047619047,50.0,26.19047619047619,23.80952380952381,0,1,A/HIT,Depth all-rounder
+    909,F,0.2508976294407365,71.42857142857143,80.95238095238095,38.095238095238095,42.857142857142854,0,1,HIT/A,Solid specialist
+    911,F,,,,,,,,,
+    913,F,-0.303622866441174,23.809523809523807,61.90476190476191,21.42857142857143,40.47619047619048,0,1,HIT/G,Depth specialist
+    915,F,-0.4953314182004286,9.523809523809524,52.38095238095238,16.666666666666668,35.71428571428571,0,1,G/A,Depth
+    916,F,-0.46999889826051866,14.285714285714285,64.28571428571429,14.285714285714286,50.00000000000001,0,1,A/HIT,Depth specialist
+    919,F,-0.16575628317884347,28.57142857142857,71.42857142857143,19.047619047619047,52.38095238095238,0,1,G/HIT,Depth specialist
+    920,F,-0.05121786055619537,57.14285714285714,69.04761904761905,28.57142857142857,40.47619047619048,0,1,PPP/HIT,Depth specialist
+    923,F,-0.13210152503732733,42.857142857142854,73.80952380952381,19.047619047619047,54.76190476190476,0,1,G/PPP,Depth specialist
+    924,F,0.008769902473897806,61.904761904761905,85.71428571428572,21.428571428571427,64.28571428571429,1,1,A/PPP,Solid specialist
+    926,F,0.29177440895899676,80.95238095238095,80.95238095238096,30.952380952380953,50.000000000000014,1,1,HIT/A,Solid specialist
+    928,F,0.6070752001644998,100.0,92.85714285714286,35.714285714285715,57.142857142857146,1,0,G/PPP,Elite specialist
+    930,F,-0.1619343154826101,33.33333333333333,65.47619047619048,28.57142857142857,36.90476190476191,0,1,HIT/A,Depth
+    931,F,-0.13577745878135736,38.095238095238095,83.33333333333334,16.666666666666668,66.66666666666667,0,1,A/PPP,Depth specialist
+    934,F,0.23001335717571886,66.66666666666666,78.57142857142858,33.333333333333336,45.23809523809525,1,1,HIT/G,Solid specialist
+    935,F,-0.7721143882574507,4.761904761904762,47.61904761904762,9.523809523809522,38.0952380952381,0,2,G/HIT,Depth
+    938,F,0.5575285119352923,95.23809523809523,88.0952380952381,42.857142857142854,45.23809523809525,1,1,PPP/HIT,Elite specialist
+    939,F,-0.07521223031821742,52.38095238095239,69.04761904761905,26.19047619047619,42.85714285714286,0,1,A/PPP,Depth specialist
+
+    highlight = Series 'Player' object
+    player_id,Player
+    928,Free CW4
+    938,Free C6
+    904,Free RW1
+    905,Free CW1
+    926,Free RW4
+    900,Twin
+    909,Free LW2
+    934,Free RW5
+    924,Free LW4
+    920,Free CW3
+    939,Free LW6
+    901,Free LW1
+    923,Free C4
+    931,Free LW5
+    930,Free C5
+    919,Free RW3
+    913,Free CW2
+    908,Twin
+    916,Free LW3
+    915,Free C3
+    935,Free CW5
+    911,Free RW2
+
+    title = 'Test League — Forwards: level vs specialization (free agents, blended stats, 2027)'
+Saved ␛[1mplots/player_map_test_league.png␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Category leaderboard'
+? Players: [select]
+    * Whole pool
+    * Free agents
+    * One team
+  > 'One team'
+? Which team? [select]
+    * Alpha
+    * Bravo
+    * Charlie
+    * Delta
+  > 'Alpha'
+? Position: [select]
+    * Forwards
+    * Defense
+    * Skaters (F + D)
+    * Goalies
+  > 'Forwards'
+? Sort by: [select]
+    * Score
+    * Spec
+    * Elite
+    * G
+    * A
+    * PPP
+    * HIT
+  > 'Score'
+? Cells show: [select]
+    * Percentiles
+    * Per-game rates
+  > 'Percentiles'
+␛[33mNo players in this selection.␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Roster origins'
+␛[33mAll rosters are empty.␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Category outlook'
+␛[33mAll rosters are empty.␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Waiver pickups'
+␛[33mAll rosters are empty.␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Team roster'
+? Which team? [select]
+    * Alpha
+    * Bravo
+    * Charlie
+    * Delta
+  > 'Alpha'
+␛[33mAlpha has an empty roster.␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Draft grades vs ADP'
+␛[33mThe league has not drafted yet.␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+[end of script]

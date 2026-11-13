@@ -2,6 +2,8 @@
 # Each league entry lists the scoring categories in display order. Mark
 # inverted categories (lower is better) with `inverted: true`.
 # ESPN credentials live in secrets.yaml (gitignored), keyed by league name.
+# default_league names the league the apps start on.
+default_league: Caliente Pantalones 2026-2027
 leagues:
   - name: maythebestteamwin 2021
     league_id: 66082163

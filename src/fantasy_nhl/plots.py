@@ -1,4 +1,5 @@
 """Matplotlib figure rendering (kept out of the rich-only display module)."""
+from io import BytesIO
 from pathlib import Path
 
 import matplotlib
@@ -7,9 +8,29 @@ matplotlib.use("Agg")  # headless backend; must be set before importing pyplot
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator
 
 from .analysis import PEAK_CATS, SPEC_HIGH, SPEC_LOW, TIER_ELITE, TIER_SOLID
+
+
+def save_figure(fig: Figure, path: Path) -> None:
+    """Write a figure as PNG and release it."""
+    try:
+        fig.savefig(path, dpi=150, bbox_inches="tight")
+    finally:
+        plt.close(fig)
+
+
+def render_png(kind: str, inputs: dict) -> bytes:
+    """The figure ``<kind>_figure(**inputs)`` as PNG; leaves none open
+    even if building it fails."""
+    png = BytesIO()
+    try:
+        save_figure(globals()[f"{kind}_figure"](**inputs), png)
+    finally:
+        plt.close("all")
+    return png.getvalue()
 
 # distinct marker per team so lines stay tellable apart where they cross
 _MARKERS = ["o", "s", "^", "D", "v", "P", "X", "*", "p", "h"]
@@ -61,9 +82,9 @@ def _setup_axes(ax: plt.Axes, subtitle: str, first_matchup: int) -> None:
 
 
 def power_rankings_figure(form_ranks: pd.DataFrame, avg_points: pd.DataFrame,
-                          window: int, title: str, path: Path) -> None:
-    """Save a two-panel PNG: hot-streak rank bump chart on top, expected
-    points per matchup below. Rows are teams, columns matchup numbers."""
+                          window: int, title: str) -> Figure:
+    """Two panels: hot-streak rank bump chart on top, expected points per
+    matchup below. Rows are teams, columns matchup numbers."""
     teams = [str(t) for t in form_ranks.index]
     weeks = list(form_ranks.columns)
     styles = _team_styles(teams)
@@ -101,9 +122,7 @@ def power_rankings_figure(form_ranks: pd.DataFrame, avg_points: pd.DataFrame,
     finals = expected[weeks[-1]]
     span = ax_avg.get_ylim()[1] - ax_avg.get_ylim()[0]
     _team_labels(ax_avg, finals, max(span * 0.045, 0.1), styles)
-
-    fig.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+    return fig
 
 
 def _setup_grid_axes(ax: plt.Axes, table: pd.DataFrame, subtitle: str,
@@ -176,10 +195,10 @@ _OFF_TEXT_HIGH = (0.05, 0.47, 0.05)
 
 def schedule_heatmap_figure(games: pd.DataFrame, off: pd.DataFrame,
                             playoff_weeks: set[int], off_label: str,
-                            title: str, path: Path,
+                            title: str,
                             scores: dict[str, pd.Series] | None = None,
-                            ) -> None:
-    """Save a single-panel PNG showing games (off-night games) per matchup:
+                            ) -> Figure:
+    """Single panel showing games (off-night games) per matchup:
     background shades by games, the parenthesized number colors red-to-green
     by off-night count. Rows are NHL teams, columns matchup numbers."""
     ncols = len(games.columns) + len(scores or {})
@@ -208,12 +227,11 @@ def schedule_heatmap_figure(games: pd.DataFrame, off: pd.DataFrame,
                     fontsize=7, fontweight="bold", color=color)
     _score_columns(ax, scores or {}, len(games.columns))
     _mark_playoffs(ax, games, playoff_weeks)
-    fig.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+    return fig
 
 
-def category_radar_figure(pcts: pd.DataFrame, title: str, path: Path) -> None:
-    """Save a radar PNG of category percentiles (0-100): one polygon per
+def category_radar_figure(pcts: pd.DataFrame, title: str) -> Figure:
+    """Radar of category percentiles (0-100): one polygon per
     row (player label), one axis per column (category)."""
     cats = [str(c) for c in pcts.columns]
     angles = np.linspace(0, 2 * np.pi, len(cats), endpoint=False).tolist()
@@ -222,12 +240,20 @@ def category_radar_figure(pcts: pd.DataFrame, title: str, path: Path) -> None:
                            subplot_kw={"projection": "polar"})
     fig.suptitle(title, fontsize=14, fontweight="bold")
     for label, row in pcts.iterrows():
-        values = row.fillna(0).to_list()
+        # a category without data is left out, not drawn as a 0
+        known = [(angle, value) for angle, value in zip(angles, row)
+                 if not pd.isna(value)]
+        missing = [cat for cat, value in zip(cats, row) if pd.isna(value)]
+        xs = [angle for angle, _ in known]
+        values = [value for _, value in known]
         style = styles[str(label)]
-        ax.plot(angles + angles[:1], values + values[:1], linewidth=2,
-                color=style["color"], marker=style["marker"], label=str(label))
-        ax.fill(angles + angles[:1], values + values[:1],
-                color=style["color"], alpha=0.12)
+        ax.plot(xs + xs[:1], values + values[:1], linewidth=2,
+                color=style["color"], marker=style["marker"],
+                label=str(label) + (f" (no data: {', '.join(missing)})"
+                                    if missing else ""))
+        if len(xs) > 2:
+            ax.fill(xs + xs[:1], values + values[:1],
+                    color=style["color"], alpha=0.12)
     ax.set_theta_offset(np.pi / 2)
     ax.set_theta_direction(-1)
     ax.set_xticks(angles, cats, fontsize=11, fontweight="bold")
@@ -236,16 +262,15 @@ def category_radar_figure(pcts: pd.DataFrame, title: str, path: Path) -> None:
                   fontsize=8, color="gray")
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.06),
               ncol=min(len(pcts.index), 4), frameon=False)
-    fig.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+    return fig
 
 
 _GROUP_COLORS = {"F": "#4363d8", "D": "#f58231", "G": "#3cb44b"}
 
 
 def level_spec_figure(summary: pd.DataFrame, highlight: pd.Series,
-                      title: str, path: Path) -> None:
-    """Save a Level-vs-Spec scatter PNG: every summary row (category
+                      title: str) -> Figure:
+    """Level-vs-Spec scatter: every summary row (category
     profile with Group/Level/Spec) as a grey dot, the highlight rows
     (index subset -> label) colored by group and labeled."""
     pool = summary.dropna(subset=["Level", "Spec"])
@@ -283,15 +308,14 @@ def level_spec_figure(summary: pd.DataFrame, highlight: pd.Series,
     ax.spines[["top", "right"]].set_visible(False)
     if len(shown):
         ax.legend(loc="lower left", frameon=False)
-    fig.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+    return fig
 
 
 def schedule_combined_figure(games: pd.DataFrame, off: pd.DataFrame,
-                             off_label: str, title: str, path: Path,
+                             off_label: str, title: str,
                              scores: dict[str, pd.Series] | None = None,
-                             ) -> None:
-    """Save a single-panel PNG: cells show games (off-night games), colored
+                             ) -> Figure:
+    """Single panel: cells show games (off-night games), colored
     by off-night count. Rows are NHL teams, columns matchup numbers."""
     labels = games.astype(str) + " (" + off.astype(str) + ")"
     ncols = len(games.columns) + len(scores or {})
@@ -302,5 +326,4 @@ def schedule_combined_figure(games: pd.DataFrame, off: pd.DataFrame,
     _schedule_panel(ax, off,
                     f"Games (off-night games) per matchup ({off_label})",
                     "Greens", set(), labels=labels, scores=scores)
-    fig.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+    return fig
