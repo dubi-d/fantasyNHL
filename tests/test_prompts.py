@@ -5,7 +5,7 @@ import questionary
 from prompt_toolkit.input import create_pipe_input
 from prompt_toolkit.output import DummyOutput
 
-from fantasy_nhl.prompts import BACK, ask
+from fantasy_nhl.cli.prompts import BACK, ask
 
 
 def _drive(make_question, keys: str):

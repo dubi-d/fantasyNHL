@@ -18,10 +18,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+web = ["fastapi", "uvicorn"]
+dev = ["pytest", "httpx2", "fantasy-nhl[web]"]
 
 [project.scripts]
 fantasy-nhl = "fantasy_nhl.cli:main"
+fantasy-nhl-web = "fantasy_nhl.api:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

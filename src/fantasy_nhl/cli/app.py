@@ -4,9 +4,9 @@ from typing import Any, Callable
 
 import questionary
 
-from .config import LeagueConfig, load_config
+from ..config import LeagueConfig, load_config
+from ..sources.espn import fetch_league_data
 from .display import console
-from .espn_data import fetch_league_data
 from .prompts import BACK, Ask, Do, ask
 from .tools import TOOLS
 
@@ -15,11 +15,11 @@ def _choose_league(leagues: list[LeagueConfig]) -> LeagueConfig | None:
     if len(leagues) == 1:
         return leagues[0]
 
-    return questionary.select(
-        "Select league:",
-        choices=[questionary.Choice(f"{league.name} ({league.year})", value=league)
-                 for league in leagues],
-    ).ask()
+    choices = [questionary.Choice(f"{league.name} ({league.year})", value=league)
+               for league in leagues]
+    default = next((choice for choice in choices if choice.value.default), None)
+    return questionary.select("Select league:", choices=choices,
+                              default=default).ask()
 
 
 def run_tool(data: Any, tool: Callable[[Any], Any]) -> None:

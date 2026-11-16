@@ -1,0 +1,142 @@
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: Blended (season + projection)
+    * Quit
+  > 'Weekly'
+? Weekly: [select, use_shortcuts=True]
+    * Show weekly scores
+    * Generate weekly awards
+  > 'Show weekly scores'
+
+␛[1mWeek 1 (ongoing)                                                 ␛[0m
+┏━━━┳━━━━━━━━━┳━━━━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━━━━━┳━━━━━┳━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mResult␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mrrW␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mrrL␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mrrT␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mCatsWon␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPts␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mLuck␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━━━━━╇━━━━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━━━━━╇━━━━━╇━━━━━━┩
+│␛[2m ␛[0m␛[2m1␛[0m␛[2m ␛[0m│ Alpha   │ NA     │   0 │   0 │   3 │       0 │   3 │      │
+│␛[2m ␛[0m␛[2m2␛[0m␛[2m ␛[0m│ Bravo   │ NA     │   0 │   0 │   3 │       0 │   3 │      │
+│␛[2m ␛[0m␛[2m3␛[0m␛[2m ␛[0m│ Charlie │ NA     │   0 │   0 │   3 │       0 │   3 │      │
+│␛[2m ␛[0m␛[2m4␛[0m␛[2m ␛[0m│ Delta   │ NA     │   0 │   0 │   3 │       0 │   3 │      │
+└───┴─────────┴────────┴─────┴─────┴─────┴─────────┴─────┴──────┘
+? Weekly: [select, use_shortcuts=True]
+    * Show weekly scores
+    * Generate weekly awards
+  > 'Generate weekly awards'
+␛[33mNo completed matchups yet.␛[0m
+? Weekly: [select, use_shortcuts=True]
+    * Show weekly scores
+    * Generate weekly awards
+  > ESC
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: Blended (season + projection)
+    * Quit
+  > 'Season standings'
+? Season standings: [select, use_shortcuts=True]
+    * Show accumulated scores
+    * Show luck ranking
+    * Show power rankings over time
+    * Show category strength profile
+  > 'Show accumulated scores'
+␛[33mNo completed weeks yet.␛[0m
+? Season standings: [select, use_shortcuts=True]
+    * Show accumulated scores
+    * Show luck ranking
+    * Show power rankings over time
+    * Show category strength profile
+  > 'Show luck ranking'
+␛[33mNo completed weeks yet.␛[0m
+? Season standings: [select, use_shortcuts=True]
+    * Show accumulated scores
+    * Show luck ranking
+    * Show power rankings over time
+    * Show category strength profile
+  > 'Show power rankings over time'
+␛[33mNeed at least ␛[0m␛[1;36m2␛[0m␛[33m completed matchups.␛[0m
+? Season standings: [select, use_shortcuts=True]
+    * Show accumulated scores
+    * Show luck ranking
+    * Show power rankings over time
+    * Show category strength profile
+  > 'Show category strength profile'
+␛[33mNo completed weeks yet.␛[0m
+? Season standings: [select, use_shortcuts=True]
+    * Show accumulated scores
+    * Show luck ranking
+    * Show power rankings over time
+    * Show category strength profile
+  > ESC
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: Blended (season + projection)
+    * Quit
+  > 'Players, rosters & draft'
+[status] Fetching rosters, free agents and draft...
+[fetch] fetch_roster_review()
+␛[33mNobody to review yet: no rosters, no draft and no free agents.␛[0m
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: Blended (season + projection)
+    * Quit
+  > 'Roster planning'
+? Roster planning: [select, use_shortcuts=True]
+    * Show matchup preview
+    * Plan streaming week
+    * Show NHL schedule outlook
+  > 'Show matchup preview'
+[status] Fetching matchup dates...
+[fetch] fetch_week_dates()
+? Select matchup: [select, default='Matchup 1 (Oct 5 – Oct 11) (current)']
+    * Matchup 1 (Oct 5 – Oct 11) (current)
+    * Matchup 2 (Oct 12 – Oct 18)
+    * Matchup 3 (Oct 19 – Oct 25)
+    * Matchup 4 (Oct 26 – Nov 1)
+    * Matchup 5 (Nov 2 – Nov 8)
+    * Matchup 6 (Nov 9 – Nov 15)
+    * Matchup 7 (Nov 16 – Nov 22) (playoffs)
+    * Matchup 8 (Nov 23 – Nov 29) (playoffs)
+  > 'Matchup 1'
+[status] Fetching preview data for week 1...
+[fetch] fetch_preview_data(1)
+
+␛[1mWeek ␛[0m␛[1;36m1␛[0m␛[1m preview␛[0m — ␛[1;36m7␛[0m days, Mon Oct ␛[1;36m5␛[0m – Sun Oct ␛[1;36m11␛[0m, not started, predictions only. Games = games already played ␛[1m(␛[0mincl. today's started games␛[1m)␛[0m plus playable games of the current roster for the rest of the week.
+␛[2mRemaining days are predicted from per-game rates — stats: blended: ␛[0m␛[1;2;36m0␛[0m␛[2m% season ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m100␛[0m␛[2m% projection.␛[0m
+
+␛[1mAlpha vs Bravo                                                          ␛[0m
+┏━━━┳━━━━━━━━┳━━━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━━┳━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGames␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  G␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  A␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPPP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHIT␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGAA␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSV%␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mCats␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mProj␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━━━━╇━━━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━━╇━━━━━━┩
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Alpha  │     0 │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │    0 │ ␛[1;33mT␛[0m    │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Bravo  │     0 │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │    0 │ ␛[1;33mT␛[0m    │
+└───┴────────┴───────┴─────┴─────┴─────┴─────┴─────┴─────┴──────┴──────┘
+
+␛[1mCharlie vs Delta                                                         ␛[0m
+┏━━━┳━━━━━━━━━┳━━━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━━┳━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGames␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  G␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  A␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPPP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHIT␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGAA␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSV%␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mCats␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mProj␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━━━━━╇━━━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━━╇━━━━━━┩
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Charlie │     0 │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │    0 │ ␛[1;33mT␛[0m    │
+│␛[2m ␛[0m␛[2m ␛[0m␛[2m ␛[0m│ Delta   │     0 │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │ ␛[1;33m0.0␛[0m │    0 │ ␛[1;33mT␛[0m    │
+└───┴─────────┴───────┴─────┴─────┴─────┴─────┴─────┴─────┴──────┴──────┘
+[status] Fetching matchup dates...
+[fetch] fetch_week_dates()
+? Select matchup: [select, default='Matchup 1 (Oct 5 – Oct 11) (current)']
+    * Matchup 1 (Oct 5 – Oct 11) (current)
+    * Matchup 2 (Oct 12 – Oct 18)
+    * Matchup 3 (Oct 19 – Oct 25)
+    * Matchup 4 (Oct 26 – Nov 1)
+    * Matchup 5 (Nov 2 – Nov 8)
+    * Matchup 6 (Nov 9 – Nov 15)
+    * Matchup 7 (Nov 16 – Nov 22) (playoffs)
+    * Matchup 8 (Nov 23 – Nov 29) (playoffs)
+[end of script]

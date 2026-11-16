@@ -10,9 +10,10 @@ python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 ```
 
-The `[dev]` extra adds the development dependencies (pytest) so the test
-suite runs out of the box; for just using the CLI, `pip install -e .`
-is enough.
+The `[dev]` extra adds the development dependencies (pytest and the web
+backend) so the test suite runs out of the box; for just using the CLI,
+`pip install -e .` is enough, for the web app without tests
+`pip install -e ".[web]"`.
 
 ## Configuration
 
@@ -21,7 +22,9 @@ Leagues and their scoring categories live in [config.yaml](config.yaml)
 (gitignored), keyed by league name — copy
 [secrets.example.yaml](secrets.example.yaml) to `secrets.yaml` and fill in
 your cookies. Add or replace leagues as entries under `leagues:` plus a matching
-entry in `secrets.yaml`. Schedule-scoring calibrations are stored in
+entry in `secrets.yaml`. The optional `default_league:` names the league to
+start on: the web app opens on it and the terminal menu preselects it.
+Schedule-scoring calibrations are stored in
 `calibration.yaml`, written by the calibrate option of the schedule outlook
 tool — don't edit it by hand.
 
@@ -66,6 +69,60 @@ previous prompt within a tool, or up one menu level (ESC at the top menu
 quits); **Ctrl-C** quits immediately from anywhere. Stepping back doesn't
 repeat fetches or tables already shown; only the steps after the changed
 answer re-run.
+
+## Web app
+
+The same tools in the browser: a local FastAPI backend serving every view
+as JSON and a React/TypeScript frontend rendering them, with the terminal's
+prompts as form controls. It runs from a source checkout (the frontend is
+built there, an installed wheel does not contain it) and needs Node.js
+20.19+ or 22.12+ for the build.
+
+```bash
+cd web && npm ci && npm run build && cd ..   # once, and after frontend changes
+.venv/bin/fantasy-nhl-web                    # http://127.0.0.1:8000
+```
+
+Run it from the repository root (it reads `config.yaml` and `secrets.yaml`
+there). The sidebar mirrors the menu above; the league, the **Player stats**
+setting and *Reload from ESPN* sit on top, with the time the league was
+read ("as of"). A new browser tab opens on the `default_league`; without a
+built frontend the server says how to build it.
+
+How fresh the data is: the league itself (standings, rosters, current
+matchup) is read from ESPN again once it is 15 minutes old, everything
+fetched for a page (preview, lineups, free agents, ...) after 5 minutes,
+and the browser asks the server again when a page it shows is older than
+5 minutes. *Reload from ESPN* drops all of it at once - use it after
+roster moves.
+
+The address holds the league, the page and its choices
+(`#/<league>/streaming?week=5&team=0&streamers=...`), so pages can be
+bookmarked, reloaded and stepped through with back and forward. The
+server listens on `127.0.0.1` only, answers no other host name, and never
+sends the ESPN cookies to the browser (nor writes them to its log).
+
+For working on the frontend, run the two parts separately:
+
+```bash
+.venv/bin/fantasy-nhl-web            # backend with your leagues, or:
+.venv/bin/python tests/fake_server.py  # backend on the synthetic test league
+cd web && npm run dev                # frontend with hot reload, http://127.0.0.1:5173
+```
+
+`tests/fake_server.py` takes a scenario of `tests/support.py` as argument
+(`finished`, `opening_day`, `pre_draft`, ...). The API is described at
+`http://127.0.0.1:8000/api/docs` and, as committed schema, in
+`web/openapi.json`, from which the frontend's types are generated. After
+changing the API:
+
+```bash
+UPDATE_OPENAPI=1 .venv/bin/pytest tests/test_api.py -k schema   # web/openapi.json
+cd web && npm run types                                         # web/src/schema.d.ts
+```
+
+Both files are checked by the tests (`pytest`, `npm test`); `npm test` also
+runs the frontend's component tests against scripted server answers.
 
 ## Tools
 
@@ -128,9 +185,9 @@ answer re-run.
   DTD/OUT/IR). The roster's **Games** column counts scheduled games in each
   player's **saved active ESPN lineup**, from today through the end of the
   matchup (or simulated today onward); Bench/IR and next-matchup lookahead
-  don't count. Orange dots mark games assigned to Bench on that date, red
-  dots mark IR assignments. Players currently in your fantasy IR slot appear
-  last, with red team-schedule dots and **Games 0**, regardless of future
+  don't count. An orange `○` marks a game assigned to Bench on that date, a
+  red `×` an IR assignment. Players currently in your fantasy IR slot appear
+  last, with red `×` on their team's game days and **Games 0**, regardless of future
   assignments; they remain excluded from all seat/streaming calculations.
   **Inj** shows reported injury status separately from IR-slot placement
   (DTD/SUS yellow, OUT/IR red, healthy blank). Dots show team games, not
@@ -140,7 +197,7 @@ answer re-run.
   per actionable day. `?` marks unavailable assignments and incomplete Games
   totals; missing data is never replaced with today's lineup or a predicted
   bench. Open-seat/coverage/FA tables still model maximum usable capacity, so
-  an orange bench dot can coexist with an open seat. Simulations use today's
+  an orange bench mark can coexist with an open seat. Simulations use today's
   loaded roster/IR group with the selected dates' saved assignments, not a
   reconstructed historical roster. Roster membership and injuries are the
   loaded league snapshot (reload the league after roster/IR changes); daily
@@ -189,7 +246,7 @@ answer re-run.
     rest of the league, with balance indicators (see *Category outlook*
     below).
   - *Draft* — **Draft grades vs ADP**: each pick's *value* is
-    `ADP − overall pick` — positive means the player went later than the
+    `overall pick − ADP` — positive means the player went later than the
     ESPN crowd takes him (a steal), negative a reach; players without an
     ESPN ADP count as one pick after the last one. Per-team summary
     (average and total value, best steal, biggest reach, goalies and
@@ -491,6 +548,12 @@ players toward the mean, so a draft built on breakouts looks weak on paper.
 .venv/bin/pytest
 ```
 
+`tests/test_golden.py` runs every tool through the real menu on a synthetic
+league and compares the whole terminal session (output with colors, prompts,
+fetch calls, figure inputs) with the transcripts in `tests/golden/`. After an
+intended change to what a tool shows, regenerate them with
+`UPDATE_GOLDEN=1 .venv/bin/pytest tests/test_golden.py` and review the diff.
+
 ## Repo overview
 
 ```
@@ -499,44 +562,91 @@ secrets.example.yaml         # template for secrets.yaml (ESPN cookies, gitignor
 calibration.yaml             # stored schedule-scoring calibrations (auto-managed)
 pyproject.toml               # package metadata, dependencies, CLI entrypoint
 src/fantasy_nhl/
-  cli.py                     # interactive session: league picker, menu tree, wizard runner
-  prompts.py                 # prompt primitives: Ask/Do steps, ESC = back, Ctrl-C = quit
   config.py                  # YAML loading into LeagueConfig/Category dataclasses
-  espn_data.py               # ESPN API access: scores, rosters, draft, ownership, NHL schedule, settings
-  analysis.py                # pure logic: round-robin tables, predictions, lineup seats, draft/roster value
-  display.py                 # rich rendering: tables, color gradients
-  plots.py                   # matplotlib PNG figures (power rankings, schedule grids)
-  tools.py                   # CLI tools and the TOOLS menu tree
-tests/                       # pytest suite: analysis logic + wizard runner/menu
+  sources/espn/              # ESPN API access (public names re-exported by the package)
+    league.py                #   the league session: weekly scores, results, fetch caches
+    calendar.py              #   NHL schedule mapped onto ESPN's fantasy calendar
+    players.py               #   rosters, saved lineups, free agents, player info
+    preview.py, review.py, calibration.py   # the fetches behind those tools
+  analysis/                  # pure logic (all names re-exported by the package)
+    models.py                #   player/draft records, position groups
+    rates.py, ranking.py     #   per-game rates and their blend; rank statistics
+    standings.py, seats.py, schedule.py, preview.py
+    draft.py, outlook.py, values.py, review.py
+  plots.py                   # matplotlib figures (power rankings, schedule grids, player profiles)
+  views/                     # what each tool shows, independent of the frontend
+    model.py                 #   View = ordered blocks: tables with cell tones, notes, text, figures
+    common.py                #   shared formatting: player tables, abbreviations, stat-basis labels
+    weekly.py, standings.py, preview.py, streaming.py, schedule.py
+    review.py                #   the valued player pool behind players.py, rosters.py, draft.py
+  cli/                       # the terminal frontend
+    app.py                   #   interactive session: league picker, menu tree, wizard runner
+    prompts.py               #   prompt primitives: Ask/Do steps, ESC = back, Ctrl-C = quit
+    display.py               #   rich rendering: tables, tone -> color mapping
+    tools.py                 #   the tools (prompts, fetches, rendering of views) and the TOOLS menu tree
+  api/                       # the web backend (FastAPI)
+    state.py                 #   per league: its current load (session) with fetch cache, expiry, reload
+    serialize.py             #   View -> JSON models (typed columns, figure data, per-view meta)
+    figures.py               #   figures as PNG, rendered once per content
+    routes/                  #   one endpoint per view, prompts as query parameters
+      base.py                #     league dependencies, write guard, registration of views
+      league.py, standings.py, planning.py, review.py
+    app.py                   #   the app: local-only middleware, static frontend, entrypoint
+web/                         # the web frontend (Vite, React, TypeScript)
+  openapi.json               #   the API schema (generated, checked by the tests)
+  src/schema.d.ts            #   its TypeScript types (generated)
+  src/session.tsx, params.ts #   the league of the address; a page's choices in the address
+  src/components/View.tsx    #   generic renderer of a served view (tables, notes, text, figures)
+  src/pages/                 #   one page per tool: its form controls around the view
+tests/                       # pytest suite; support.py = synthetic league and its scenarios, golden/ = transcripts
 ```
+
+Imports point one way, checked by `tests/test_layering.py`: `analysis` knows
+nothing of ESPN, views or the terminal; `views` build on `analysis` and import
+neither `rich`, `questionary`, `matplotlib` nor the ESPN layer; `cli` and
+`api` are the two frontends that fetch and render, and know nothing of each
+other.
 
 ## Contributing
 
 - Install with dev dependencies: `pip install -e ".[dev]"` (see Setup).
-- **Adding a tool:** write a function in `tools.py` taking a `LeagueData`
-  argument and register it in the `TOOLS` tree (a nested list of
-  `(label, tool)` or `(label, [children])` pairs — nest a list to add a
-  submenu; a label can be a function of the `LeagueData` to show a current
-  value). A tool that only prints is a plain function. A tool with prompts
-  is a generator: `answer = yield Ask(lambda: ask(questionary.select(...)))`
-  for each prompt and `result = yield Do(thunk)` for every side effect
-  (fetch, render, save). The runner in `cli.py` memoizes `Do` results and
+- **Adding a tool:** write a builder in `views/` that takes the
+  `LeagueData`, anything already fetched and the user's choices, and returns
+  a `View` (see `views/model.py`): tables as DataFrames with per-cell
+  *tones* (`diverging`/`heat` intensities or tags like `GOOD`, `WARN`)
+  instead of terminal styles, notes, verbatim text and figures. A builder
+  never fetches, prompts or prints. Then write the tool in `cli/tools.py`,
+  a function taking a `LeagueData`, and register it in the `TOOLS` tree (a
+  nested list of `(label, tool)` or `(label, [children])` pairs — nest a
+  list to add a submenu; a label can be a function of the `LeagueData` to
+  show a current value). A tool without prompts is a plain function:
+  `_show(data, build_x(data))`. A tool with prompts is a generator:
+  `answer = yield Ask(lambda: ask(questionary.select(...)))` for each
+  prompt and `result = yield Do(thunk)` for every side effect (fetch,
+  render, save). The runner in `cli/app.py` memoizes `Do` results and
   replays answers when the user steps back with ESC, so keep the code
   between yields free of side effects and never call `.ask()` directly —
   `prompts.ask` is what makes ESC/Ctrl-C work. Keep computation in
-  `analysis.py` (pure functions, no API calls), data fetching in
-  `espn_data.py`, and render tables via `display.print_df` (per-cell
-  styling through the `styles` mapping). Anything that rates a player takes
-  a `StatBasis` (build it with `tools._stat_basis`) and gets rates from
-  `analysis.player_rate`, so it follows the *Player stats* setting.
+  `analysis/` (pure functions, no API calls) and data fetching in
+  `sources/espn/`. Anything that rates a player takes a `StatBasis` (the
+  tool builds it with `_stat_basis` from the *Player stats* setting) and
+  gets rates from `analysis.player_rate`. For the web app, add an endpoint
+  in the matching module of `api/routes/` (a function decorated with
+  `@view(path)` that fetches through the league session and returns the
+  same `View`; give it a `meta=` model if the page needs more than the
+  blocks), a case in `tests/test_api.py`, regenerate the schema and types
+  (see *Web app*), and add a page in `web/src/pages/` that keeps its
+  choices in the address (`usePageParams`).
 - **Adding a league:** append an entry under `leagues:` in `config.yaml` and
   a matching credentials entry in `secrets.yaml`.
   The category list must match what the league actually scores on ESPN;
   mark lower-is-better categories with `inverted: true`.
 - Run `pytest` before committing. New analysis logic should come with tests
-  (`tests/test_analysis.py`); the wizard runner and menu are covered by
+  (`tests/test_analysis.py`), a new tool with a scripted case in
+  `tests/test_golden.py`; the wizard runner and menu are covered by
   `tests/test_cli.py` with scripted fake prompts, the ESC/Ctrl-C prompt
   behavior by `tests/test_prompts.py` (real questionary prompts driven
   through a pipe), and config/calibration persistence by
-  `tests/test_config.py`. The ESPN layer is untested (requires live
-  credentials), as are the tool bodies themselves.
+  `tests/test_config.py`. Requests to ESPN are never made in tests: the
+  parsing of its payloads is covered offline by `tests/test_espn_data.py`,
+  the tools run on the fake fetchers of `tests/support.py`.

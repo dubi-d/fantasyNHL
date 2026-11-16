@@ -1,4 +1,6 @@
 """Tests for YAML config loading and calibration persistence."""
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 import yaml
 
@@ -31,6 +33,19 @@ def test_load_config_merges_secrets_and_categories(config_files):
     assert [(c.name, c.inverted) for c in league.categories] == [
         ("G", False), ("GAA", True)]
     assert league.calibration is None  # no calibration file yet
+    assert not league.default
+
+
+def test_default_league_is_marked(config_files):
+    config, secrets, calibration = config_files
+    raw = yaml.safe_load(config.read_text())
+    config.write_text(yaml.safe_dump({**raw, "default_league": "Test League"}))
+    (league,) = load_config(config, secrets, calibration)
+    assert league.default
+
+    config.write_text(yaml.safe_dump({**raw, "default_league": "Typo"}))
+    with pytest.raises(KeyError, match="Typo"):
+        load_config(config, secrets, calibration)
 
 
 def test_missing_secrets_file_is_explained(config_files, tmp_path):
@@ -58,3 +73,14 @@ def test_save_calibration_round_trips_and_keeps_other_leagues(config_files):
     assert league.calibration.calibrated == "2026-08-30"
     assert league.calibration.curve == {8: 2.5, 16: 1.2346}  # rounded, int keys
     assert set(yaml.safe_load(calibration.read_text())) == {"Other", "Test League"}
+
+
+def test_concurrent_calibration_saves_all_land(tmp_path):
+    path = tmp_path / "calibration.yaml"
+    names = [f"League {i}" for i in range(24)]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda name: save_calibration(
+            name, ScheduleCalibration("src", "2026-01-01", {10: 2.0}), path),
+            names))
+    assert set(yaml.safe_load(path.read_text())) == set(names)
+    assert list(tmp_path.iterdir()) == [path]  # no draft left behind

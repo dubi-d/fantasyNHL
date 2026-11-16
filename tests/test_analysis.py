@@ -1001,8 +1001,8 @@ class TestDraftPickTable:
         # player at pick 2 (steal); 2 teams -> a round is 2 picks
         picks = [_pick(0, 1, 1, adp=5.0), _pick(1, 1, 2, adp=1.0)]
         table = draft_pick_table(picks, self.TEAMS, n_teams=2)
-        assert list(table["Value"]) == [4.0, -1.0]
-        assert list(table["ValueRd"]) == [2.0, -0.5]
+        assert list(table["Value"]) == [-4.0, 1.0]
+        assert list(table["ValueRd"]) == [-2.0, 0.5]
         assert list(table["Team"]) == ["Alpha", "Beta"]
         assert not table["ADP?"].any()
 
@@ -1012,7 +1012,8 @@ class TestDraftPickTable:
         table = draft_pick_table(picks, self.TEAMS, n_teams=2)
         assert list(table["ADP"]) == [1.0, 5.0, 5.0, 3.0]
         assert list(table["ADP?"]) == [False, True, True, False]
-        assert list(table["Value"]) == [0.0, 3.0, 2.0, -1.0]
+        # never-drafted players taken at picks 2 and 3 are reaches
+        assert list(table["Value"]) == [0.0, -3.0, -2.0, 1.0]
 
     def test_now_on_maps_roster_row(self):
         picks = [_pick(0, 1, 1, adp=1.0, rostered_by=1),
@@ -1031,11 +1032,11 @@ class TestDraftTeamSummary:
 
     def picks(self):
         return [
-            _pick(0, 1, 1, adp=3.0, rostered_by=0),  # +2
+            _pick(0, 1, 1, adp=3.0, rostered_by=0),  # -2
             _pick(1, 1, 2, adp=1.0, rostered_by=1, position="Goalie",
-                  eligible_slots=["Goalie"]),  # -1
-            _pick(1, 2, 1, adp=9.0, rostered_by=0, position="Defense"),  # +6
-            _pick(0, 2, 2, adp=1.0, rostered_by=None, position="Goalie"),  # -3
+                  eligible_slots=["Goalie"]),  # +1
+            _pick(1, 2, 1, adp=9.0, rostered_by=0, position="Defense"),  # -6
+            _pick(0, 2, 2, adp=1.0, rostered_by=None, position="Goalie"),  # +3
         ]
 
     def test_values_and_extremes(self):
@@ -1043,11 +1044,11 @@ class TestDraftTeamSummary:
         summary = draft_team_summary(table)
         assert list(summary.index) == [0, 1]
         assert list(summary["Player"]) == ["Alpha", "Beta"]
-        assert list(summary["Avg value"]) == [-0.5, 2.5]
-        assert list(summary["Total"]) == [-1.0, 5.0]
-        assert summary.loc[0, "Best steal"] == "P1 (+2)"
-        assert summary.loc[0, "Biggest reach"] == "P4 (-3)"
-        assert summary.loc[1, "Best steal"] == "P3 (+6)"
+        assert list(summary["Avg value"]) == [0.5, -2.5]
+        assert list(summary["Total"]) == [1.0, -5.0]
+        assert summary.loc[0, "Best steal"] == "P4 (+3)"
+        assert summary.loc[0, "Biggest reach"] == "P1 (-2)"
+        assert summary.loc[1, "Biggest reach"] == "P3 (-6)"
 
     def test_positions_and_retention(self):
         table = draft_pick_table(self.picks(), self.TEAMS, n_teams=2)
@@ -1076,16 +1077,16 @@ class TestDraftValueGridAndExtremes:
         grid = draft_value_grid(draft_pick_table(picks, self.TEAMS, 2))
         assert list(grid.index) == ["Alpha", "Beta"]
         assert list(grid.columns) == ["R1", "R2"]
-        assert grid.loc["Alpha"].tolist() == [2.0, -3.0]
-        assert grid.loc["Beta"].tolist() == [-1.0, 6.0]
+        assert grid.loc["Alpha"].tolist() == [-2.0, 3.0]
+        assert grid.loc["Beta"].tolist() == [1.0, -6.0]
 
     def test_extremes(self):
         picks = [_pick(0, 1, 1, adp=3.0), _pick(1, 1, 2, adp=1.0),
                  _pick(1, 2, 1, adp=9.0), _pick(0, 2, 2, adp=1.0)]
         steals, reaches = draft_extremes(
             draft_pick_table(picks, self.TEAMS, 2), 2)
-        assert list(steals["Player"]) == ["P3", "P1"]
-        assert list(reaches["Player"]) == ["P4", "P2"]
+        assert list(steals["Player"]) == ["P4", "P2"]
+        assert list(reaches["Player"]) == ["P3", "P1"]
 
     def test_extremes_ties_keep_draft_order_and_exact_n(self):
         # all four picks have Value 0: exactly n rows, earliest picks first
@@ -1100,7 +1101,7 @@ class TestDraftValueGridAndExtremes:
         picks = [_pick(0, 1, 1, adp=3.0), _pick(0, 1, 2, adp=6.0),
                  _pick(1, 2, 1, adp=3.0)]
         grid = draft_value_grid(draft_pick_table(picks, self.TEAMS, 2))
-        assert grid.loc["Alpha", "R1"] == 2.0 + 4.0
+        assert grid.loc["Alpha", "R1"] == -2.0 - 4.0
         assert pd.isna(grid.loc["Alpha", "R2"])
 
 

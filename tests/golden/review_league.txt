@@ -1,0 +1,225 @@
+? Select tool: [select, use_shortcuts=True]
+    * Weekly
+    * Season standings
+    * Roster planning
+    * Players, rosters & draft
+    * Player stats: Blended (season + projection)
+    * Quit
+  > 'Players, rosters & draft'
+[status] Fetching rosters, free agents and draft...
+[fetch] fetch_roster_review()
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Roster origins'
+
+␛[1mRoster Origins (composition today; Adds/Drops/Trades = season counters) — stats: blended: 30% season ␛[0m
+␛[1m/ 70% projection                                                                                     ␛[0m
+┏━━━┳━━━━━━━━━┳━━━━━━┳━━━━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSize␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mDrafted␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mAdded␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTraded␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mIR␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mAvg Own%␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mAvg Score␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mAdds␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mDrops␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTrades␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━━━━━╇━━━━━━╇━━━━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━╇━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━━┩
+│␛[2m ␛[0m␛[2m1␛[0m␛[2m ␛[0m│ Delta   │   11 │       6 │     4 │      1 │  1 │     ␛[37;48;2;68;56;56m46.5␛[0m │     ␛[37;48;2;63;58;58m-0.04␛[0m │    4 │     4 │      0 │
+│␛[2m ␛[0m␛[2m2␛[0m␛[2m ␛[0m│ Bravo   │   11 │       6 │     4 │      1 │  1 │     ␛[37;48;2;72;54;54m45.0␛[0m │     ␛[37;48;2;64;58;58m-0.05␛[0m │    7 │     7 │      1 │
+│␛[2m ␛[0m␛[2m3␛[0m␛[2m ␛[0m│ Charlie │   11 │       6 │     4 │      1 │  1 │     ␛[37;48;2;80;50;50m41.4␛[0m │     ␛[37;48;2;70;55;55m-0.13␛[0m │   25 │    24 │      3 │
+│␛[2m ␛[0m␛[2m4␛[0m␛[2m ␛[0m│ Alpha   │   11 │       6 │     4 │      1 │  1 │     ␛[37;48;2;66;57;57m47.4␛[0m │      ␛[37;48;2;75;52;52m-0.2␛[0m │   12 │    11 │      2 │
+└───┴─────────┴──────┴─────────┴───────┴────────┴────┴──────────┴───────────┴──────┴───────┴────────┘
+␛[2mScore = mean over categories of the rank-based z of the per-game rate within the ␛[0m␛[1;2;36m86␛[0m␛[2m-player pool and the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G; stats: blended: ␛[0m␛[1;2;36m30␛[0m␛[2m% season ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m70␛[0m␛[2m% projection; blank under ␛[0m␛[1;2;36m6␛[0m␛[2m GP␛[0m␛[1;2m)␛[0m␛[2m. ESPN values as of today.␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Category outlook'
+? Rosters: [select]
+    * As drafted
+    * Current
+  > 'As drafted'
+
+␛[1mCategory Outlook (draft-day rosters, projections; sorted by projected round-robin points)              ␛[0m
+┏━━━┳━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer      ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mRR Pts␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mCats/M␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSpread␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPunts␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m    G␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m    A␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  PPP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  HIT␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  GAA␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  SV%␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━┩
+│␛[2m ␛[0m␛[2m1␛[0m␛[2m ␛[0m│ Charlie      │      ␛[37;48;2;0;135;0m6␛[0m │    ␛[37;48;2;34;92;34m4.3␛[0m │   0.86 │     ␛[37;48;2;60;60;60m0␛[0m │   ␛[37;48;2;12;120;12m1.6␛[0m │  ␛[37;48;2;17;113;17m1.42␛[0m │ ␛[37;48;2;109;34;34m-0.86␛[0m │  ␛[37;48;2;41;84;41m0.63␛[0m │  ␛[37;48;2;55;66;55m0.17␛[0m │ ␛[37;48;2;67;56;56m-0.12␛[0m │
+│␛[2m ␛[0m␛[2m2␛[0m␛[2m ␛[0m│ Alpha        │      ␛[37;48;2;60;60;60m3␛[0m │    ␛[37;48;2;60;60;60m3.0␛[0m │   1.07 │     ␛[37;48;2;98;40;40m1␛[0m │ ␛[37;48;2;75;52;52m-0.26␛[0m │ ␛[37;48;2;63;58;58m-0.06␛[0m │ ␛[37;48;2;125;26;26m-1.13␛[0m │ ␛[37;48;2;108;35;35m-0.83␛[0m │  ␛[37;48;2;16;116;16m1.48␛[0m │  ␛[37;48;2;10;123;10m1.67␛[0m │
+│␛[2m ␛[0m␛[2m3␛[0m␛[2m ␛[0m│ Delta        │      ␛[37;48;2;98;40;40m2␛[0m │    ␛[37;48;2;72;54;54m2.7␛[0m │   1.06 │     ␛[37;48;2;137;20;20m2␛[0m │ ␛[37;48;2;70;55;55m-0.18␛[0m │  ␛[37;48;2;140;18;18m-1.4␛[0m │   ␛[37;48;2;30;98;30m1.0␛[0m │   ␛[37;48;2;21;109;21m1.3␛[0m │ ␛[37;48;2;134;22;22m-1.28␛[0m │ ␛[37;48;2;108;35;35m-0.83␛[0m │
+│␛[2m ␛[0m␛[2m4␛[0m␛[2m ␛[0m│ Bravo        │      ␛[37;48;2;137;20;20m1␛[0m │    ␛[37;48;2;98;40;40m2.0␛[0m │   0.74 │     ␛[37;48;2;137;20;20m2␛[0m │ ␛[37;48;2;127;25;25m-1.16␛[0m │  ␛[37;48;2;59;62;59m0.04␛[0m │  ␛[37;48;2;30;97;30m0.99␛[0m │  ␛[37;48;2;123;27;27m-1.1␛[0m │ ␛[37;48;2;81;49;49m-0.37␛[0m │ ␛[37;48;2;101;38;38m-0.72␛[0m │
+├───┼──────────────┼────────┼────────┼────────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤
+│␛[2;3m ␛[0m␛[2;3m ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m(league avg)␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m      ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m      ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m      ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m  166␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m  244␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m  112␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m  882␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m2.903␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m0.903␛[0m␛[2;3m ␛[0m│
+└───┴──────────────┴────────┴────────┴────────┴───────┴───────┴───────┴───────┴───────┴───────┴───────┘
+␛[2mRR Pts = round-robin points ␛[0m␛[1;2m(␛[0m␛[1;2;36m2␛[0m␛[2m W ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m1␛[0m␛[2m T␛[0m␛[1;2m)␛[0m␛[2m from a week against every other team at these totals ␛[0m␛[1;2m(␛[0m␛[2mmax ␛[0m␛[1;2;36m6␛[0m␛[1;2m)␛[0m␛[2m; Cats/M = categories won per matchup; Spread = std of the team's category z-scores ␛[0m␛[1;2m(␛[0m␛[1;2;36m0␛[0m␛[2m = evenly built␛[0m␛[1;2m)␛[0m␛[2m; Punts = categories at z <= ␛[0m␛[1;2;36m-1␛[0m␛[2m. Whole␛[0m
+␛[2mroster counts; ESPN season projections summed per roster; games a player is not projected to play ␛[0m␛[1;2m(␛[0m␛[2mup to ␛[0m␛[1;2;36m82␛[0m␛[2m GP ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m60␛[0m␛[2m GS␛[0m␛[1;2m)␛[0m␛[2m filled at replacement level = median free agent of his position group ␛[0m␛[1;2m(␛[0m␛[2mratio categories weighted by goalie starts␛[0m␛[1;2m)␛[0m␛[2m; ␛[0m
+␛[2minverted categories flipped; + = good.␛[0m
+␛[2mA projection snapshot, not a forecast: in a league with heavy waiver activity the drafted roster has little bearing on the standings - see Draft hits & busts and Waiver pickups for what actually happened.␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Category outlook'
+? Rosters: [select]
+    * As drafted
+    * Current
+  > 'Current'
+
+␛[1mCategory Outlook (current rosters, blended pace; sorted by projected round-robin points)               ␛[0m
+┏━━━┳━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer      ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mRR Pts␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mCats/M␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSpread␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPunts␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m    G␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m    A␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  PPP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  HIT␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  GAA␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  SV%␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━┩
+│␛[2m ␛[0m␛[2m1␛[0m␛[2m ␛[0m│ Bravo        │      ␛[37;48;2;40;85;40m4␛[0m │    ␛[37;48;2;54;67;54m3.3␛[0m │   0.72 │     ␛[37;48;2;60;60;60m0␛[0m │ ␛[37;48;2;96;41;41m-0.63␛[0m │ ␛[37;48;2;74;52;52m-0.25␛[0m │  ␛[37;48;2;22;107;22m1.25␛[0m │ ␛[37;48;2;72;54;54m-0.21␛[0m │  ␛[37;48;2;25;104;25m1.17␛[0m │  ␛[37;48;2;55;66;55m0.16␛[0m │
+│␛[2m ␛[0m␛[2m2␛[0m␛[2m ␛[0m│ Charlie      │      ␛[37;48;2;60;60;60m3␛[0m │    ␛[37;48;2;60;60;60m3.0␛[0m │   0.96 │     ␛[37;48;2;98;40;40m1␛[0m │  ␛[37;48;2;52;70;52m0.27␛[0m │  ␛[37;48;2;12;120;12m1.61␛[0m │ ␛[37;48;2;102;38;38m-0.73␛[0m │  ␛[37;48;2;140;18;18m-1.4␛[0m │   ␛[37;48;2;57;64;57m0.1␛[0m │  ␛[37;48;2;43;82;43m0.58␛[0m │
+│␛[2m ␛[0m␛[2m3␛[0m␛[2m ␛[0m│ Delta        │      ␛[37;48;2;60;60;60m3␛[0m │    ␛[37;48;2;60;60;60m3.0␛[0m │   1.05 │     ␛[37;48;2;137;20;20m2␛[0m │ ␛[37;48;2;126;26;26m-1.14␛[0m │ ␛[37;48;2;73;53;53m-0.23␛[0m │  ␛[37;48;2;40;86;40m0.68␛[0m │   ␛[37;48;2;18;112;18m1.4␛[0m │  ␛[37;48;2;50;72;50m0.32␛[0m │ ␛[37;48;2;156;10;10m-1.67␛[0m │
+│␛[2m ␛[0m␛[2m4␛[0m␛[2m ␛[0m│ Alpha        │      ␛[37;48;2;98;40;40m2␛[0m │    ␛[37;48;2;72;54;54m2.7␛[0m │   1.16 │     ␛[37;48;2;175;0;0m3␛[0m │   ␛[37;48;2;15;116;15m1.5␛[0m │ ␛[37;48;2;125;26;26m-1.13␛[0m │  ␛[37;48;2;129;24;24m-1.2␛[0m │  ␛[37;48;2;54;68;54m0.21␛[0m │ ␛[37;48;2;151;12;12m-1.59␛[0m │  ␛[37;48;2;32;95;32m0.93␛[0m │
+├───┼──────────────┼────────┼────────┼────────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤
+│␛[2;3m ␛[0m␛[2;3m ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m(league avg)␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m      ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m      ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m      ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m     ␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m  163␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m  278␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m  119␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m  903␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m2.774␛[0m␛[2;3m ␛[0m│␛[2;3m ␛[0m␛[2;3m0.905␛[0m␛[2;3m ␛[0m│
+└───┴──────────────┴────────┴────────┴────────┴───────┴───────┴───────┴───────┴───────┴───────┴───────┘
+␛[2mRR Pts = round-robin points ␛[0m␛[1;2m(␛[0m␛[1;2;36m2␛[0m␛[2m W ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m1␛[0m␛[2m T␛[0m␛[1;2m)␛[0m␛[2m from a week against every other team at these totals ␛[0m␛[1;2m(␛[0m␛[2mmax ␛[0m␛[1;2;36m6␛[0m␛[1;2m)␛[0m␛[2m; Cats/M = categories won per matchup; Spread = std of the team's category z-scores ␛[0m␛[1;2m(␛[0m␛[1;2;36m0␛[0m␛[2m = evenly built␛[0m␛[1;2m)␛[0m␛[2m; Punts = categories at z <= ␛[0m␛[1;2;36m-1␛[0m␛[2m. Whole␛[0m
+␛[2mroster counts; per-game rates blending ␛[0m␛[1;2;36m30␛[0m␛[2m% season stats with projections, times projected games; players under ␛[0m␛[1;2;36m6␛[0m␛[2m GP on projections only; games a player is not projected to play ␛[0m␛[1;2m(␛[0m␛[2mup to ␛[0m␛[1;2;36m82␛[0m␛[2m GP ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m60␛[0m␛[2m GS␛[0m␛[1;2m)␛[0m␛[2m filled at replacement level = median free␛[0m
+␛[2magent of his position group ␛[0m␛[1;2m(␛[0m␛[2mratio categories weighted by goalie starts␛[0m␛[1;2m)␛[0m␛[2m; inverted categories flipped; + = good.␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Waiver pickups'
+
+␛[1mWaiver pickups by team (Count = still on roster) — stats: blended: 30%   ␛[0m
+␛[1mseason / 70% projection                                                  ␛[0m
+┏━━━┳━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mCount␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mAvg Own%␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mAvg Score␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mBest      ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSeason adds␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│␛[2m ␛[0m␛[2m1␛[0m␛[2m ␛[0m│ Bravo   │     4 │     ␛[37;48;2;55;67;55m54.5␛[0m │      ␛[37;48;2;51;71;51m0.22␛[0m │ Bravo G2   │           7 │
+│␛[2m ␛[0m␛[2m2␛[0m␛[2m ␛[0m│ Delta   │     4 │     ␛[37;48;2;73;53;53m44.4␛[0m │     ␛[37;48;2;65;58;58m-0.06␛[0m │ Delta RW2  │           4 │
+│␛[2m ␛[0m␛[2m3␛[0m␛[2m ␛[0m│ Charlie │     4 │     ␛[37;48;2;59;61;59m50.8␛[0m │      ␛[37;48;2;68;56;56m-0.1␛[0m │ Charlie G2 │          25 │
+│␛[2m ␛[0m␛[2m4␛[0m␛[2m ␛[0m│ Alpha   │     4 │     ␛[37;48;2;46;77;46m61.6␛[0m │     ␛[37;48;2;102;38;38m-0.55␛[0m │ Alpha RW2  │          12 │
+└───┴─────────┴───────┴──────────┴───────────┴────────────┴─────────────┘
+
+␛[1mWaiver pickups (all, by Score) — stats: blended: 30% season / 70%          ␛[0m
+␛[1mprojection                                                                 ␛[0m
+┏━━━━┳━━━━━━━━━━━━━┳━━━━━┳━━━━━━━━━┳━━━━━━┳━━━━┳━━━━━━┳━━━━━━━┳━━━━━┳━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer     ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSlot␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mOwn%␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mScore␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGap␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃
+┡━━━━╇━━━━━━━━━━━━━╇━━━━━╇━━━━━━━━━╇━━━━━━╇━━━━╇━━━━━━╇━━━━━━━╇━━━━━╇━━━━━┩
+│␛[2m ␛[0m␛[2m 1␛[0m␛[2m ␛[0m│ Bravo G2 †  │ G   │ Bravo   │ BN   │ 24 │ 60.9 │  ␛[37;48;2;18;113;18m1.06␛[0m │   ␛[37;48;2;52;70;52m7␛[0m │     │
+│␛[2m ␛[0m␛[2m 2␛[0m␛[2m ␛[0m│ Charlie G2  │ G   │ Charlie │ BN   │ 24 │  7.1 │  ␛[37;48;2;38;88;38m0.56␛[0m │ ␛[37;48;2;175;0;0m-56␛[0m │     │
+│␛[2m ␛[0m␛[2m 3␛[0m␛[2m ␛[0m│ Delta RW2   │ RW  │ Delta   │ IR   │ 19 │ 18.8 │  ␛[37;48;2;56;64;56m0.09␛[0m │ ␛[37;48;2;120;29;29m-26␛[0m │     │
+│␛[2m ␛[0m␛[2m 4␛[0m␛[2m ␛[0m│ Bravo RW2   │ RW  │ Bravo   │ IR   │ 14 │ 48.3 │  ␛[37;48;2;59;62;59m0.03␛[0m │  ␛[37;48;2;40;86;40m17␛[0m │ ␛[1;31mOUT␛[0m │
+│␛[2m ␛[0m␛[2m 5␛[0m␛[2m ␛[0m│ Alpha RW2   │ RW  │ Alpha   │ IR   │ 23 │ 45.1 │   ␛[37;48;2;60;60;60m0.0␛[0m │  ␛[37;48;2;48;75;48m10␛[0m │ ␛[1;31mIR␛[0m  │
+│␛[2m ␛[0m␛[2m 6␛[0m␛[2m ␛[0m│ Charlie RW2 │ RW  │ Charlie │ IR   │ 16 │ 25.0 │ ␛[37;48;2;65;58;58m-0.06␛[0m │  ␛[37;48;2;69;55;55m-4␛[0m │ ␛[1;31mIR␛[0m  │
+│␛[2m ␛[0m␛[2m 7␛[0m␛[2m ␛[0m│ Delta D2    │ D   │ Delta   │ D    │ 20 │  7.4 │ ␛[37;48;2;65;57;57m-0.07␛[0m │ ␛[37;48;2;134;22;22m-32␛[0m │     │
+│␛[2m ␛[0m␛[2m 8␛[0m␛[2m ␛[0m│ Delta RW1   │ RW  │ Delta   │ RW   │ 17 │ 59.1 │  ␛[37;48;2;75;52;52m-0.2␛[0m │  ␛[37;48;2;0;135;0m54␛[0m │     │
+│␛[2m ␛[0m␛[2m 9␛[0m␛[2m ␛[0m│ Charlie D2  │ D   │ Charlie │ D    │ 15 │ 75.6 │ ␛[37;48;2;77;51;51m-0.22␛[0m │  ␛[37;48;2;0;135;0m56␛[0m │     │
+│␛[2m ␛[0m␛[2m10␛[0m␛[2m ␛[0m│ Bravo RW1   │ RW  │ Bravo   │ RW   │  9 │ 77.6 │ ␛[37;48;2;93;43;43m-0.43␛[0m │  ␛[37;48;2;0;135;0m74␛[0m │ ␛[1;31mOUT␛[0m │
+│␛[2m ␛[0m␛[2m11␛[0m␛[2m ␛[0m│ Alpha D2    │ D   │ Alpha   │ D    │ 21 │ 65.1 │ ␛[37;48;2;104;37;37m-0.58␛[0m │  ␛[37;48;2;0;135;0m77␛[0m │     │
+│␛[2m ␛[0m␛[2m12␛[0m␛[2m ␛[0m│ Charlie RW1 │ RW  │ Charlie │ RW   │  8 │ 95.3 │ ␛[37;48;2;113;32;32m-0.69␛[0m │  ␛[37;48;2;0;135;0m91␛[0m │     │
+│␛[2m ␛[0m␛[2m13␛[0m␛[2m ␛[0m│ Alpha G2    │ G   │ Alpha   │ BN   │ 11 │ 48.7 │ ␛[37;48;2;144;16;16m-1.09␛[0m │  ␛[37;48;2;0;135;0m70␛[0m │     │
+│␛[2m ␛[0m␛[2m14␛[0m␛[2m ␛[0m│ Alpha RW1   │ RW  │ Alpha   │ RW   │  0 │ 87.4 │       │     │     │
+│␛[2m ␛[0m␛[2m15␛[0m␛[2m ␛[0m│ Bravo D2    │ D   │ Bravo   │ D    │  3 │ 31.3 │       │     │     │
+│␛[2m ␛[0m␛[2m16␛[0m␛[2m ␛[0m│ Delta G2    │ G   │ Delta   │ BN   │  0 │ 92.2 │       │     │     │
+└────┴─────────────┴─────┴─────────┴──────┴────┴──────┴───────┴─────┴─────┘
+␛[2mScore = mean over categories of the rank-based z of the per-game rate within the ␛[0m␛[1;2;36m86␛[0m␛[2m-player pool and the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G; stats: blended: ␛[0m␛[1;2;36m30␛[0m␛[2m% season ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m70␛[0m␛[2m% projection; blank under ␛[0m␛[1;2;36m6␛[0m␛[2m GP␛[0m␛[1;2m)␛[0m␛[2m; Gap = roster% percentile - Score ␛[0m
+␛[2mpercentile within the group ␛[0m␛[1;2m(␛[0m␛[2m+ = crowd overrates␛[0m␛[1;2m)␛[0m␛[2m. ESPN values as of today.␛[0m
+␛[2m† = no ESPN projection: rated on season stats alone.␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+  > 'Trade haul'
+
+␛[1mTraded-in players by team (Count = still on roster) — stats: blended: 30%   ␛[0m
+␛[1mseason / 70% projection                                                     ␛[0m
+┏━━━┳━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mCount␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mAvg Own%␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mAvg Score␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mBest       ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSeason trades␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│␛[2m ␛[0m␛[2m1␛[0m␛[2m ␛[0m│ Delta   │     1 │     ␛[37;48;2;40;86;40m67.0␛[0m │      ␛[37;48;2;47;76;47m0.33␛[0m │ Delta CW1   │             0 │
+│␛[2m ␛[0m␛[2m2␛[0m␛[2m ␛[0m│ Charlie │     1 │      ␛[37;48;2;167;4;4m3.6␛[0m │     ␛[37;48;2;67;56;56m-0.09␛[0m │ Charlie CW1 │             3 │
+│␛[2m ␛[0m␛[2m3␛[0m␛[2m ␛[0m│ Alpha   │     1 │     ␛[37;48;2;67;56;56m46.8␛[0m │     ␛[37;48;2;76;52;52m-0.21␛[0m │ Alpha CW1   │             2 │
+│␛[2m ␛[0m␛[2m4␛[0m␛[2m ␛[0m│ Bravo   │     1 │     ␛[37;48;2;83;48;48m39.8␛[0m │     ␛[37;48;2;124;27;27m-0.83␛[0m │ Bravo CW1   │             1 │
+└───┴─────────┴───────┴──────────┴───────────┴─────────────┴───────────────┘
+
+␛[1mTraded-in players (all, by Score) — stats: blended: 30% season / 70%        ␛[0m
+␛[1mprojection                                                                  ␛[0m
+┏━━━┳━━━━━━━━━━━━━━━┳━━━━━┳━━━━━━━━━┳━━━━━━┳━━━━┳━━━━━━┳━━━━━━━┳━━━━━┳━━━━━┓
+┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer       ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSlot␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mOwn%␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mScore␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGap␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃
+┡━━━╇━━━━━━━━━━━━━━━╇━━━━━╇━━━━━━━━━╇━━━━━━╇━━━━╇━━━━━━╇━━━━━━━╇━━━━━╇━━━━━┩
+│␛[2m ␛[0m␛[2m1␛[0m␛[2m ␛[0m│ Delta CW1     │ C   │ Delta   │ U    │ 25 │ 67.0 │  ␛[37;48;2;47;76;47m0.33␛[0m │   ␛[37;48;2;56;64;56m3␛[0m │     │
+│␛[2m ␛[0m␛[2m2␛[0m␛[2m ␛[0m│ Charlie CW1 † │ C   │ Charlie │ U    │ 18 │  3.6 │ ␛[37;48;2;67;56;56m-0.09␛[0m │ ␛[37;48;2;118;30;30m-25␛[0m │     │
+│␛[2m ␛[0m␛[2m3␛[0m␛[2m ␛[0m│ Alpha CW1     │ C   │ Alpha   │ U    │ 24 │ 46.8 │ ␛[37;48;2;76;52;52m-0.21␛[0m │  ␛[37;48;2;16;116;16m37␛[0m │     │
+│␛[2m ␛[0m␛[2m4␛[0m␛[2m ␛[0m│ Bravo CW1     │ C   │ Bravo   │ U    │ 20 │ 39.8 │ ␛[37;48;2;124;27;27m-0.83␛[0m │  ␛[37;48;2;4;130;4m47␛[0m │     │
+└───┴───────────────┴─────┴─────────┴──────┴────┴──────┴───────┴─────┴─────┘
+␛[2mScore = mean over categories of the rank-based z of the per-game rate within the ␛[0m␛[1;2;36m86␛[0m␛[2m-player pool and the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G; stats: blended: ␛[0m␛[1;2;36m30␛[0m␛[2m% season ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m70␛[0m␛[2m% projection; blank under ␛[0m␛[1;2;36m6␛[0m␛[2m GP␛[0m␛[1;2m)␛[0m␛[2m; Gap = roster% percentile - Score ␛[0m
+␛[2mpercentile within the group ␛[0m␛[1;2m(␛[0m␛[2m+ = crowd overrates␛[0m␛[1;2m)␛[0m␛[2m. ESPN values as of today.␛[0m
+␛[2m† = no ESPN projection: rated on season stats alone.␛[0m
+? View: [select]
+    - ── Players ──
+    * Category leaderboard
+    * Compare players
+    - ── League ──
+    * Roster origins
+    * Category outlook
+    - ── Draft ──
+    * Draft grades vs ADP
+    * Draft hits & busts
+    - ── Transactions ──
+    * Waiver pickups
+    * Trade haul
+    - ── One team ──
+    * Team roster
+    * Drop candidates & free agents
+[end of script]
