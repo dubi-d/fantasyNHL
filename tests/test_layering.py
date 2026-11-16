@@ -8,14 +8,16 @@ import fantasy_nhl
 
 ROOT = Path(fantasy_nhl.__file__).parent
 TERMINAL = {"rich", "questionary", "prompt_toolkit"}
+WEB = {"api", "fastapi"}
 # layer -> what its modules must not import (package parts or libraries)
 FORBIDDEN = {
-    "analysis": TERMINAL | {"sources", "views", "cli", "plots", "espn_api",
-                            "matplotlib"},
-    "sources": TERMINAL | {"views", "cli", "plots", "matplotlib"},
-    "views": TERMINAL | {"sources", "cli", "plots", "espn_api", "matplotlib"},
-    "plots": TERMINAL | {"sources", "views", "cli", "espn_api"},
-    "cli": {"api", "fastapi"},
+    "analysis": TERMINAL | WEB | {"sources", "views", "cli", "plots",
+                                  "espn_api", "matplotlib"},
+    "sources": TERMINAL | WEB | {"views", "cli", "plots", "matplotlib"},
+    "views": TERMINAL | WEB | {"sources", "cli", "plots", "espn_api",
+                               "matplotlib"},
+    "plots": TERMINAL | WEB | {"sources", "views", "cli", "espn_api"},
+    "cli": WEB,
     "api": TERMINAL | {"cli", "espn_api"},
 }
 
