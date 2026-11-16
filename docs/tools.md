@@ -2,7 +2,8 @@
 
 What each tool shows, in the order of the menu. The terminal and the web
 app show the same tables and figures; the definitions behind the numbers
-are in [methodology.md](methodology.md).
+are in [methodology.md](methodology.md). Where a figure is "saved to
+`plots/`", that is the terminal app; the web app shows it on the page.
 
 - **Show weekly scores** — For each matchup week (including the ongoing one),
   prints a round-robin table: every team is matched against every other team
@@ -55,11 +56,13 @@ are in [methodology.md](methodology.md).
 - **Plan streaming week** — Helps plan streamer pickups for a selected
   matchup: a per-day roster grid with game markers and open active seats
   (optionally with your designated streamers dropped), a per-lineup-slot
-  breakdown of the open seats, and NHL teams ranked by how many of the open
-  days their schedule covers. Shows your used/allowed weekly adds. The first
+  breakdown of the open seats, and the 12 NHL teams whose schedule covers
+  most of the open
+  days. Shows your used/allowed weekly adds. The first
   two days of the next matchup appear as informational columns. Elapsed
   days are excluded (dimmed); for finished weeks the tool offers to simulate
-  the week as ongoing. Optionally ranks skater free agents by how many of
+  the week as ongoing. Optionally ranks the 100 most-owned skater free
+  agents by how many of
   the open days they would actually fill a lineup seat, with per-game
   category rates on the chosen player stats (see
   [Player stats](methodology.md#player-stats))
@@ -84,7 +87,8 @@ are in [methodology.md](methodology.md).
   reconstructed historical roster. Roster membership and injuries are the
   loaded league snapshot (reload the league after roster/IR changes); daily
   assignments are freshly fetched when entering the planner, and reused
-  when stepping back to change streamer choices.
+  when stepping back to change streamer choices (the web app keeps them
+  for five minutes).
 - **Show NHL schedule outlook** — Per-NHL-team games and off-night games
   (≤16 teams playing) per fantasy matchup, for the full season, the
   remaining matchups, or the playoffs only, with *effective-games* scores
@@ -112,11 +116,13 @@ are in [methodology.md](methodology.md).
   alongside for context only — it
   reflects ESPN's default settings, not this league's categories.
   - *Players* — **Category leaderboard**: the whole pool, the free agents
-    or one team's roster, for forwards, defensemen, all skaters or
+    (the top 30 of either) or one team's roster, for forwards, defensemen,
+    all skaters or
     goalies, sorted by `Score`, `Spec`, `Elite` or any single
     category, with one column per category showing percentiles or per-game
     rates — and, with *This season only* stats, season totals — always
-    colored by percentile. Also saves a
+    colored by percentile. For a group with more than two categories it
+    also saves a
     level-vs-specialization map PNG to `plots/`. **Compare players**: pick 2–4
     skaters or 2–4 goalies by name (autocomplete) for a per-category table
     (per game · percentile; with *This season only* stats also the season
@@ -126,7 +132,8 @@ are in [methodology.md](methodology.md).
   - *League* — **Roster origins**: per team, how many players were
     drafted, added or traded in, how many sit on IR, average roster% and
     Score, and the season's add/drop/trade counters. **Category outlook**:
-    each roster's projected full-season category totals — as drafted or
+    each roster's projected full-season pace per category, shown as
+    z-scores across the league — as drafted or
     current — ranked by the round-robin points they would earn against the
     rest of the league, with balance indicators (see
     [Category outlook](methodology.md#category-outlook)).
@@ -138,8 +145,9 @@ are in [methodology.md](methodology.md).
     defensemen drafted, round of the first goalie, own picks still on the
     roster), a teams × rounds value grid and the league-wide top-10 steals
     and reaches. ESPN archives ADP to a placeholder once a season is over,
-    which the view flags. **Draft hits & busts**: every pick's `Return`
-    (see [Player value](methodology.md#player-value)), the league-wide
+    which the view flags. **Draft hits & busts**: ranks the picks by their
+    `Return`
+    (see [Player value](methodology.md#player-value)): the league-wide
     top-15 hits and busts (games played,
     roster%, Score, who owns the player now) and the average/total Return
     per drafting team.
@@ -153,7 +161,8 @@ are in [methodology.md](methodology.md).
     current (sorted by Score: lineup slot, how acquired, overall draft
     position if drafted by anyone, games, roster%, 7-day change, Score,
     Gap, injury). **Drop candidates & free agents**: the team's ten
-    lowest-scoring players next to the ten highest-scoring free-agent
+    lowest-scoring players (those without a Score first) next to the ten
+    highest-scoring free-agent
     skaters and the five highest-scoring free-agent goalies (listed
     separately, since Scores compare within a position group), each with
     roster%, 7-day change, the crowd-vs-stats `Gap` (see

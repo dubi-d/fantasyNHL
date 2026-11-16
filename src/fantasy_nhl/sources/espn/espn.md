@@ -98,7 +98,8 @@ fetches in `Do` steps and the web backend caches them per session (see
 ## Gotchas
 
 - `calendar.py` and `calibration.py` use private parts of `espn_api`
-  (`_get_all_pro_schedule`, `_raw_schedule_settings`) and the raw
+  (`_get_all_pro_schedule`, `_raw_schedule_settings`), and `players.py`,
+  `preview.py` and `review.py` call the raw API through
   `espn_request.league_get`. Check them after upgrading the library.
 - The messages of `espn_api`'s exceptions can contain the `espn_s2` and
   `SWID` cookies. Do not log or display them; the web backend reports the
@@ -107,9 +108,11 @@ fetches in `Do` steps and the web backend caches them per session (see
 
 ## Tests
 
-The fetchers need ESPN and are not run by the tests. The calendar parsing
-is tested offline with ESPN-shaped data in
-[tests/test_espn_data.py](../../../../tests/test_espn_data.py); everything
+No test asks ESPN.
+[tests/test_espn_data.py](../../../../tests/test_espn_data.py) runs the
+calendar parsing, the saved-lineup and IR fetches and the handling of
+today's games on ESPN-shaped data and stub sessions; the other fetchers
+are not run by the tests. Everything
 above this layer runs on the synthetic league of
 [tests/support.py](../../../../tests/support.py), whose methods are named
 like the fetchers they replace (see [tests.md](../../../../tests/tests.md)).

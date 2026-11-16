@@ -16,9 +16,9 @@ frontend's tests live in `web/src` and are described in
 | --- | --- |
 | [support.py](support.py) | Not a test: the synthetic league, its scenarios, and helpers to find and patch package names |
 | [fake_server.py](fake_server.py) | Not a test: the web backend on the synthetic league, for frontend work |
-| [test_analysis.py](test_analysis.py) | The functions of `analysis`, one class per function |
+| [test_analysis.py](test_analysis.py) | The functions of `analysis`, grouped in classes by function |
 | [test_config.py](test_config.py) | Loading `config.yaml` and `secrets.yaml`, the default league, storing calibrations |
-| [test_espn_data.py](test_espn_data.py) | The calendar parsing of the ESPN layer, with ESPN-shaped data |
+| [test_espn_data.py](test_espn_data.py) | The ESPN layer on ESPN-shaped data and stub sessions: calendar parsing, saved lineups, IR, today's games |
 | [test_plots.py](test_plots.py) | The player figures render to PNG |
 | [test_views_model.py](test_views_model.py) | Tones, their terminal styles, cell texts |
 | [test_prompts.py](test_prompts.py) | ESC and Ctrl-C against real `questionary` prompts |
@@ -60,8 +60,9 @@ and records the whole session: the output with its colors, every prompt
 with its choices, every fetch, the inputs of every figure. The result
 must equal `golden/<case>.txt` byte for byte.
 
-- A case is `(scenario, answers)` in `CASES`. Answers are choice titles,
-  `BACK` for ESC, a list for checkboxes, `Reject("text")` for input the
+- A case is `(scenario, answers)` in `CASES`. Answers are choice titles
+  (or their beginning), `BACK` for ESC, a list for checkboxes, `True` or
+  `False` for confirmations, `Reject("text")` for input the
   validator must refuse. A script that runs out ends the session.
 - Escape codes are written as `␛`, the spinner as `[status]`, the date is
   fixed, so the transcripts are stable.

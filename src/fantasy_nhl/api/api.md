@@ -57,15 +57,16 @@ Everything is under `/api`; the interactive description is at
   `@view(path)` (each route module binds it to its router). That creates
   the JSON endpoint and `<path>/figures/<n>.png` for its figures.
 - A view whose page needs more than the blocks declares a model:
-  `@view(path, meta=PlanMeta)`. The builder's `View.meta` is validated
-  into it and the response model becomes `PlanView`. Views without one
-  have no `meta`.
+  `@view(path, meta=PlanMeta)`. The endpoint fills `View.meta`, which is
+  validated into the model, and the response model becomes `PlanView`.
+  Views without one have no `meta`.
 - Parameters mirror the terminal's prompts. Teams are their row index,
   players their ESPN id, `stats` is `blended` or `season`. A parameter
   left out means the default (current matchup, latest completed matchup).
-- A parameter that is wrong or does not apply is refused with 422 and a
-  one-line reason (`invalid`, `in_range`, `team_row`); it is never
-  silently ignored. "Nothing to show" (no completed matchup, not drafted)
+- A parameter that is wrong, or that contradicts another one (`simulate`
+  on an unfinished matchup, `fit_team` in the full scope), is refused
+  with 422 and a reason (`invalid`, `in_range`, `team_row`). "Nothing to
+  show" (no completed matchup, not drafted)
   is not an error: the view is a single warning note.
 - Reads are `GET` and change nothing. What changes state (reload, saving
   a calibration) is `POST`/`PUT` behind `local_write`.

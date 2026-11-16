@@ -24,7 +24,8 @@ it ran into a tough schedule. Luck sums to zero across the league each week.
 ## Player stats
 
 Everything that rates a player — `Score` and percentiles, the per-game
-rates of free-agent candidates, the predicted days of the matchup preview —
+rates of free-agent candidates, the predicted category scores of the
+matchup preview —
 builds on his per-game rate per category (the ratio itself for GAA and
 SV%). The **Player stats** setting in the main menu decides where that rate
 comes from:
@@ -39,13 +40,15 @@ comes from:
   matchup preview states how many rostered players are affected.
 - **This season only**: the season stats alone. No projection is used and
   nothing falls back to one: a player without games this season has no rate
-  (blank `Score`, 0 in predictions).
+  (blank `Score`, no contribution to predictions).
 
 The two are never mixed in one table: season totals are shown only next to
 *This season only* rates, and every affected table states the stats it is
-built on in its title. The setting lasts for the session. The one exception
+built on in its title (the matchup preview in a note above its tables). The
+setting lasts for the session. The one exception
 is the **Category outlook**: a full-season pace needs projected games, so
-it always uses blended stats (and says so).
+it ignores the setting — projections for the rosters as drafted, a blended
+pace for the current ones — and says so.
 
 ## Stat blending
 
@@ -116,13 +119,15 @@ from; `Combined` blends the two general scores:
   the night-value curve: the *expected* open skater seats of a roster on a
   night with `n` teams playing. The curve is calibrated on demand (scope
   menu → **Calibrate scoring**) from a real season: for every roster in the
-  source league and every night, the actual open skater seats are computed
+  source league (as it stands now, not its historical daily lineups) and
+  every night, the actual open skater seats are computed
   against that season's NHL schedule, capped at 3, and averaged per
   teams-playing count `n` (interpolated between observed `n`). Uncalibrated,
   the linear proxy `ŵ(n) = 3 · (1 − n/32)` is used. `Reg Score` covers only
   regular-season weeks and `PO Score` only playoff weeks (shown side by side
-  in the full-season and remaining scopes whenever playoff weeks are in
-  scope; the playoffs-only scope just calls its single column `Score`, since
+  in the full-season and remaining scopes whenever the scope has both; once
+  only playoff matchups remain, the remaining scope shows `PO Score` alone;
+  the playoffs-only scope just calls its single column `Score`, since
   it's already playoff-only). Use these for roster-independent questions:
   draft prep, comparing schedules in a vacuum, or advising trades.
 - **`Fit` (team-specific)** — how *your* roster experiences each night
@@ -144,16 +149,20 @@ from; `Combined` blends the two general scores:
 - **`Combined`** — a blend of `Reg Score` and `PO Score`,
   `Combined = (1 − p) · Reg Score + p · PO Score`, for drafting with an eye
   on both making the playoffs and performing once there; `p` (the playoff
-  weight, default 0.4) is prompted whenever playoff weeks are in scope. In
+  weight, default 0.4) is prompted whenever the scope has both
+  regular-season and playoff weeks. In
   the remaining scope the column is called `Combined rest of season` and
   its `Reg Score` part covers the whole remaining regular season; the
-  near-term `Reg Score next N` and `Reg Score rest` columns shown there
+  near-term `Reg Score next N` (the regular-season weeks among the next
+  `N` matchups, `N` up to 4) and `Reg Score rest` columns shown there
   are informational splits of it.
 
 The full-season scope sorts by `Combined` when playoffs are in scope,
 otherwise by `Reg Score`. The remaining scope prompts you to choose which of
 `Fit next N`, `Combined rest of season` or `Reg Score next N` leads the sort
-(skipped when only one applies). The playoffs-only scope sorts by `Fit` when
+(skipped when only one applies; once only playoff matchups remain it sorts
+by `Fit next N` when chosen, otherwise `PO Score`). The playoffs-only scope
+sorts by `Fit` when
 chosen, otherwise `Score`.
 
 ## Player value
@@ -244,7 +253,8 @@ constraint. *As drafted* sums ESPN's season projections for the draft-day
 rosters. *Current* uses each player's blended per-game rate (see
 [Stat blending](#stat-blending); always blended, whatever the *Player stats*
 setting) times his
-projected games, so it reflects actual production on a
+projected games (his season games if ESPN projects none), so it reflects
+actual production on a
 full-season scale; players below the `Score` games threshold stay on
 projections so a fluke week cannot swing a team. Ratio categories (GAA,
 SV%) are goalie-start-weighted means; inverted categories are flipped so a
@@ -255,10 +265,11 @@ positive z-score is always good.
 median free agent of his position group in each category (a roster without
 a goalie counts one replacement goalie). A roster spot is never empty, it is
 filled from the waiver wire, so an injured or unprojected pick is worth a
-replacement player rather than nothing, and a team is not penalised for a
-low projected games count.
+replacement player rather than nothing, and a low projected games count
+costs a team only the difference to replacement level.
 
-**Ranking.** Teams are ranked by `RR Pts`, the round-robin points (2 per
+**Ranking.** Teams are ranked by `RR Pts` (ties by `Cats/M`), the
+round-robin points (2 per
 win, 1 per tie) they would take from one week against every other team at
 these totals — the same scale as the weekly scores table. Winning one
 category by a mile is still one win and conceding several is several

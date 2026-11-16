@@ -81,11 +81,12 @@ is about the code.
   `pd.array(values, dtype=float)`.
 - `blended_ratio` ignores a split without games: ESPN reports a GAA of 0.0
   for a goalie who has not started, which would rank best.
-- Missing data stays missing (`None`/`NaN`); it is never replaced by a
-  projection in season-only mode or by a default.
+- A missing rate stays missing (`None`/`NaN`): season-only mode never
+  falls back to a projection, and a `Score` is never guessed.
 
 ## Tests
 
 [tests/test_analysis.py](../../../tests/test_analysis.py) tests the
-functions directly; the golden transcripts exercise them through the views
+functions directly, grouped in classes by function; the golden transcripts
+exercise them through the views
 (see [tests.md](../../../tests/tests.md)).

@@ -28,7 +28,7 @@ Schedule-scoring calibrations are stored in
 `calibration.yaml`, written by the calibrate option of the schedule outlook
 tool — don't edit it by hand.
 
-## Usage
+## CLI Usage
 
 ```bash
 .venv/bin/fantasy-nhl
@@ -59,12 +59,13 @@ Select tool
 **Player stats** is a setting, not a tool: it decides which player stats
 every `Score`, per-game rate and prediction is built from — *Blended*
 (season stats mixed with ESPN's preseason projection, the default) or *This
-season only* (no projection anywhere). The menu entry shows the current
+season only* (no projection). The menu entry shows the current
 value; it applies to all tools for the rest of the session and every
-affected table names it in its title. See
+affected view names it. See
 [Player stats](docs/methodology.md#player-stats).
 
-After a tool finishes it returns to its own first prompt, so you can re-run
+A tool with prompts returns to its own first prompt when it finishes, so
+you can re-run
 it with different inputs right away. **ESC** goes back one step — the
 previous prompt within a tool, or up one menu level (ESC at the top menu
 quits); **Ctrl-C** quits immediately from anywhere. Stepping back doesn't
@@ -93,14 +94,16 @@ built frontend the server says how to build it.
 How fresh the data is: the league itself (standings, rosters, current
 matchup) is read from ESPN again once it is 15 minutes old, everything
 fetched for a page (preview, lineups, free agents, ...) after 5 minutes,
-and the browser asks the server again when a page it shows is older than
-5 minutes. *Reload from ESPN* drops all of it at once - use it after
+and the browser asks the server again when you return to a page it
+fetched more than 5 minutes ago. *Reload from ESPN* drops all of it at
+once - use it after
 roster moves.
 
 The address holds the league, the page and its choices
 (`#/<league>/streaming?week=5&team=0&streamers=...`), so pages can be
 bookmarked, reloaded and stepped through with back and forward. The
-server listens on `127.0.0.1` only, answers no other host name, and never
+server listens on `127.0.0.1` only, answers only as `127.0.0.1` or
+`localhost`, and never
 sends the ESPN cookies to the browser (nor writes them to its log).
 
 Working on the frontend (dev server, generated types) is described in

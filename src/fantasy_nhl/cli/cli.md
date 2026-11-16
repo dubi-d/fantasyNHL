@@ -65,8 +65,9 @@ effects: every fetch, every print and every saved figure belongs in a
   whose value is `None`. For the same reason "no selection" choices use a
   sentinel such as `_SKIP` or `0`.
 - `BACK` is truthy, so never write `ask(...) or default`.
-- A prompt that offers players passes the player as the choice's value
-  and his name as the title, so namesakes stay apart.
+- A prompt that offers players identifies them by the player or his id,
+  not by name, so namesakes stay apart: the streamer checkboxes carry the
+  player as the choice's value, the comparison uses labels made unique.
 
 ## Rendering
 
