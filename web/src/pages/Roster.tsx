@@ -24,15 +24,18 @@ export function Roster() {
   const oneTeam = page.get("view") === "team";
   const team = oneTeam ? clamp(page.get("team", "0"), 0, teams.length - 1) : null;
   // rosters as drafted exist only once the league has drafted
-  const drafted = useReviewOptions().data?.drafted ?? false;
-  const source = drafted && page.get("source") === "draft" ? "draft" : "current";
+  const options = useReviewOptions();
+  const drafted = options.data?.drafted ?? false;
+  const asDrafted = page.get("source") === "draft";
+  const source = drafted && asDrafted ? "draft" : "current";
 
   // the upper view follows the Rosters choice, the lower one is always today
-  const upper = useView(oneTeam ? "/review/team" : "/review/outlook", {
-    stats,
-    team,
-    source: source === "draft" ? source : null,
-  });
+  const upper = useView(
+    oneTeam ? "/review/team" : "/review/outlook",
+    { stats, team, source: source === "draft" ? source : null },
+    // a linked "as drafted" is not asked for as current first
+    !asDrafted || !options.isPending,
+  );
   const lower = useView(oneTeam ? "/review/gaps" : "/review/origins", {
     stats,
     team,

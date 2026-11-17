@@ -482,6 +482,33 @@ test("the roster page stacks two views and says a shared note once", async () =>
   await shows("Bravo has an empty roster.");
 });
 
+test("stacked views load and fail as one", async () => {
+  const failed = () =>
+    Response.json({ detail: "The request to ESPN failed (Timeout)." }, { status: 502 });
+  let answer = (_: unknown) => {};
+  const asked = serve({
+    ...BASICS,
+    [`${LEAGUE}/review/options?stats=blended`]: () =>
+      new Promise((resolve) => (answer = resolve)),
+    [`${LEAGUE}/review/origins?stats=blended`]: { blocks: [table("Origins", [], [])] },
+    [`${LEAGUE}/review/outlook?stats=blended&source=draft`]: failed,
+    [`${LEAGUE}/review/team?stats=blended&team=0&source=draft`]: failed,
+    [`${LEAGUE}/review/gaps?stats=blended&team=0`]: failed,
+  });
+  open("/test-league/roster?source=draft");
+
+  // the linked rosters as drafted wait to hear that there was a draft
+  await waitFor(() => expect(outline()).toEqual(["Loading…", "Origins"]));
+  expect(asked).not.toContain(`${LEAGUE}/review/outlook?stats=blended`);
+  answer(REVIEW_OPTIONS);
+  await waitFor(() =>
+    expect(outline()).toEqual(["The request to ESPN failed (Timeout).", "Origins"]),
+  );
+
+  fireEvent.change(screen.getByLabelText("View"), { target: { value: "team" } });
+  await waitFor(() => expect(outline()).toEqual(["The request to ESPN failed (Timeout)."]));
+});
+
 test("players: a failed options request is shown and can be retried", async () => {
   let fail = true;
   serve({

@@ -84,11 +84,12 @@ Tests sit next to the code: [src/app.test.tsx](src/app.test.tsx),
   (`ViewStack`): the roster page puts the category outlook above the
   roster origins, and a team's roster above its drop candidates and the
   free agents. Each is its own query, so the upper one can follow a
-  choice (*Rosters*) that the lower one does not have. A note that two
-  of them carry word for word is shown once, since both end with the
-  same legend: a note leading the lower view stays where the upper view
-  has it (a warning stays on top), any other where the lower view has it
-  (the legend closes the page).
+  choice (*Rosters*) that the lower one does not have. The views were
+  made to stand alone, so each brings its own legend and warnings; what
+  two of them say word for word is said once. A note that leads the
+  lower view stays where the upper view has it (a warning stays on
+  top), any other where the lower view has it (the legend closes the
+  page); "Loading…" and a problem both have are said by the first.
 - **Sorting.** A click on a column header orders the table by that
   column: numbers from the largest, text from A, and the other way round
   on the next click. A click on `#` restores the order the tool gave. It

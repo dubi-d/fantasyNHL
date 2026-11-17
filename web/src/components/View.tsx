@@ -80,14 +80,26 @@ function notesOf(view?: View): Map<string, boolean> {
   return notes;
 }
 
-/** Views on one page, the first on top. A note that two of them carry
- * word for word is shown once: where the upper view has it when it leads
- * the lower one (a warning), else where the lower view has it (a legend). */
+/** What a query shows in place of its view: its problem, "" while loading. */
+const standIn = (query: ViewQuery) =>
+  query.error?.message ?? (query.data ? null : "");
+
+/** Views on one page, the first on top. What two of them say word for
+ * word is said once: a note where the upper view has it when it leads the
+ * lower one (a warning), else where the lower view has it (a legend);
+ * that they load, or the same problem, by the first of them. */
 export function ViewStack({ queries }: { queries: ViewQuery[] }) {
   const notes = queries.map((query) => notesOf(query.error ? undefined : query.data));
   return (
     <>
       {queries.map((query, index) => {
+        const said = standIn(query);
+        if (
+          said !== null &&
+          queries.findIndex((other) => standIn(other) === said) < index
+        ) {
+          return null;
+        }
         const repeated = (block: Block) =>
           block.type === "note" &&
           notes.some((other, at) => {
