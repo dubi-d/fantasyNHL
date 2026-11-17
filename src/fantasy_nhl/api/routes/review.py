@@ -158,11 +158,14 @@ def review_leaders(session: Session,
 @view("/review/compare")
 def review_compare(session: Session,
                    players: Annotated[list[int], Query()],
+                   cells: Cells | None = None,
                    stats: Stats = "blended") -> View:
     """
     :param players: ids of 2-4 skaters or 2-4 goalies (see review/options)
+    :param cells: add the players' rows of the ranking, as for review/team
     """
     def build(context: ReviewContext) -> View:
+        _check_cells(context, cells)
         ids = tuple(dict.fromkeys(players))
         if not 2 <= len(ids) <= COMPARE_MAX:
             raise invalid(f"Pick 2 to {COMPARE_MAX} different players")
@@ -170,7 +173,7 @@ def review_compare(session: Session,
             raise invalid("Unknown player")
         if len({context.profile.at[pid, "Group"] == "G" for pid in ids}) > 1:
             raise invalid("Can't mix skaters and goalies")
-        return build_compare(context, ids)
+        return build_compare(context, ids, cells)
     return _review(session, stats, build)
 
 

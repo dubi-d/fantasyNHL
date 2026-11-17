@@ -365,7 +365,10 @@ test("selections follow the league after a reload", async () => {
 
 const REVIEW_OPTIONS = {
   drafted: true,
-  players: [{ id: 7, label: "Sniper (C, Alpha)", goalie: false }],
+  players: [
+    { id: 7, label: "Sniper (C, Alpha)", goalie: false },
+    { id: 8, label: "Grinder (LW, Bravo)", goalie: false },
+  ],
   groups: [],
   cells: [
     { key: "pct", label: "Percentiles" },
@@ -546,6 +549,22 @@ test("players: a failed options request is shown and can be retried", async () =
   });
   expect(address()).toBe("/test-league/players?view=compare&players=7");
   expect(screen.getByRole("button", { name: "Sniper (C, Alpha) ×" })).toBeTruthy();
+});
+
+test("players: a comparison asks for the ranking's rows in the cells chosen", async () => {
+  const compared = `${LEAGUE}/review/compare?stats=blended&players=7&players=8`;
+  serve({
+    ...BASICS,
+    [`${LEAGUE}/review/options?stats=blended`]: REVIEW_OPTIONS,
+    [`${compared}&cells=pct`]: { blocks: [table("Percentiles", [], [])] },
+    [`${compared}&cells=rate`]: { blocks: [table("Per game", [], [])] },
+  });
+  open("/test-league/players?view=compare&players=7&players=8");
+
+  expect(await screen.findByRole("table", { name: "Percentiles" })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Cells show"), { target: { value: "rate" } });
+  expect(await screen.findByRole("table", { name: "Per game" })).toBeTruthy();
+  expect(address()).toBe("/test-league/players?view=compare&players=7&players=8&cells=rate");
 });
 
 test("problems are said: no leagues, a league that does not load, warnings", async () => {

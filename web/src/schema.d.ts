@@ -903,6 +903,7 @@ export interface operations {
         parameters: {
             query: {
                 players: number[];
+                cells?: ("pct" | "rate" | "total") | null;
                 stats?: "blended" | "season";
             };
             header?: never;

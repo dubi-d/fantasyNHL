@@ -39,6 +39,7 @@ VIEWS = [
     "/review/gaps?team=2", "/review/team?team=1&cells=rate",
     "/review/team?team=1&source=draft&cells=pct",
     "/review/team?team=1&cells=total&stats=season", "/review/gaps?team=2&cells=pct",
+    "/review/compare?players=101&players=102&cells=rate",
 ]
 INVALID = [
     "/weekly/awards?week=5", "/weekly/awards?week=0",
@@ -59,6 +60,7 @@ INVALID = [
     "/review/compare?players=101&players=1", "/review/team?team=7",
     "/review/team?team=1&cells=total", "/review/gaps?team=2&cells=total",
     "/review/gaps?team=2&cells=avg",
+    "/review/compare?players=101&players=102&cells=total",
 ]
 # a view of every kind of figure
 FIGURES = {
@@ -337,6 +339,18 @@ def test_team_tables_can_carry_the_ranking_columns(api):
     legend = api.client.get(BASE + "/review/gaps?team=1&cells=pct").json()
     assert [block["spans"][0]["text"][:10] for block in legend["blocks"][3:5]
             ] == ["Percentile", "Score = me"]
+
+    # a comparison can add its players' rows of the ranking, as picked
+    compare = "/review/compare?players=102&players=101"
+    (ranking,) = tables("/review/leaders?scope=team&team=0&group=F&cells=rate")
+    *before, rows = tables(f"{compare}&cells=rate")
+    assert [table["title"] for table in before] == [
+        table["title"] for table in tables(compare)]
+    assert names(rows) == names(ranking)
+    assert list(cells(rows, names(rows))) == ["Alpha C2", "Alpha C1"]
+    assert cells(rows, names(rows)).items() <= cells(
+        ranking, names(ranking)).items()
+    assert all(column["sortable"] for column in rows["columns"])
 
 
 def test_whole_numbers_stay_whole(api):

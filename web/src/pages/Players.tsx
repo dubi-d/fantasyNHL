@@ -40,7 +40,7 @@ export function Players() {
   const usedCells = cellChoices.some((c) => c.key === cells) ? cells : "pct";
 
   const params = compare
-    ? { stats, players }
+    ? { stats, players, cells: usedCells }
     : {
         stats,
         scope,
@@ -102,17 +102,17 @@ export function Players() {
                 options={sorts.map((name) => ({ value: name, label: name }))}
                 onChange={(next) => page.set({ sort: next })}
               />
-              <Select
-                label="Cells show"
-                value={usedCells}
-                options={cellChoices.map((choice) => ({
-                  value: choice.key,
-                  label: choice.label,
-                }))}
-                onChange={(next) => page.set({ cells: next })}
-              />
             </>
           )}
+          <Select
+            label="Cells show"
+            value={usedCells}
+            options={cellChoices.map((choice) => ({
+              value: choice.key,
+              label: choice.label,
+            }))}
+            onChange={(next) => page.set({ cells: next })}
+          />
           {compare && options && (
             <PlayerPicker
               choices={options.players}
