@@ -10,7 +10,7 @@
 [fetch] fetch_roster_review()
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -28,7 +28,7 @@
 ␛[33mThe league has not drafted yet.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -46,7 +46,7 @@
 ␛[33mThe league has not drafted yet.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -78,7 +78,7 @@
 ␛[2magent of his position group ␛[0m␛[1;2m(␛[0m␛[2mratio categories weighted by goalie starts␛[0m␛[1;2m)␛[0m␛[2m; inverted categories flipped; + = good.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -108,7 +108,7 @@
 ␛[2mScore = mean over categories of the rank-based z of the per-game rate within the ␛[0m␛[1;2;36m73␛[0m␛[2m-player pool and the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G; stats: blended: ␛[0m␛[1;2;36m30␛[0m␛[2m% season ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m70␛[0m␛[2m% projection; blank under ␛[0m␛[1;2;36m6␛[0m␛[2m GP␛[0m␛[1;2m)␛[0m␛[2m. ESPN values as of today.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -132,7 +132,7 @@
 ␛[33mDelta has an empty roster.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -175,7 +175,7 @@
 ␛[2mpercentile within the group ␛[0m␛[1;2m(␛[0m␛[2m+ = crowd overrates␛[0m␛[1;2m)␛[0m␛[2m. ESPN values as of today.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -199,7 +199,7 @@
 ␛[33mDelta has an empty roster.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -213,7 +213,7 @@
     - ── One team ──
     * Team roster
     * Drop candidates & free agents
-  > 'Category leaderboard'
+  > 'Player ranking'
 ? Players: [select]
     * Whole pool
     * Free agents
@@ -247,7 +247,7 @@
 ␛[33mNo players in this selection.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -276,7 +276,7 @@
 ␛[2mScore = mean over categories of the rank-based z of the per-game rate within the ␛[0m␛[1;2;36m73␛[0m␛[2m-player pool and the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G; stats: blended: ␛[0m␛[1;2;36m30␛[0m␛[2m% season ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m70␛[0m␛[2m% projection; blank under ␛[0m␛[1;2;36m6␛[0m␛[2m GP␛[0m␛[1;2m)␛[0m␛[2m. ESPN values as of today.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins

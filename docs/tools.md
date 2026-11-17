@@ -120,11 +120,15 @@ In the web app, a click on a column header sorts a table by that column
 - **Players, rosters & draft** — One fetch (all rosters including Bench and
   IR, the 200 most-owned free agents, the draft, ESPN ownership and the
   transaction counters), then a menu of views you can switch between
-  freely. Every player is valued by a stat-based `Score` (see
+  freely. The web app has them as four pages: **Players**, **Roster**
+  (*League*: the category outlook above the roster origins; *One team*:
+  the team roster above its drop candidates and the free agents),
+  **Draft recap** and **Transactions**. Every player is
+  valued by a stat-based `Score` (see
   [Player value](methodology.md#player-value)); ESPN's roster% is shown
   alongside for context only — it
   reflects ESPN's default settings, not this league's categories.
-  - *Players* — **Category leaderboard**: the whole pool, the free agents
+  - *Players* — **Player ranking**: the whole pool, the free agents
     (the top 30 of either) or one team's roster, for forwards, defensemen,
     all skaters or
     goalies, sorted by `Score`, `Spec`, `Elite` or any single
@@ -140,7 +144,8 @@ In the web app, a click on a column header sorts a table by that column
     [Player category profiles](methodology.md#player-category-profiles).
   - *League* — **Roster origins**: per team, how many players were
     drafted, added or traded in, how many sit on IR, average roster% and
-    Score, and the season's add/drop/trade counters. **Category outlook**:
+    Score, and the season's add/drop/trade counters; always the rosters
+    of today. **Category outlook**:
     each roster's projected full-season pace per category, shown as
     z-scores across the league — as drafted or
     current — ranked by the round-robin points they would earn against the
@@ -176,5 +181,5 @@ In the web app, a click on a column header sorts a table by that column
     separately, since Scores compare within a position group), each with
     roster%, 7-day change, the crowd-vs-stats `Gap` (see
     [Player value](methodology.md#player-value)) and
-    injury status.
+    injury status; always the roster of today.
 

@@ -24,7 +24,7 @@ Player stats: ␛[1mThis season only␛[0m — ESPN's projections are ignored; p
 ␛[33mNobody here has played this season yet, so ␛[0m␛[32m'This season only'␛[0m␛[33m stats are empty - switch Player stats to Blended in the main menu to use projections.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -38,7 +38,7 @@ Player stats: ␛[1mThis season only␛[0m — ESPN's projections are ignored; p
     - ── One team ──
     * Team roster
     * Drop candidates & free agents
-  > 'Category leaderboard'
+  > 'Player ranking'
 ? Players: [select]
     * Whole pool
     * Free agents
@@ -65,7 +65,7 @@ Player stats: ␛[1mThis season only␛[0m — ESPN's projections are ignored; p
     * Season totals
   > 'Season totals'
 
-␛[1mCategory leaderboard — Forwards, pool (cells: season totals, colored by percentile; by Score) — stats: this season only ␛[0m
+␛[1mPlayer ranking — Forwards, pool (cells: season totals, colored by percentile; by Score) — stats: this season only       ␛[0m
 ┏━━━━┳━━━━━━━━━━━━━┳━━━━━┳━━━━━━━━━┳━━━━┳━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━┳━━━┳━━━┳━━━━━┳━━━━━┓
 ┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer     ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mScore␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mLevel␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSpec␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mElite␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHoles␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mType␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mBest␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mG␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mA␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPPP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHIT␛[0m␛[1;36m ␛[0m┃
 ┡━━━━╇━━━━━━━━━━━━━╇━━━━━╇━━━━━━━━━╇━━━━╇━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━╇━━━╇━━━╇━━━━━╇━━━━━┩
@@ -107,7 +107,7 @@ Player stats: ␛[1mThis season only␛[0m — ESPN's projections are ignored; p
 ␛[2mNo Level/Spec map: Forwards have at most ␛[0m␛[1;2;36m2␛[0m␛[2m categories.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -153,7 +153,7 @@ Player stats: ␛[1mThis season only␛[0m — ESPN's projections are ignored; p
 ␛[2mgroup ␛[0m␛[1;2m(␛[0m␛[2m+ = crowd overrates␛[0m␛[1;2m)␛[0m␛[2m. ESPN values as of today.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins

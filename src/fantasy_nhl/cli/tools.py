@@ -543,7 +543,7 @@ _AUTOCOMPLETE_STYLE = questionary.Style([
 
 def review_rosters(data: LeagueData):
     """Player, roster and draft review: per-category player profiles
-    (leaderboard and head-to-head comparison), league-wide composition and
+    (ranking and head-to-head comparison), league-wide composition and
     projected category outlook (ranked by round-robin points), draft grades
     vs ADP and hits & busts, waiver pickups and trade hauls, and one team's
     roster or drop candidates - all valued by a stat-based Score, with
@@ -617,7 +617,7 @@ def review_rosters(data: LeagueData):
         view = yield Ask(lambda: ask(questionary.select(
             "View:", choices=[
                 questionary.Separator("── Players ──"),
-                questionary.Choice("Category leaderboard", value="leaders"),
+                questionary.Choice("Player ranking", value="leaders"),
                 questionary.Choice("Compare players", value="compare"),
                 questionary.Separator("── League ──"),
                 questionary.Choice("Roster origins", value="origins"),

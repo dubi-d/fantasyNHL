@@ -2,7 +2,8 @@
 
 The browser front end: a React/TypeScript single-page app that renders
 the views served by the [api](../src/fantasy_nhl/api/api.md). It has one
-page per tool, with the terminal's prompts as form controls.
+page per tool, with the terminal's prompts as form controls; the
+terminal's *Players, rosters & draft* is four pages here.
 
 ## Boundaries
 
@@ -43,12 +44,13 @@ The dev server proxies `/api` to the backend on `127.0.0.1:8000`
 | [src/params.ts](src/params.ts) | `usePageParams`: a page's choices in the address |
 | [src/api.ts](src/api.ts) | The types in use, `apiUrl`, `request`, `errorText` |
 | [src/tone.ts](src/tone.ts) | Tones to colors and classes, the same gradient as the terminal |
-| [src/components/View.tsx](src/components/View.tsx) | `useView` and the generic renderer of a view's blocks |
-| [src/components/controls.tsx](src/components/controls.tsx) | `Page`, `Field`, `Group`, `Select`, team and matchup options |
-| [src/pages/basic.tsx](src/pages/basic.tsx) | Pages with at most one choice: weekly scores and awards, standings, matchup preview |
+| [src/components/View.tsx](src/components/View.tsx) | `useView`, the generic renderer of a view's blocks, `ViewStack` |
+| [src/components/controls.tsx](src/components/controls.tsx) | `Page`, `Field`, `Group`, `Select`, team and matchup options, `useReviewOptions` |
+| [src/pages/basic.tsx](src/pages/basic.tsx) | Pages with at most one choice: weekly scores and awards, standings, matchup preview, draft recap, transactions |
 | [src/pages/Planner.tsx](src/pages/Planner.tsx) | Streaming planner |
 | [src/pages/Schedule.tsx](src/pages/Schedule.tsx) | Schedule outlook and calibration |
-| [src/pages/Review.tsx](src/pages/Review.tsx) | Players, rosters and the draft |
+| [src/pages/Players.tsx](src/pages/Players.tsx) | Player ranking and player comparison |
+| [src/pages/Roster.tsx](src/pages/Roster.tsx) | The league's rosters and one team's roster, two views stacked each |
 | `src/styles.css` | All styling, including the tone classes |
 
 Tests sit next to the code: [src/app.test.tsx](src/app.test.tsx),
@@ -78,6 +80,15 @@ Tests sit next to the code: [src/app.test.tsx](src/app.test.tsx),
   the same team and week while only the streamers change.
 - **One renderer.** `ViewPanel` renders any view: tables with tones,
   notes, copyable text, figures. A page adds only its form.
+- **Stacked views.** A page may show several views below each other
+  (`ViewStack`): the roster page puts the category outlook above the
+  roster origins, and a team's roster above its drop candidates and the
+  free agents. Each is its own query, so the upper one can follow a
+  choice (*Rosters*) that the lower one does not have. A note that two
+  of them carry word for word is shown once, since both end with the
+  same legend: a note leading the lower view stays where the upper view
+  has it (a warning stays on top), any other where the lower view has it
+  (the legend closes the page).
 - **Sorting.** A click on a column header orders the table by that
   column: numbers from the largest, text from A, and the other way round
   on the next click. A click on `#` restores the order the tool gave. It
@@ -86,8 +97,8 @@ Tests sit next to the code: [src/app.test.tsx](src/app.test.tsx),
   Which columns sort is the backend's word (`sortable`), not decided
   here. The sort is the one choice that is not in the address: it belongs
   to the table on screen and ends when another table, or the same one
-  with changed content, arrives. The *Sort by* controls of the
-  leaderboard and the schedule are something else: they ask for another
+  with changed content, arrives. The *Sort by* controls of the player
+  ranking and the schedule are something else: they ask for another
   view (other players in the top 30, another order in the figure).
 - **Freshness.** A view is asked for again once it is five minutes old
   (on returning to the page or the window). *Reload from ESPN* tells the
@@ -96,7 +107,8 @@ Tests sit next to the code: [src/app.test.tsx](src/app.test.tsx),
 ## Extending
 
 1. Add the endpoint and regenerate `openapi.json` and `src/schema.d.ts`
-   (see [api.md](../src/fantasy_nhl/api/api.md)).
+   (see [api.md](../src/fantasy_nhl/api/api.md)). A page that only
+   arranges views that are served already needs neither.
 2. Write the page in `src/pages/`: choices from `usePageParams`, the view
    from `useView` or `RemoteView`, controls from `controls.tsx`.
 3. Add it to `MENU` in `App.tsx`.
@@ -118,7 +130,8 @@ Tests sit next to the code: [src/app.test.tsx](src/app.test.tsx),
 
 - `app.test.tsx` renders the whole app in jsdom against scripted server
   answers (`serve({address: json})`): the default league, addresses,
-  the planner's stand-in rule, sorting, reload, error states.
+  the planner's stand-in rule, sorting, reload, the player and roster
+  pages with their stacked views, error states.
 - `schema.test.ts` fails when `schema.d.ts` no longer matches
   `openapi.json`.
 - `tone.test.ts` pins the gradient to the terminal's.

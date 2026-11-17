@@ -10,7 +10,7 @@
 [fetch] fetch_roster_review()
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -24,7 +24,7 @@
     - ── One team ──
     * Team roster
     * Drop candidates & free agents
-  > 'Category leaderboard'
+  > 'Player ranking'
 ? Players: [select]
     * Whole pool
     * Free agents
@@ -50,7 +50,7 @@
     * Per-game rates
   > 'Percentiles'
 
-␛[1mCategory leaderboard — Forwards, pool (cells: percentiles, colored by percentile; by Score) — stats: blended: 30% season / 70% projection   ␛[0m
+␛[1mPlayer ranking — Forwards, pool (cells: percentiles, colored by percentile; by Score) — stats: blended: 30% season / 70% projection         ␛[0m
 ┏━━━━┳━━━━━━━━━━━━━━━┳━━━━━┳━━━━━━━━━┳━━━━┳━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━┳━━━━┳━━━━━┳━━━━━┓
 ┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer       ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mScore␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mLevel␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSpec␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mElite␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHoles␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mType             ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mBest   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m G␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m A␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPPP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHIT␛[0m␛[1;36m ␛[0m┃
 ┡━━━━╇━━━━━━━━━━━━━━━╇━━━━━╇━━━━━━━━━╇━━━━╇━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━╇━━━━╇━━━━━╇━━━━━┩
@@ -179,7 +179,7 @@
 Saved ␛[1mplots/player_map_test_league.png␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -193,7 +193,7 @@ Saved ␛[1mplots/player_map_test_league.png␛[0m
     - ── One team ──
     * Team roster
     * Drop candidates & free agents
-  > 'Category leaderboard'
+  > 'Player ranking'
 ? Players: [select]
     * Whole pool
     * Free agents
@@ -216,8 +216,8 @@ Saved ␛[1mplots/player_map_test_league.png␛[0m
     * Per-game rates
   > 'Per-game rates'
 
-␛[1mCategory leaderboard — Goalies, free agents (cells: per-game rates, colored by percentile; by Elite) — stats:     ␛[0m
-␛[1mblended: 30% season / 70% projection                                                                              ␛[0m
+␛[1mPlayer ranking — Goalies, free agents (cells: per-game rates, colored by percentile; by Elite) — stats: blended:  ␛[0m
+␛[1m30% season / 70% projection                                                                                       ␛[0m
 ┏━━━┳━━━━━━━━━━━━┳━━━━━┳━━━━━━┳━━━━┳━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━━┳━━━━━━┳━━━━━━━┓
 ┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer    ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mScore␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mLevel␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSpec␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mElite␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHoles␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mType ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mBest   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m GAA␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m  SV%␛[0m␛[1;36m ␛[0m┃
 ┡━━━╇━━━━━━━━━━━━╇━━━━━╇━━━━━━╇━━━━╇━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━━╇━━━━━━╇━━━━━━━┩
@@ -239,7 +239,7 @@ Saved ␛[1mplots/player_map_test_league.png␛[0m
 ␛[2mNo Level/Spec map: Goalies have at most ␛[0m␛[1;2;36m2␛[0m␛[2m categories.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -253,7 +253,7 @@ Saved ␛[1mplots/player_map_test_league.png␛[0m
     - ── One team ──
     * Team roster
     * Drop candidates & free agents
-  > 'Category leaderboard'
+  > 'Player ranking'
 ? Players: [select]
     * Whole pool
     * Free agents
@@ -285,8 +285,8 @@ Saved ␛[1mplots/player_map_test_league.png␛[0m
     * Per-game rates
   > 'Per-game rates'
 
-␛[1mCategory leaderboard — Skaters (F + D), Alpha (cells: per-game rates, colored by percentile; by HIT percentile) — stats: blended: 30%      ␛[0m
-␛[1mseason / 70% projection                                                                                                                    ␛[0m
+␛[1mPlayer ranking — Skaters (F + D), Alpha (cells: per-game rates, colored by percentile; by HIT percentile) — stats: blended: 30% season /   ␛[0m
+␛[1m70% projection                                                                                                                             ␛[0m
 ┏━━━┳━━━━━━━━━━━┳━━━━━┳━━━━━━━┳━━━━┳━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━┳━━━━━━┳━━━━━━┳━━━━━━┓
 ┃␛[1;36m ␛[0m␛[1;36m#␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mScore␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mLevel␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSpec␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mElite␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHoles␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mType             ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mBest   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m   G␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m   A␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m PPP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m HIT␛[0m␛[1;36m ␛[0m┃
 ┡━━━╇━━━━━━━━━━━╇━━━━━╇━━━━━━━╇━━━━╇━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━╇━━━━━━╇━━━━━━╇━━━━━━┩
@@ -394,7 +394,7 @@ Saved ␛[1mplots/player_map_test_league.png␛[0m
 Saved ␛[1mplots/player_map_test_league.png␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -408,7 +408,7 @@ Saved ␛[1mplots/player_map_test_league.png␛[0m
     - ── One team ──
     * Team roster
     * Drop candidates & free agents
-  > 'Category leaderboard'
+  > 'Player ranking'
 ? Players: [select]
     * Whole pool
     * Free agents
@@ -434,7 +434,7 @@ Saved ␛[1mplots/player_map_test_league.png␛[0m
     * Per-game rates
   > 'Percentiles'
 
-␛[1mCategory leaderboard — Defense, pool (cells: percentiles, colored by percentile; by Spec) — stats: blended: 30% season / 70% projection  ␛[0m
+␛[1mPlayer ranking — Defense, pool (cells: percentiles, colored by percentile; by Spec) — stats: blended: 30% season / 70% projection        ␛[0m
 ┏━━━━┳━━━━━━━━━━━━┳━━━━━┳━━━━━━━━━┳━━━━┳━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━┳━━━━┳━━━━━┳━━━━━┓
 ┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer    ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mScore␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mLevel␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSpec␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mElite␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHoles␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mType             ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mBest   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m G␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m A␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPPP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHIT␛[0m␛[1;36m ␛[0m┃
 ┡━━━━╇━━━━━━━━━━━━╇━━━━━╇━━━━━━━━━╇━━━━╇━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━╇━━━━╇━━━━━╇━━━━━┩
@@ -522,7 +522,7 @@ Saved ␛[1mplots/player_map_test_league.png␛[0m
 Saved ␛[1mplots/player_map_test_league.png␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins

@@ -1,4 +1,4 @@
-"""Player views: the category leaderboard and the player comparison."""
+"""Player views: the player ranking and the player comparison."""
 import pandas as pd
 
 from ..analysis import PEAK_CATS, RATIO_CATEGORIES, StatBasis
@@ -23,7 +23,7 @@ from .model import (
 )
 from .review import ReviewContext
 
-LEADERS_N = 30  # leaderboard rows (one team's roster: all)
+LEADERS_N = 30  # ranking rows (one team's roster: all)
 COMPARE_MAX = 4  # players per comparison
 GROUP_CHOICES = {"F": "Forwards", "D": "Defense", "FD": "Skaters (F + D)",
                  "G": "Goalies"}
@@ -32,14 +32,14 @@ CELL_CHOICES = {"pct": "Percentiles", "rate": "Per-game rates",
 
 
 def leader_sorts(ctx: ReviewContext, group: str) -> list[str]:
-    """What a leaderboard of that position group can be sorted by."""
+    """What a ranking of that position group can be sorted by."""
     names = ctx.group_cats(group == "G")
     return ["Score"] + (["Spec"] if len(names) > PEAK_CATS else []) + [
         "Elite"] + names
 
 
 def cell_choices(basis: StatBasis) -> dict[str, str]:
-    """Leaderboard cell contents on offer (key -> label)."""
+    """Ranking cell contents on offer (key -> label)."""
     # season totals only next to season stats, never next to blended ones
     return {key: label for key, label in CELL_CHOICES.items()
             if key != "total" or basis.season_only}
@@ -57,7 +57,7 @@ def _stat_text(cat: str, value: float, per_game: bool) -> str:
 
 
 def _stat_column(cat: str, values: pd.Series, cells: str) -> pd.Series:
-    """Numeric leaderboard cell column, rounded for display."""
+    """Numeric ranking cell column, rounded for display."""
     if cells == "pct":
         return values.round(0).astype("Int64")
     if cat == "SV%":
@@ -70,7 +70,7 @@ def _stat_column(cat: str, values: pd.Series, cells: str) -> pd.Series:
 def build_leaders(ctx: ReviewContext, scope: str, row: int | None,
                   group: str, sort: str, cells: str) -> View:
     """
-    Category leaderboard with the level-vs-specialization map.
+    Player ranking with the level-vs-specialization map.
 
     :param scope: "all" (whole pool), "fa" (free agents) or "team"
     :param row: the team row for scope "team"
@@ -117,7 +117,7 @@ def build_leaders(ctx: ReviewContext, scope: str, row: int | None,
              "team": data.team_names[row] if row is not None else ""}[scope]
     sort_label = f"{sort} percentile" if sort in names else sort
     blocks = [TableView(with_basis(
-        f"Category leaderboard — {GROUP_CHOICES[group]}, "
+        f"Player ranking — {GROUP_CHOICES[group]}, "
         f"{where} (cells: {CELL_CHOICES[cells].lower()}, colored "
         f"by percentile; by {sort_label})", ctx.basis), view, tones),
         *ctx.profile_legend(table)]

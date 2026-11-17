@@ -50,9 +50,11 @@ type ViewQuery = {
 export function ViewPanel({
   query,
   pageSize,
+  hidden,
 }: {
   query: ViewQuery;
   pageSize?: number;
+  hidden?: Set<Block>;
 }) {
   if (query.error) {
     return <p className="note note-warning">{query.error.message}</p>;
@@ -60,8 +62,43 @@ export function ViewPanel({
   if (!query.data) return <p className="note note-info">Loading…</p>;
   return (
     <div className={query.isFetching ? "view stale" : "view"}>
-      <ViewBlocks view={query.data} pageSize={pageSize} />
+      <ViewBlocks view={query.data} pageSize={pageSize} hidden={hidden} />
     </div>
+  );
+}
+
+const noteKey = (note: Note) => JSON.stringify([note.level, note.spans]);
+
+/** The notes of a view by content: whether each leads its tables. */
+function notesOf(view?: View): Map<string, boolean> {
+  const blocks = view?.blocks ?? [];
+  const table = blocks.findIndex((block) => block.type === "table");
+  const notes = new Map<string, boolean>();
+  blocks.forEach((block, index) => {
+    if (block.type === "note") notes.set(noteKey(block), table < 0 || index < table);
+  });
+  return notes;
+}
+
+/** Views on one page, the first on top. A note that two of them carry
+ * word for word is shown once: where the upper view has it when it leads
+ * the lower one (a warning), else where the lower view has it (a legend). */
+export function ViewStack({ queries }: { queries: ViewQuery[] }) {
+  const notes = queries.map((query) => notesOf(query.error ? undefined : query.data));
+  return (
+    <>
+      {queries.map((query, index) => {
+        const repeated = (block: Block) =>
+          block.type === "note" &&
+          notes.some((other, at) => {
+            const leads = other.get(noteKey(block));
+            if (leads === undefined || at === index) return false;
+            return at > index ? !leads : notes[index].get(noteKey(block));
+          });
+        const hidden = new Set(query.data?.blocks.filter(repeated));
+        return <ViewPanel key={index} query={query} hidden={hidden} />;
+      })}
+    </>
   );
 }
 
@@ -75,12 +112,21 @@ export function RemoteView(props: {
   return <ViewPanel query={query} pageSize={props.pageSize} />;
 }
 
-export function ViewBlocks({ view, pageSize }: { view: View; pageSize?: number }) {
+export function ViewBlocks({
+  view,
+  pageSize,
+  hidden,
+}: {
+  view: View;
+  pageSize?: number;
+  hidden?: Set<Block>;
+}) {
   return (
     <>
-      {view.blocks.map((block, index) => (
-        <BlockView key={index} block={block} pageSize={pageSize} />
-      ))}
+      {view.blocks.map(
+        (block, index) =>
+          !hidden?.has(block) && <BlockView key={index} block={block} pageSize={pageSize} />,
+      )}
     </>
   );
 }

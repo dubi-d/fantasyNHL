@@ -1,54 +1,36 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { apiUrl, request, type ReviewOptions } from "../api";
+import type { ReviewOptions } from "../api";
 import {
-  Field,
   Group,
   Page,
   Select,
+  useReviewOptions,
   useTeamOptions,
 } from "../components/controls";
 import { useView, ViewPanel } from "../components/View";
-import { usePageParams } from "../params";
+import { clamp, usePageParams } from "../params";
 import { useSession } from "../session";
 
 const COMPARE_MAX = 4;
 const VIEWS = [
-  { group: "Players", value: "leaders", label: "Category leaderboard" },
-  { group: "Players", value: "compare", label: "Compare players" },
-  { group: "League", value: "origins", label: "Roster origins" },
-  { group: "League", value: "outlook", label: "Category outlook" },
-  { group: "Draft", value: "draft-grades", label: "Draft grades vs ADP" },
-  { group: "Draft", value: "draft-return", label: "Draft hits & busts" },
-  { group: "Transactions", value: "pickups", label: "Waiver pickups" },
-  { group: "Transactions", value: "trades", label: "Trade haul" },
-  { group: "One team", value: "team", label: "Team roster" },
-  { group: "One team", value: "gaps", label: "Drop candidates & free agents" },
-];
-const SOURCES = [
-  { value: "draft", label: "As drafted" },
-  { value: "current", label: "Current" },
+  { value: "leaders", label: "Player ranking" },
+  { value: "compare", label: "Compare players" },
 ];
 
-export function Review() {
-  const { meta, stats } = useSession();
+export function Players() {
+  const { stats } = useSession();
   const teams = useTeamOptions();
   const page = usePageParams();
-  const view = page.get("view", "leaders");
+  const compare = page.get("view") === "compare";
   const scope = page.get("scope", "all");
-  const team = page.get("team", "0");
+  const team = clamp(page.get("team", "0"), 0, teams.length - 1);
   const group = page.get("group", "F");
   const sort = page.get("sort", "Score");
   const cells = page.get("cells", "pct");
-  const source = page.get("source", "current");
   const players = page.list("players").map(Number);
 
-  const optionsUrl = apiUrl(`/leagues/${meta.id}/review/options`, { stats });
-  const optionsQuery = useQuery({
-    queryKey: [optionsUrl],
-    queryFn: () => request<ReviewOptions>(optionsUrl),
-  });
+  const optionsQuery = useReviewOptions();
   const options = optionsQuery.data;
   const groups = options?.groups ?? [];
   const sorts = groups.find((entry) => entry.key === group)?.sorts ?? ["Score"];
@@ -56,46 +38,36 @@ export function Review() {
   // choices of another group or stats setting fall back to the defaults
   const usedSort = sorts.includes(sort) ? sort : "Score";
   const usedCells = cellChoices.some((c) => c.key === cells) ? cells : "pct";
-  const sourced = options?.drafted && (view === "outlook" || view === "team");
 
-  const params = {
-    stats,
-    ...(view === "leaders" && {
-      scope,
-      team: scope === "team" ? team : null,
-      group,
-      sort: usedSort,
-      cells: usedCells,
-    }),
-    ...(view === "compare" && { players }),
-    ...(sourced && { source }),
-    ...((view === "team" || view === "gaps") && { team }),
-  };
-  const ready = view !== "compare" || players.length >= 2;
-  const query = useView(`/review/${view}`, params, ready);
+  const params = compare
+    ? { stats, players }
+    : {
+        stats,
+        scope,
+        team: scope === "team" ? team : null,
+        group,
+        sort: usedSort,
+        cells: usedCells,
+      };
+  const ready = !compare || players.length >= 2;
+  const query = useView(
+    compare ? "/review/compare" : "/review/leaders",
+    params,
+    ready,
+  );
 
   return (
     <Page
-      title="Players, rosters & draft"
+      title="Players"
       controls={
         <>
-          <Field label="View">
-            <select
-              value={view}
-              onChange={(event) => page.set({ view: event.target.value })}
-            >
-              {[...new Set(VIEWS.map((entry) => entry.group))].map((name) => (
-                <optgroup key={name} label={name}>
-                  {VIEWS.filter((entry) => entry.group === name).map((entry) => (
-                    <option key={entry.value} value={entry.value}>
-                      {entry.label}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </Field>
-          {view === "leaders" && (
+          <Select
+            label="View"
+            value={compare ? "compare" : "leaders"}
+            options={VIEWS}
+            onChange={(next) => page.set({ view: next })}
+          />
+          {!compare && (
             <>
               <Select
                 label="Players"
@@ -107,6 +79,14 @@ export function Review() {
                 ]}
                 onChange={(next) => page.set({ scope: next })}
               />
+              {scope === "team" && (
+                <Select
+                  label="Team"
+                  value={team}
+                  options={teams}
+                  onChange={(next) => page.set({ team: next })}
+                />
+              )}
               <Select
                 label="Position"
                 value={group}
@@ -133,25 +113,7 @@ export function Review() {
               />
             </>
           )}
-          {(view === "team" ||
-            view === "gaps" ||
-            (view === "leaders" && scope === "team")) && (
-            <Select
-              label="Team"
-              value={team}
-              options={teams}
-              onChange={(next) => page.set({ team: next })}
-            />
-          )}
-          {sourced && (
-            <Select
-              label="Rosters"
-              value={source}
-              options={SOURCES}
-              onChange={(next) => page.set({ source: next })}
-            />
-          )}
-          {view === "compare" && options && (
+          {compare && options && (
             <PlayerPicker
               choices={options.players}
               picked={players}

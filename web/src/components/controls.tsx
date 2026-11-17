@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
+import { apiUrl, request, type ReviewOptions } from "../api";
 import { useSession } from "../session";
 
 export type Option = { value: string | number; label: string };
@@ -61,6 +63,16 @@ export function useWeekOptions(completed = false): Option[] {
   return meta.weeks
     .filter((week) => week.completed || !completed)
     .map((week) => ({ value: week.week, label: week.label }));
+}
+
+/** What the player and roster views can be asked for, on the stats in use. */
+export function useReviewOptions() {
+  const { meta, stats } = useSession();
+  const url = apiUrl(`/leagues/${meta.id}/review/options`, { stats });
+  return useQuery({
+    queryKey: [url],
+    queryFn: () => request<ReviewOptions>(url),
+  });
 }
 
 export function Page({

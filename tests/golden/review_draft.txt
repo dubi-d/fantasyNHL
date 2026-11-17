@@ -10,7 +10,7 @@
 [fetch] fetch_roster_review()
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -80,7 +80,7 @@
 ␛[2mADP and roster% are ESPN's values as of today; players ESPN has no ADP for count as pick ␛[0m␛[1;2;36m41␛[0m␛[2m.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -153,7 +153,7 @@
 ␛[2m† = no ESPN projection: rated on season stats alone.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins

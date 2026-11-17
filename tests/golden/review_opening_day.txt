@@ -10,7 +10,7 @@
 [fetch] fetch_roster_review()
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -24,7 +24,7 @@
     - ── One team ──
     * Team roster
     * Drop candidates & free agents
-  > 'Category leaderboard'
+  > 'Player ranking'
 ? Players: [select]
     * Whole pool
     * Free agents
@@ -50,7 +50,7 @@
     * Per-game rates
   > 'Percentiles'
 
-␛[1mCategory leaderboard — Forwards, pool (cells: percentiles, colored by percentile; by Score) — stats: blended: 0% season / 100% projection ␛[0m
+␛[1mPlayer ranking — Forwards, pool (cells: percentiles, colored by percentile; by Score) — stats: blended: 0% season / 100% projection       ␛[0m
 ┏━━━━┳━━━━━━━━━━━━━┳━━━━━┳━━━━━━━━━┳━━━━┳━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━┳━━━━┳━━━━━┳━━━━━┓
 ┃␛[1;36m ␛[0m␛[1;36m #␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPlayer     ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPos␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mTeam   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mGP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mInj␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mScore␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mLevel␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mSpec␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mElite␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHoles␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mType             ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mBest   ␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m G␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36m A␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mPPP␛[0m␛[1;36m ␛[0m┃␛[1;36m ␛[0m␛[1;36mHIT␛[0m␛[1;36m ␛[0m┃
 ┡━━━━╇━━━━━━━━━━━━━╇━━━━━╇━━━━━━━━━╇━━━━╇━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━╇━━━━╇━━━━━╇━━━━━┩
@@ -178,7 +178,7 @@
 Saved ␛[1mplots/player_map_test_league.png␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -250,7 +250,7 @@ Saved ␛[1mplots/player_map_test_league.png␛[0m
 ␛[2mScore = mean over categories of the rank-based z of the per-game rate within the ␛[0m␛[1;2;36m86␛[0m␛[2m-player pool and the player's position group ␛[0m␛[1;2m(␛[0m␛[2mF ␛[0m␛[2;35m/␛[0m␛[2m D ␛[0m␛[2;35m/␛[0m␛[2m G; stats: blended: ␛[0m␛[1;2;36m0␛[0m␛[2m% season ␛[0m␛[2;35m/␛[0m␛[2m ␛[0m␛[1;2;36m100␛[0m␛[2m% projection␛[0m␛[1;2m)␛[0m␛[2m. ESPN values as of today.␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins

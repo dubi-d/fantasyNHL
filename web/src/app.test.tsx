@@ -11,7 +11,14 @@ import {
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, expect, test, vi } from "vitest";
 
-import { errorText, type LeagueMeta, type PlanView, type Table, type View } from "./api";
+import {
+  errorText,
+  type LeagueMeta,
+  type Note,
+  type PlanView,
+  type Table,
+  type View,
+} from "./api";
 import { App } from "./App";
 import { SessionProvider } from "./session";
 
@@ -356,16 +363,135 @@ test("selections follow the league after a reload", async () => {
   expect(asked).toContain(`${LEAGUE}/reload`);
 });
 
-test("review: a failed options request is shown and can be retried", async () => {
+const REVIEW_OPTIONS = {
+  drafted: true,
+  players: [{ id: 7, label: "Sniper (C, Alpha)", goalie: false }],
+  groups: [],
+  cells: [],
+};
+const RANKING = `${LEAGUE}/review/leaders?stats=blended&scope=all&group=F&sort=Score&cells=pct`;
+
+function note(text: string, level = "info"): Note {
+  return { type: "note", level, space_before: false, spans: [{ text, tone: null }] };
+}
+
+/** The table titles and notes of the page, top to bottom. */
+const outline = () =>
+  [...document.querySelectorAll("main figcaption, main p.note")].map(
+    (element) => element.textContent,
+  );
+
+test("players, roster, draft recap and transactions are pages of their own", async () => {
+  const titled = (title: string) => ({ blocks: [table(title, [], [])] });
+  serve({
+    ...BASICS,
+    [`${LEAGUE}/review/options?stats=blended`]: REVIEW_OPTIONS,
+    [RANKING]: titled("Top forwards"),
+    [`${LEAGUE}/review/outlook?stats=blended`]: titled("Outlook"),
+    [`${LEAGUE}/review/origins?stats=blended`]: titled("Origins"),
+    [`${LEAGUE}/review/draft-grades?stats=blended`]: titled("Grades"),
+    [`${LEAGUE}/review/draft-return?stats=blended`]: titled("Hits"),
+    [`${LEAGUE}/review/pickups?stats=blended`]: titled("Pickups"),
+    [`${LEAGUE}/review/trades?stats=blended`]: titled("Trades"),
+  });
+  open("/test-league/players");
+  const choose = (view: string) =>
+    fireEvent.change(screen.getByLabelText("View"), { target: { value: view } });
+  const views = () =>
+    [...(screen.getByLabelText("View") as HTMLSelectElement).options].map(
+      (option) => option.text,
+    );
+
+  expect(await screen.findByRole("table", { name: "Top forwards" })).toBeTruthy();
+  expect(views()).toEqual(["Player ranking", "Compare players"]);
+
+  fireEvent.click(screen.getByRole("link", { name: "Roster" }));
+  await waitFor(() => expect(outline()).toEqual(["Outlook", "Origins"]));
+  expect(address()).toBe("/test-league/roster");
+  expect(views()).toEqual(["League", "One team"]);
+
+  fireEvent.click(screen.getByRole("link", { name: "Draft recap" }));
+  expect(await screen.findByRole("table", { name: "Grades" })).toBeTruthy();
+  expect(views()).toEqual(["Draft grades vs ADP", "Draft hits & busts"]);
+  choose("draft-return");
+  expect(await screen.findByRole("table", { name: "Hits" })).toBeTruthy();
+  expect(address()).toBe("/test-league/draft?view=draft-return");
+
+  fireEvent.click(screen.getByRole("link", { name: "Transactions" }));
+  expect(await screen.findByRole("table", { name: "Pickups" })).toBeTruthy();
+  expect(views()).toEqual(["Waiver pickups", "Trade haul"]);
+  choose("trades");
+  expect(await screen.findByRole("table", { name: "Trades" })).toBeTruthy();
+});
+
+test("the roster page stacks two views and says a shared note once", async () => {
+  const warning = note("No stats this season", "warning");
+  const legend = note("Score legend");
+  const drafted = { blocks: [warning, table("Alpha picks", [], []), note("Value legend")] };
+  const emptied = { blocks: [note("Bravo has an empty roster.", "warning")] };
+  serve({
+    ...BASICS,
+    [`${LEAGUE}/review/options?stats=blended`]: REVIEW_OPTIONS,
+    [`${LEAGUE}/review/outlook?stats=blended`]: {
+      blocks: [warning, table("Outlook", [], []), note("Outlook legend")],
+    },
+    [`${LEAGUE}/review/origins?stats=blended`]: {
+      blocks: [warning, table("Origins", [], []), legend],
+    },
+    [`${LEAGUE}/review/team?stats=blended&team=0`]: {
+      blocks: [warning, table("Alpha roster", [], []), legend],
+    },
+    [`${LEAGUE}/review/team?stats=blended&team=0&source=draft`]: drafted,
+    [`${LEAGUE}/review/gaps?stats=blended&team=0`]: {
+      blocks: [warning, table("Drops", [], []), table("Free agents", [], []), legend],
+    },
+    [`${LEAGUE}/review/team?stats=blended&team=1`]: emptied,
+    [`${LEAGUE}/review/gaps?stats=blended&team=1`]: emptied,
+  });
+  open("/test-league/roster");
+  const choose = (label: string, value: string) =>
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+  const shows = (...expected: string[]) =>
+    waitFor(() => {
+      expect(outline()).toEqual(expected);
+      expect(document.querySelector(".view.stale")).toBeNull();
+    });
+
+  // the warning stays on top, each view keeps the legend only it has
+  await shows("No stats this season", "Outlook", "Outlook legend", "Origins", "Score legend");
+
+  // the legend of both views closes the page
+  choose("View", "team");
+  await shows("No stats this season", "Alpha roster", "Drops", "Free agents", "Score legend");
+  expect(address()).toBe("/test-league/roster?view=team");
+
+  // only the upper view follows the rosters choice
+  choose("Rosters", "draft");
+  await shows(
+    "No stats this season",
+    "Alpha picks",
+    "Value legend",
+    "Drops",
+    "Free agents",
+    "Score legend",
+  );
+
+  // what both views say instead of tables is said once
+  choose("Rosters", "current");
+  choose("Team", "1");
+  await shows("Bravo has an empty roster.");
+});
+
+test("players: a failed options request is shown and can be retried", async () => {
   let fail = true;
   serve({
     ...BASICS,
     [`${LEAGUE}/review/options?stats=blended`]: () =>
       fail
         ? Response.json({ detail: "The request to ESPN failed (Timeout)." }, { status: 502 })
-        : { drafted: true, players: [{ id: 7, label: "Sniper (C, Alpha)", goalie: false }], groups: [], cells: [] },
+        : REVIEW_OPTIONS,
   });
-  open("/test-league/review?view=compare");
+  open("/test-league/players?view=compare");
 
   expect(await screen.findByText("The request to ESPN failed (Timeout).")).toBeTruthy();
   expect(screen.queryByText("Pick two to four skaters or goalies.")).toBeNull();
@@ -377,7 +503,7 @@ test("review: a failed options request is shown and can be retried", async () =>
   fireEvent.change(screen.getByLabelText("Add a player"), {
     target: { value: "Sniper (C, Alpha)" },
   });
-  expect(address()).toBe("/test-league/review?view=compare&players=7");
+  expect(address()).toBe("/test-league/players?view=compare&players=7");
   expect(screen.getByRole("button", { name: "Sniper (C, Alpha) ×" })).toBeTruthy();
 });
 

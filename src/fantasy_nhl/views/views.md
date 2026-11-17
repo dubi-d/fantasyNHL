@@ -30,7 +30,7 @@ render the same views, which is why both always show the same thing.
 | [streaming.py](streaming.py) | Streaming planner and the free-agent candidates |
 | [schedule.py](schedule.py) | NHL schedule outlook and the calibration curve |
 | [review.py](review.py) | `ReviewContext`: the valued player pool the next three build on |
-| [players.py](players.py) | Category leaderboard and player comparison |
+| [players.py](players.py) | Player ranking and player comparison |
 | [rosters.py](rosters.py) | Roster origins, category outlook, pickups and trades, team roster, drop candidates |
 | [draft.py](draft.py) | Draft grades, hits and busts, a team's picks |
 

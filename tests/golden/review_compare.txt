@@ -10,7 +10,7 @@
 [fetch] fetch_roster_review()
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -426,7 +426,7 @@
 Saved ␛[1mplots/player_radar_test_league.png␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins
@@ -838,7 +838,7 @@ Saved ␛[1mplots/player_radar_test_league.png␛[0m
 Saved ␛[1mplots/player_radar_test_league.png␛[0m
 ? View: [select]
     - ── Players ──
-    * Category leaderboard
+    * Player ranking
     * Compare players
     - ── League ──
     * Roster origins

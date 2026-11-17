@@ -1,4 +1,10 @@
-import { Field, Page, Select, useWeekOptions } from "../components/controls";
+import {
+  Field,
+  Page,
+  Select,
+  useWeekOptions,
+  type Option,
+} from "../components/controls";
 import { RemoteView } from "../components/View";
 import { clamp, usePageParams } from "../params";
 import { useSession } from "../session";
@@ -90,5 +96,54 @@ export function MatchupPreview() {
     >
       <RemoteView path="/preview" params={{ week, stats }} />
     </Page>
+  );
+}
+
+/** Review views without choices of their own, picked from a dropdown. */
+function ReviewPage({ title, views }: { title: string; views: Option[] }) {
+  const { stats } = useSession();
+  const page = usePageParams();
+  const chosen = page.get("view");
+  const view = views.some((entry) => entry.value === chosen)
+    ? chosen
+    : views[0].value;
+  return (
+    <Page
+      title={title}
+      controls={
+        <Select
+          label="View"
+          value={view}
+          options={views}
+          onChange={(next) => page.set({ view: next })}
+        />
+      }
+    >
+      <RemoteView path={`/review/${view}`} params={{ stats }} />
+    </Page>
+  );
+}
+
+export function DraftRecap() {
+  return (
+    <ReviewPage
+      title="Draft recap"
+      views={[
+        { value: "draft-grades", label: "Draft grades vs ADP" },
+        { value: "draft-return", label: "Draft hits & busts" },
+      ]}
+    />
+  );
+}
+
+export function Transactions() {
+  return (
+    <ReviewPage
+      title="Transactions"
+      views={[
+        { value: "pickups", label: "Waiver pickups" },
+        { value: "trades", label: "Trade haul" },
+      ]}
+    />
   );
 }

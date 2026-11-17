@@ -86,7 +86,9 @@ cd web && npm ci && npm run build && cd ..   # once, and after frontend changes
 ```
 
 Run it from the repository root (it reads `config.yaml` and `secrets.yaml`
-there). The sidebar mirrors the menu above; the league, the **Player stats**
+there). The sidebar mirrors the menu above, with *Players, rosters & draft*
+as four pages (Players, Roster, Draft recap, Transactions); the league, the
+**Player stats**
 setting and *Reload from ESPN* sit on top, with the time the league was
 read ("as of"). A new browser tab opens on the `default_league`; without a
 built frontend the server says how to build it.

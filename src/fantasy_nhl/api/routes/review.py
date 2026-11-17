@@ -95,8 +95,8 @@ class Choice(BaseModel):
 class ReviewOptions(BaseModel):
     drafted: bool
     players: list[PlayerChoice]  # for comparisons, by name
-    groups: list[GroupChoice]  # leaderboard position groups
-    cells: list[Choice]  # what leaderboard cells can show
+    groups: list[GroupChoice]  # ranking position groups
+    cells: list[Choice]  # what ranking cells can show
 
 
 @router.get(f"{LEAGUE}/review/options")
@@ -127,7 +127,7 @@ def review_leaders(session: Session,
                    cells: Literal["pct", "rate", "total"] = "pct",
                    stats: Stats = "blended") -> View:
     """
-    Category leaderboard.
+    Player ranking.
 
     :param scope: whole pool, free agents or one team (then give ``team``)
     :param sort: Score, Spec, Elite or a category (see review/options)

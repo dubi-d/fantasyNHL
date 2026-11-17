@@ -290,13 +290,13 @@ CASES = {
         "Remaining", "Skip", "Remaining", "Alpha"]),
     "review_leaders": (midseason, [
         REVIEW,
-        "Category leaderboard", "Whole pool", "Forwards", "Score",
+        "Player ranking", "Whole pool", "Forwards", "Score",
         "Percentiles",
-        "Category leaderboard", "Free agents", "Goalies", "Elite",
+        "Player ranking", "Free agents", "Goalies", "Elite",
         "Per-game rates",
-        "Category leaderboard", "One team", "Alpha", "Skaters (F + D)", "HIT",
+        "Player ranking", "One team", "Alpha", "Skaters (F + D)", "HIT",
         "Per-game rates",
-        "Category leaderboard", "Whole pool", "Defense", "Spec",
+        "Player ranking", "Whole pool", "Defense", "Spec",
         "Percentiles"]),
     "review_compare": (midseason, [
         REVIEW,
@@ -315,9 +315,9 @@ CASES = {
         "Current", "Drop candidates & free agents", "Charlie", BACK, BACK]),
     "review_season_only": (midseason, [
         *SEASON_ONLY, REVIEW,
-        "Category leaderboard", "One team", "Bravo", "Forwards", "G",
+        "Player ranking", "One team", "Bravo", "Forwards", "G",
         "Season totals",
-        "Category leaderboard", "Whole pool", "Goalies", "SV%",
+        "Player ranking", "Whole pool", "Goalies", "SV%",
         "Season totals",
         "Compare players", "Alpha C1 (C, Alpha)", "Bravo C1 (C, Bravo)",
         "Charlie D1 (D, Charlie)", "",
@@ -328,18 +328,18 @@ CASES = {
         REVIEW, "Draft grades vs ADP", "Draft hits & busts",
         "Category outlook", "Trade haul", "Team roster", "Delta",
         "Team roster", "Alpha", "Drop candidates & free agents", "Delta",
-        "Category leaderboard", "One team", "Delta", "Forwards", "Score",
+        "Player ranking", "One team", "Delta", "Forwards", "Score",
         "Percentiles", "Roster origins"]),
     "review_finished": (finished, [
         REVIEW, "Draft grades vs ADP", "Draft hits & busts", "Team roster",
         "Charlie", "As drafted", "Category outlook", "Current",
-        "Category leaderboard", "Whole pool", "Skaters (F + D)", "Score",
+        "Player ranking", "Whole pool", "Skaters (F + D)", "Score",
         "Per-game rates"]),
     "review_opening_day": (opening_day, [
-        REVIEW, "Category leaderboard", "Whole pool", "Forwards", "Score",
+        REVIEW, "Player ranking", "Whole pool", "Forwards", "Score",
         "Percentiles", "Draft hits & busts"]),
     "review_opening_day_season_only": (opening_day, [
-        *SEASON_ONLY, REVIEW, "Category leaderboard", "Whole pool",
+        *SEASON_ONLY, REVIEW, "Player ranking", "Whole pool",
         "Forwards", "Score", "Season totals", "Team roster", "Alpha",
         "Current"]),
     "empty_states": (preseason, [
@@ -348,8 +348,8 @@ CASES = {
         "Show power rankings over time", "Show category strength profile",
         BACK, REVIEW, *PREVIEW, "Matchup 1"]),
     "review_pre_draft": (pre_draft, [
-        REVIEW, "Category leaderboard", "Free agents", "Forwards",
-        "Score", "Percentiles", "Category leaderboard", "One team", "Alpha",
+        REVIEW, "Player ranking", "Free agents", "Forwards",
+        "Score", "Percentiles", "Player ranking", "One team", "Alpha",
         "Forwards", "Score", "Percentiles", "Roster origins",
         "Category outlook", "Waiver pickups", "Team roster", "Alpha",
         "Draft grades vs ADP"]),

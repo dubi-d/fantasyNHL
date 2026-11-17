@@ -4,17 +4,20 @@ import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import type { Stats } from "./api";
 import { Select } from "./components/controls";
 import {
+  DraftRecap,
   MatchupPreview,
   PowerRankings,
   SimplePage,
+  Transactions,
   WeeklyAwards,
 } from "./pages/basic";
 import { StreamingPlanner } from "./pages/Planner";
-import { Review } from "./pages/Review";
+import { Players } from "./pages/Players";
+import { Roster } from "./pages/Roster";
 import { ScheduleOutlook } from "./pages/Schedule";
 import { useSession } from "./session";
 
-// the menu of the terminal app: group -> (label, path, page)
+// the terminal's menu, its last tool as four pages: group -> (label, path, page)
 const MENU = [
   {
     group: "Weekly",
@@ -68,8 +71,13 @@ const MENU = [
     ],
   },
   {
-    group: "Players, rosters & draft",
-    pages: [{ label: "Review", path: "/review", element: <Review /> }],
+    group: "Players & rosters",
+    pages: [
+      { label: "Players", path: "/players", element: <Players /> },
+      { label: "Roster", path: "/roster", element: <Roster /> },
+      { label: "Draft recap", path: "/draft", element: <DraftRecap /> },
+      { label: "Transactions", path: "/transactions", element: <Transactions /> },
+    ],
   },
 ];
 
