@@ -24,7 +24,7 @@ is about the code.
 | [models.py](models.py) | The records (`PreviewPlayer`, `RosterPlayer`, `DraftPick`, `TransactionCounts`), the category sets and `position_group` |
 | [rates.py](rates.py) | Per-game rates of a player: `StatBasis`, `player_rate`, the season/projection blend, the minimum games for a Score |
 | [ranking.py](ranking.py) | Rank statistics: percentile ranks |
-| [standings.py](standings.py) | Round-robin scoring of a week, its timelines, luck, category win rates and contestedness, weekly awards |
+| [standings.py](standings.py) | Round-robin scoring of a week, its timelines, luck, category win rates, contestedness and leaders, weekly awards |
 | [seats.py](seats.py) | Lineup seats: who can play when, open seats per day and slot, saved-lineup game counts, streaming candidates, coverage by NHL team |
 | [schedule.py](schedule.py) | The NHL schedule per fantasy matchup: games, off-nights, effective-games scores and their calibration |
 | [preview.py](preview.py) | Predicted category scores of a matchup week |

@@ -143,6 +143,24 @@ def category_contestedness(win_rates: pd.DataFrame,
     return 1 - 2 * win_rates[cat_names].std(ddof=0)
 
 
+def category_leaders(scores: np.ndarray,
+                     categories: list[Category]) -> dict[str, list[int]]:
+    """
+    The teams with the best value per category in one week.
+
+    :param scores: scores of a single week (teams x categories)
+    :param categories: category definitions (order matching the score columns)
+    :return: category name -> rows of the teams sharing the best value
+        (the lowest one for an inverted category)
+    """
+    leaders = {}
+    for i, cat in enumerate(categories):
+        column = scores[:, i]
+        best = column.min() if cat.inverted else column.max()
+        leaders[cat.name] = np.flatnonzero(column == best).tolist()
+    return leaders
+
+
 def luck(actual_pts, rr_pts, num_opponents: int):
     """
     Schedule luck: actual matchup points minus points expected from

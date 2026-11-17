@@ -21,6 +21,7 @@ from fantasy_nhl.analysis import (
     blended_per_game,
     calibrate_night_value,
     category_contestedness,
+    category_leaders,
     category_outlook,
     category_profiles,
     category_win_rates,
@@ -327,6 +328,28 @@ class TestCategoryContestedness:
         result = category_contestedness(
             win_rates, [Category("G"), Category("GAA", inverted=True)])
         assert result["G"] == result["GAA"] == 1.0
+
+
+class TestCategoryLeaders:
+    def test_best_value_leads_lowest_when_inverted(self):
+        scores = np.array([
+            [10, 3, 2.0],
+            [5, 7, 1.5],
+            [1, 1, 3.0],
+        ])
+        assert category_leaders(scores, CATEGORIES) == {
+            "G": [0], "A": [1], "GAA": [1]}
+
+    def test_tied_teams_share_the_lead(self):
+        scores = np.array([[5.0, 2.0], [5.0, 2.0], [1.0, 2.0]])
+        assert category_leaders(scores, [Category("G"), Category("A")]) == {
+            "G": [0, 1], "A": [0, 1, 2]}
+
+    def test_missing_ratio_never_leads_an_inverted_category(self):
+        # ESPN reports GAA as inf before a team's first goalie start
+        scores = np.array([[np.inf], [2.5]])
+        assert category_leaders(
+            scores, [Category("GAA", inverted=True)]) == {"GAA": [1]}
 
 
 class TestLuck:

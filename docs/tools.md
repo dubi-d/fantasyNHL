@@ -12,14 +12,21 @@ are in [methodology.md](methodology.md). Where a figure is "saved to
   ESPN matchup outcome that week (`NA` while undecided), and a `Luck` column
   quantifies that week's schedule luck (see [Luck](methodology.md#luck);
   empty while the matchup is
-  undecided). Sorted by points, indexed by rank.
+  undecided). To the right, one column per scoring category holds the
+  team's total of that week, colored by its strength: the win rate of the
+  **category strength profile**, taken over that week alone (green beats
+  most of the league, red loses to most, tied teams share a color). A ratio
+  ESPN has no value for yet (GAA before the first goalie start) is blank.
+  Sorted by points, indexed by rank.
 - **Generate weekly awards** — Picks a completed matchup (default: the
   latest) and prints its round-robin table plus a plain-text awards block
   ready to paste into the league chat: team and dud of the matchup (best and
   worst round-robin points, with their head-to-head scoreline), the luckiest
   win (the winner with the weakest stats) and the biggest choke (the loser
   with the strongest stats); the last two are omitted when they coincide
-  with the best/worst team.
+  with the best/worst team. A last line names the category kings: the team
+  with the best total in each category, co-leaders together; a category in
+  which every team tied has none.
 - **Show accumulated scores** — Sums the weekly round-robin results over all
   completed weeks into overall standings, sorted by round-robin strength and
   indexed by rank. The actual matchup record (W/L/T) and points (`Pts`) are

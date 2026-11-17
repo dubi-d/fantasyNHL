@@ -73,6 +73,7 @@ from .seats import (
 from .standings import (
     average_points,
     category_contestedness,
+    category_leaders,
     category_win_rates,
     luck,
     matchup_result,
@@ -136,6 +137,7 @@ __all__ = [
     "blended_ratio",
     "calibrate_night_value",
     "category_contestedness",
+    "category_leaders",
     "category_outlook",
     "category_percentiles",
     "category_profiles",

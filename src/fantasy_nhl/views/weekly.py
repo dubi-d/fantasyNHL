@@ -1,16 +1,28 @@
 """Weekly views: round-robin scores per matchup and the weekly awards."""
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 
-from ..analysis import luck, matchup_result, pick_weekly_awards
-from .common import (
-    RESULT_TONES,
-    completed_matchups,
-    ranked,
-    round_robin_week,
+from ..analysis import (
+    category_leaders,
+    category_win_rates,
+    luck,
+    matchup_result,
+    pick_weekly_awards,
 )
-from .model import HEADING, TableView, TextBlock, View, column_tones, diverging, note
+from .common import RESULT_TONES, completed_matchups, round_robin_week
+from .model import (
+    HEADING,
+    TableView,
+    TextBlock,
+    View,
+    cell_text,
+    column_tones,
+    diverging,
+    heat,
+    note,
+)
 
 if TYPE_CHECKING:
     from ..sources.espn import LeagueData
@@ -29,24 +41,58 @@ def week_table(data: "LeagueData", week: int) -> pd.DataFrame:
     return table
 
 
-def _scores_table(table: pd.DataFrame, title: str) -> TableView:
+def _shown(totals: pd.Series) -> pd.Series:
+    """A category's totals as displayed: blank where ESPN has no value
+    yet (a GAA before the first goalie start is infinite)."""
+    totals = totals.where(np.isfinite(totals))
+    if (totals.dropna() % 1 == 0).all():
+        return totals.astype("Int64")
+    return totals.round(3)
+
+
+def _category_columns(data: "LeagueData",
+                      week: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """A week's category totals as displayed and their strength, the
+    round-robin win rate within that week (missing for a blank total);
+    both teams x categories, index = team row."""
+    categories = data.config.categories
+    names = [cat.name for cat in categories]
+    scores = data.weekly_cat_scores[:, :, week - 1:week]
+    values = pd.DataFrame(scores[:, :, 0], columns=names).apply(_shown)
+    rates = category_win_rates(scores, categories, data.team_names)[names]
+    return values, rates.where(values.notna())
+
+
+def _scores_table(table: pd.DataFrame, values: pd.DataFrame,
+                  rates: pd.DataFrame, title: str) -> TableView:
+    """
+    :param table: a week's round-robin table as built by week_table
+    :param values: its category totals, as built by _category_columns
+    :param rates: their win rates, which color them
+    """
     table = table.rename(columns={"W": "rrW", "L": "rrL", "T": "rrT"})
     table["Luck"] = table["Luck"].round(2)
-    table = ranked(
-        table[["Player", "Result", "rrW", "rrL", "rrT", "CatsWon", "Pts", "Luck"]])
+    # joined after the rename: a league may score goalie wins as "W"
+    table = table[["Player", "Result", "rrW", "rrL", "rrT", "CatsWon", "Pts",
+                   "Luck"]].join(values).sort_values(by=["Pts"], ascending=False)
     # weekly luck is bounded by +-2
-    return TableView(title, table, column_tones(table, {
-        "Result": RESULT_TONES.get, "Luck": lambda v: diverging(v, 2)}))
+    tones = column_tones(table, {
+        "Result": RESULT_TONES.get, "Luck": lambda v: diverging(v, 2)}).join(
+        column_tones(rates.loc[table.index], dict.fromkeys(rates, heat)))
+    table.index = tones.index = range(1, len(table) + 1)
+    return TableView(title, table, tones)
 
 
 def build_weekly_scores(data: "LeagueData") -> View:
-    """The round-robin table of every week, including the ongoing one."""
+    """The round-robin table of every week, including the ongoing one,
+    with the category totals behind it."""
     view = View()
     completed = completed_matchups(data)
     for week in range(1, data.current_week + 1):
         ongoing = " (ongoing)" if week > completed else ""
-        view.blocks.append(_scores_table(week_table(data, week),
-                                         f"Week {week}{ongoing}"))
+        view.blocks.append(_scores_table(
+            week_table(data, week), *_category_columns(data, week),
+            f"Week {week}{ongoing}"))
     return view
 
 
@@ -64,7 +110,8 @@ def _award_line(emoji: str, label: str, team: str, *clauses: str) -> str:
 def build_weekly_awards(data: "LeagueData", week: int,
                         pairings: list[tuple[int, int]]) -> View:
     """A completed matchup's round-robin table and its awards (best/worst
-    team, luckiest win, biggest choke) as text for the league chat.
+    team, luckiest win, biggest choke, the leader of each category) as
+    text for the league chat.
 
     :param pairings: (home row, away row) of that matchup
     """
@@ -112,6 +159,15 @@ def build_weekly_awards(data: "LeagueData", week: int,
             "💀", "Biggest choke", choke["Player"], versus(choke),
             f"despite the {_ordinal(ranks[choke.name])}-best stats"))
 
-    return View([_scores_table(table, f"Matchup {week} scores"),
+    values, rates = _category_columns(data, week)
+    # a category everybody tied in has no king
+    kings = [f"{cat} {' & '.join(names[row] for row in rows)} "
+             f"({cell_text(values.loc[rows[0], cat])})"
+             for cat, rows in category_leaders(scores, categories).items()
+             if len(rows) < len(names)]
+    if kings:
+        lines.append(f"👑 Category kings: {', '.join(kings)}")
+
+    return View([_scores_table(table, values, rates, f"Matchup {week} scores"),
                  note("Copy-paste for the league chat:", level=HEADING),
                  TextBlock("\n".join(lines))])
