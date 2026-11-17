@@ -77,7 +77,9 @@ Everything is under `/api`; the interactive description is at
 `TextBlockModel` and `FigureBlockModel`:
 
 - A column has a `key`, a `name`, a `type` (`number` or `text`), an
-  alignment and whether its header is muted. A cell has the displayed
+  alignment, whether its header is muted and whether it is `sortable`
+  (the builder says what is not, see [views.md](../views/views.md)). A
+  cell has the displayed
   `text`, the `value` behind it (the displayed number, not a more precise
   one) and its `tone`.
 - A figure has its `kind`, `title`, the `url` of the PNG and `data`: the

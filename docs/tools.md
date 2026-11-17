@@ -4,6 +4,8 @@ What each tool shows, in the order of the menu. The terminal and the web
 app show the same tables and figures; the definitions behind the numbers
 are in [methodology.md](methodology.md). Where a figure is "saved to
 `plots/`", that is the terminal app; the web app shows it on the page.
+In the web app, a click on a column header sorts a table by that column
+(see [web.md](../web/web.md)).
 
 - **Show weekly scores** — For each matchup week (including the ongoing one),
   prints a round-robin table: every team is matched against every other team

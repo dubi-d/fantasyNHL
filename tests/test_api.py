@@ -256,6 +256,38 @@ def test_columns_are_keyed_and_typed(api):
     assert {column["type"] for column in grid["columns"]} == {"text"}
 
 
+def test_columns_say_whether_they_sort(api):
+    def unsortable(path: str) -> list[list[str]]:
+        """Per table of a view, the columns that do not sort."""
+        blocks = api.client.get(BASE + path).json()["blocks"]
+        return [[column["name"] for column in block["columns"]
+                 if not column["sortable"]]
+                for block in blocks if block["type"] == "table"]
+
+    def columns(path: str) -> list[list[str]]:
+        blocks = api.client.get(BASE + path).json()["blocks"]
+        return [[column["name"] for column in block["columns"]]
+                for block in blocks if block["type"] == "table"]
+
+    assert unsortable("/standings/luck") == [[]]
+    assert unsortable("/schedule/outlook") == [[]]
+    # tables whose row order is their structure
+    for path in ("/preview", "/review/compare?players=101&players=102"):
+        assert unsortable(path) == columns(path)
+    plan = f"/streaming/plan?team=0&week=5&{STREAMERS}"
+    days = ["Wed 4", "Thu 5", "Fri 6", "Sat 7", "Sun 8", "Mon 9", "Tue 10"]
+    assert unsortable(plan) == [*columns(plan)[:2], days]
+    # columns of marks and of several values in one text
+    assert unsortable(
+        f"/streaming/candidates?team=0&week=5&{STREAMERS}") == [days]
+    assert unsortable("/schedule/outlook?scope=playoffs") == [
+        ["M7", "M8", "Total"]]
+    assert unsortable("/review/draft-grades") == [
+        ["Best steal", "Biggest reach", "Kept"], [], ["Rd.Pk"], ["Rd.Pk"]]
+    assert unsortable("/review/draft-return") == [["Rd.Pk"], ["Rd.Pk"], []]
+    assert unsortable("/review/team?team=1&source=draft") == [["Rd.Pk"]]
+
+
 def test_whole_numbers_stay_whole(api):
     curve = api.client.post(BASE + "/schedule/calibration", json={
         "source": "old-league"}).json()["blocks"][0]

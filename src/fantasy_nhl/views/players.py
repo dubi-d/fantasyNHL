@@ -227,9 +227,9 @@ def build_compare(ctx: ReviewContext, ids: tuple[int, ...]) -> View:
             "Player comparison ("
             + ("season total · " if basis.season_only else "")
             + "per game · percentile within group)", basis),
-            cells, cell_tones),
+            cells, cell_tones, fixed=True),
         TableView(with_basis("Profile summary", basis), summary,
-                  summary_tones),
+                  summary_tones, fixed=True),
         *ctx.profile_legend(info.loc[list(ids)]),
         FigureBlock("category_radar", "player_radar", {
             "pcts": radar,

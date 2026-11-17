@@ -32,6 +32,7 @@ class Column(BaseModel):
     type: Literal["number", "text"]  # what the values of its cells are
     align: Literal["left", "right"]
     muted: bool
+    sortable: bool  # whether ordering the rows by it makes sense
 
 
 class Row(BaseModel):
@@ -134,7 +135,8 @@ def _columns(table: TableView, values: list[list[Scalar]]) -> list[Column]:
             else "text",
             align="left" if table.frame.iloc[:, j].dtype == object
             else "right",
-            muted=str(col) in table.muted))
+            muted=str(col) in table.muted,
+            sortable=not table.fixed and str(col) not in table.unsortable))
     return columns
 
 

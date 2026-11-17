@@ -57,7 +57,8 @@ def build_draft_grades(ctx: ReviewContext) -> View:
         "Draft Grades (pick value = pick − ESPN ADP; positive = later than "
         "ADP)", summary, column_tones(summary, {
             "Avg value": value_tone,
-            "Total": lambda v: diverging(v, n_teams * n_rounds / 4)})))
+            "Total": lambda v: diverging(v, n_teams * n_rounds / 4)}),
+        unsortable=("Best steal", "Biggest reach", "Kept")))
 
     grid = draft_value_grid(pick_table).round(0).astype("Int64")
     grid.insert(0, "Player", grid.index)
@@ -71,7 +72,8 @@ def build_draft_grades(ctx: ReviewContext) -> View:
     for label, rows in (("steals", steals), ("reaches", reaches)):
         view = player_view(rows, cols)
         blocks.append(TableView(f"Biggest {label} (top {len(rows)})", view,
-                                column_tones(view, {"Value": value_tone})))
+                                column_tones(view, {"Value": value_tone}),
+                                unsortable=("Rd.Pk",)))
     blocks.append(note("ADP and roster% are ESPN's values as of today; "
                        "players ESPN has no ADP for count as pick "
                        f"{int(pick_table['Overall'].max()) + 1}.", level=INFO))
@@ -94,7 +96,7 @@ def build_draft_return(ctx: ReviewContext) -> View:
         view = player_view(rows, cols)
         blocks.append(TableView(
             with_basis(f"Draft {label} (top {len(rows)})", basis), view,
-            column_tones(view, PLAYER_TONES)))
+            column_tones(view, PLAYER_TONES), unsortable=("Rd.Pk",)))
     per_team = ranked_picks.groupby("TeamRow")["Return"].agg(["mean", "sum"])
     summary = pd.DataFrame({"Player": [data.team_names[r]
                                        for r in per_team.index],
@@ -130,5 +132,6 @@ def build_team_draft(ctx: ReviewContext, row: int) -> View:
         f"{data.team_names[row]} — draft picks (Value = pick − ADP, Rounds = "
         f"Value / {ctx.n_teams})", ctx.basis), view,
         column_tones(view, {**PLAYER_TONES, "Value": _value_tone(ctx),
-                            "Rounds": lambda v: diverging(v, 1)})),
+                            "Rounds": lambda v: diverging(v, 1)}),
+        unsortable=("Rd.Pk",)),
         *ctx.score_legend(table)])

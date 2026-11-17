@@ -123,5 +123,5 @@ def build_matchup_preview(data: "LeagueData", preview: "PreviewData",
                                           display[away_row][i])
         view.blocks.append(TableView(
             f"{data.team_names[home_row]} vs {data.team_names[away_row]}",
-            frame, tones))
+            frame, tones, fixed=True))
     return view

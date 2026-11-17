@@ -43,7 +43,11 @@ A `View` holds `blocks` in display order:
   frame of the same rows with a tone per cell for the columns that have
   one. `footer` rows go below the body, `muted` columns get a dimmed
   header, and `key` names a table a front end treats specially (the three
-  planner tables).
+  planner tables). `fixed` says that the row order is the table's
+  structure (a lineup grid, a pairing, a comparison by category) and
+  `unsortable` names the columns whose cells have no order (marks,
+  several values in one text): a front end that lets the user sort
+  offers neither.
 - **`Note`**: text in spans, each optionally toned, with a level (plain,
   info, warning, alert, heading).
 - **`TextBlock`**: text to show verbatim, for copying.
@@ -78,6 +82,9 @@ for the planner, `has_players` for the review.
   its tool. Compute in `analysis`, shape and label here.
 - Round and format in the builder; put the legend of a table in a `Note`
   after it.
+- Say what must not be sorted: `fixed=True` for a table whose row order
+  is its structure, `unsortable` for columns of marks or of several
+  values in one text.
 - Views that rate players take the `StatBasis` and name it in their title
   with `with_basis`.
 - Wire it into both front ends: see [cli.md](../cli/cli.md) and

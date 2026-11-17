@@ -68,6 +68,8 @@ class TableView:
     footer: pd.DataFrame | None = None  # summary rows below the body
     muted: tuple[str, ...] = ()  # columns with a de-emphasized header
     key: str = ""  # identifies the table within its view
+    fixed: bool = False  # the row order is the table's structure
+    unsortable: tuple[str, ...] = ()  # columns whose cells have no order
 
 
 @dataclass(frozen=True)

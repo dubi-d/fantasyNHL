@@ -196,6 +196,44 @@ th {
   color: var(--accent);
 }
 
+/* a header that sorts its table: the whole cell is the button */
+th button {
+  all: unset;
+  display: block;
+  width: 100%;
+  margin: -2px -8px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+th button:hover {
+  text-decoration: underline;
+}
+
+th button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* the direction sits in the padding, so that sorting moves no column */
+th[aria-sort] {
+  position: relative;
+}
+
+th[aria-sort]::after {
+  content: "▲";
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 8px;
+  pointer-events: none;
+}
+
+th[aria-sort="descending"]::after {
+  content: "▼";
+}
+
 .left {
   text-align: left;
 }

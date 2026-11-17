@@ -78,6 +78,17 @@ Tests sit next to the code: [src/app.test.tsx](src/app.test.tsx),
   the same team and week while only the streamers change.
 - **One renderer.** `ViewPanel` renders any view: tables with tones,
   notes, copyable text, figures. A page adds only its form.
+- **Sorting.** A click on a column header orders the table by that
+  column: numbers from the largest, text from A, and the other way round
+  on the next click. A click on `#` restores the order the tool gave. It
+  orders the rows already received by the cells' `value`: blank cells
+  stay last, the rank in `#` stays with its row, the footer stays put.
+  Which columns sort is the backend's word (`sortable`), not decided
+  here. The sort is the one choice that is not in the address: it belongs
+  to the table on screen and ends when another table, or the same one
+  with changed content, arrives. The *Sort by* controls of the
+  leaderboard and the schedule are something else: they ask for another
+  view (other players in the top 30, another order in the figure).
 - **Freshness.** A view is asked for again once it is five minutes old
   (on returning to the page or the window). *Reload from ESPN* tells the
   backend to drop the league and refetches everything shown.
@@ -107,7 +118,7 @@ Tests sit next to the code: [src/app.test.tsx](src/app.test.tsx),
 
 - `app.test.tsx` renders the whole app in jsdom against scripted server
   answers (`serve({address: json})`): the default league, addresses,
-  the planner's stand-in rule, reload, error states.
+  the planner's stand-in rule, sorting, reload, error states.
 - `schema.test.ts` fails when `schema.d.ts` no longer matches
   `openapi.json`.
 - `tone.test.ts` pins the gradient to the terminal's.

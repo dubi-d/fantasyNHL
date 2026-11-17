@@ -196,6 +196,7 @@ def build_schedule_outlook(data: "LeagueData", schedule: "ScheduleData",
     off_label = f"off-night = ≤{OFF_NIGHT_MAX_TEAMS} teams playing"
     scope_label = SCOPE_LABELS[scope]
 
+    grid_columns = []
     if scope == "playoffs":
         # few columns: append the week-by-week grid as games (off-nights),
         # colored by the off-night count
@@ -206,6 +207,7 @@ def build_schedule_outlook(data: "LeagueData", schedule: "ScheduleData",
                 ("Total", totals_g, totals_o)):
             summary[name] = [f"{games[t]} ({off[t]})" for t in order]
             tones[name] = _range_tones([off[t] for t in order], off)
+            grid_columns.append(name)
 
     calib_note = (f"calibrated on {calibration.source} "
                   f"({calibration.calibrated})" if calibration else
@@ -234,7 +236,8 @@ def build_schedule_outlook(data: "LeagueData", schedule: "ScheduleData",
     return View([
         TableView(f"NHL Schedule Outlook ({scope_label}, {matchups}, "
                   f"{off_label})", summary,
-                  pd.DataFrame(tones, index=summary.index, dtype=object)),
+                  pd.DataFrame(tones, index=summary.index, dtype=object),
+                  unsortable=tuple(grid_columns)),
         note(f"{score_label} = effective games per matchup, games "
              f"on streamable nights count up to double; "
              f"{calib_note}.{po_note}{fit_note}", level=INFO),

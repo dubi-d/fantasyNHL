@@ -495,6 +495,8 @@ export interface components {
             muted: boolean;
             /** Name */
             name: string;
+            /** Sortable */
+            sortable: boolean;
             /**
              * Type
              * @enum {string}

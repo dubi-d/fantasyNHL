@@ -139,6 +139,10 @@
             "title": "Name",
             "type": "string"
           },
+          "sortable": {
+            "title": "Sortable",
+            "type": "boolean"
+          },
           "type": {
             "enum": [
               "number",
@@ -153,7 +157,8 @@
           "name",
           "type",
           "align",
-          "muted"
+          "muted",
+          "sortable"
         ],
         "title": "Column",
         "type": "object"

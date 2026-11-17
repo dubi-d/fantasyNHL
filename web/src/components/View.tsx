@@ -133,8 +133,44 @@ function CopyText({ text }: { text: string }) {
   );
 }
 
+type Sort = { table: Table; column: number; descending: boolean };
+
+/** The rows ordered by a column: blank cells last, equal ones as they came. */
+function sortRows(table: Table, { column, descending }: Sort): Row[] {
+  const numeric = table.columns[column].type === "number";
+  const blank = ({ cells }: Row) =>
+    numeric ? cells[column].value === null : cells[column].text === "";
+  const compare = (a: Row, b: Row) =>
+    numeric
+      ? Number(a.cells[column].value) - Number(b.cells[column].value)
+      : a.cells[column].text.localeCompare(b.cells[column].text, undefined, {
+          sensitivity: "base",
+        });
+  return [...table.rows].sort((a, b) =>
+    blank(a) || blank(b)
+      ? Number(blank(a)) - Number(blank(b))
+      : descending
+        ? compare(b, a)
+        : compare(a, b),
+  );
+}
+
 function DataTable({ table, pageSize }: { table: Table; pageSize?: number }) {
   const [limit, setLimit] = useState(pageSize);
+  const [sort, setSort] = useState<Sort | null>(null);
+  // a table that arrives anew is in the order the tool gave it
+  if (sort && sort.table !== table) setSort(null);
+  const active = sort?.table === table ? sort : null;
+  const rows = active ? sortRows(table, active) : table.rows;
+  const sortBy = (column: number) =>
+    setSort({
+      table,
+      column,
+      descending:
+        active?.column === column
+          ? !active.descending
+          : table.columns[column].type === "number",
+    });
   const shown = limit ?? table.rows.length;
   const cells = (row: Row) =>
     row.cells.map((cell, index) => {
@@ -161,21 +197,40 @@ function DataTable({ table, pageSize }: { table: Table; pageSize?: number }) {
           <thead>
             <tr>
               <th scope="col" className="right">
-                #
+                {table.columns.some((column) => column.sortable) ? (
+                  <button type="button" title="Original order" onClick={() => setSort(null)}>
+                    #
+                  </button>
+                ) : (
+                  "#"
+                )}
               </th>
-              {table.columns.map((column) => (
+              {table.columns.map((column, index) => (
                 <th
                   key={column.key}
                   scope="col"
                   className={`${column.align} ${column.muted ? "tone-muted" : ""}`}
+                  aria-sort={
+                    active?.column !== index
+                      ? undefined
+                      : active.descending
+                        ? "descending"
+                        : "ascending"
+                  }
                 >
-                  {column.name}
+                  {column.sortable ? (
+                    <button type="button" onClick={() => sortBy(index)}>
+                      {column.name}
+                    </button>
+                  ) : (
+                    column.name
+                  )}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {table.rows.slice(0, shown).map((row, index) => (
+            {rows.slice(0, shown).map((row, index) => (
               <tr key={index}>
                 <td className="right label">{row.label}</td>
                 {cells(row)}

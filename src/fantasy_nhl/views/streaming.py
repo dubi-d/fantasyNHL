@@ -227,7 +227,7 @@ def build_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
         footer = pd.DataFrame(footer_rows, index=[""] * len(footer_rows))
     view.blocks.append(TableView(
         f"Roster week {week}" + (" (* = streamer)" if streamers else ""),
-        grid, grid_tones, footer=footer, muted=muted, key=ROSTER))
+        grid, grid_tones, footer=footer, muted=muted, key=ROSTER, fixed=True))
     if not ctx.actionable_periods:
         return view
 
@@ -249,7 +249,7 @@ def build_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
     view.blocks.append(TableView(
         "Open seats by lineup slot" + dropped, pos_table,
         _tones(pos_table, {label: [MUTED] * len(pos_table) for label in muted}),
-        footer=totals, muted=muted, key=SLOTS))
+        footer=totals, muted=muted, key=SLOTS, fixed=True))
 
     # coverage counts games on days that still have any open seat
     open_periods = {d for d in ctx.actionable_periods
@@ -280,7 +280,8 @@ def build_streaming_plan(ctx: StreamingContext, week: int, team_name: str,
     open_labels = ", ".join(labels[d] for d in sorted(open_periods))
     view.blocks.append(TableView(
         f"NHL teams covering the open days ({open_labels})" + dropped,
-        cov_table, _tones(cov_table, cov_tones), muted=muted, key=COVERAGE))
+        cov_table, _tones(cov_table, cov_tones), muted=muted, key=COVERAGE,
+        unsortable=tuple(labels[d] for d in ctx.actionable_periods + look)))
     return view
 
 
@@ -352,5 +353,6 @@ def build_candidates(ctx: StreamingContext, candidates: list[PreviewPlayer],
     tones["Inj"] = [_injury_tone(v) for v in table["Inj"]]
     view.blocks.append(TableView(
         candidates_title(1, len(table), len(table), streamers, basis),
-        table, _tones(table, tones), muted=muted))
+        table, _tones(table, tones), muted=muted,
+        unsortable=tuple(labels[d] for d in ctx.actionable_periods + look)))
     return view

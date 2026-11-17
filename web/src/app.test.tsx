@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, expect, test, vi } from "vitest";
@@ -35,21 +36,32 @@ const META: LeagueMeta = {
   warnings: [],
 };
 
-function table(title: string, names: string[], rows: (string | number)[][]): Table {
+/** A table typed as the backend does: a column of numbers is a number
+ * column. ``unsortable`` names the columns that do not sort. */
+function table(
+  title: string,
+  names: string[],
+  rows: (string | number | null)[][],
+  unsortable: string[] = [],
+): Table {
   return {
     type: "table",
     key: "",
     title,
-    columns: names.map((name) => ({
+    columns: names.map((name, index) => ({
       key: name,
       name,
-      type: "text",
+      type:
+        rows.length > 0 && rows.every((row) => typeof (row[index] ?? 0) === "number")
+          ? "number"
+          : "text",
       align: "left",
       muted: false,
+      sortable: !unsortable.includes(name),
     })),
     rows: rows.map((cells, index) => ({
       label: String(index + 1),
-      cells: cells.map((value) => ({ text: String(value), value, tone: null })),
+      cells: cells.map((value) => ({ text: String(value ?? ""), value, tone: null })),
     })),
     footer: [],
   };
@@ -57,7 +69,14 @@ function table(title: string, names: string[], rows: (string | number)[][]): Tab
 
 function plan(team: string, ids: number[], extra: Partial<PlanView["meta"]> = {}): PlanView {
   return {
-    blocks: [table(`Roster of ${team}`, ["Player"], ids.map((id) => [`${team} ${id}`]))],
+    blocks: [
+      table(
+        `Roster of ${team}`,
+        ["Player"],
+        ids.map((id) => [`${team} ${id}`]),
+        ["Player"],
+      ),
+    ],
     meta: {
       roster: ids.map((id) => ({ id, name: `${team} ${id}` })),
       days: [],
@@ -109,6 +128,14 @@ function open(address: string) {
 
 const address = () => screen.getByTestId("address").textContent;
 const BASICS = { "/api/leagues": LEAGUES, [LEAGUE]: META };
+
+const tableOf = (title: string) => within(screen.getByRole("table", { name: title }));
+
+/** A column of a table's body as shown, top to bottom (0 is the # column). */
+function shown(title: string, column: number) {
+  const body = (screen.getByRole("table", { name: title }) as HTMLTableElement).tBodies[0];
+  return [...body.rows].map((row) => row.cells[column].textContent);
+}
 
 afterEach(() => {
   cleanup();
@@ -199,7 +226,13 @@ test("the planner never offers the roster of another team's plan", async () => {
 
 test("a linked planner address is restored, candidates page by page", async () => {
   const candidates: View = {
-    blocks: [table("Candidates", ["Player"], Array.from({ length: 20 }, (_, i) => [`Free ${i + 1}`]))],
+    blocks: [
+      table(
+        "Candidates",
+        ["Player", "Fit"],
+        Array.from({ length: 20 }, (_, i) => [`Free ${i + 1}`, i]),
+      ),
+    ],
   };
   serve({
     ...BASICS,
@@ -218,8 +251,91 @@ test("a linked planner address is restored, candidates page by page", async () =
     (screen.getByLabelText("Week is over — simulate it from") as HTMLSelectElement).value,
   ).toBe("10");
   expect(screen.queryByText("Free 16")).toBeNull();
+  // a sort orders all the candidates, not the ones shown
+  fireEvent.click(screen.getByRole("button", { name: "Fit" }));
+  expect(shown("Candidates", 1)[0]).toBe("Free 20");
+  expect(screen.queryByText("Free 5")).toBeNull();
   fireEvent.click(screen.getByText("Show more (5 left)"));
-  expect(screen.getByText("Free 20")).toBeTruthy();
+  expect(screen.getByText("Free 5")).toBeTruthy();
+});
+
+test("a click on a header sorts the table, one on # restores its order", async () => {
+  const standings = table(
+    "Standings",
+    ["Player", "Luck"],
+    [
+      ["bravo", 0.1],
+      ["Alpha", null],
+      ["Charlie", 0.5],
+      ["Delta", 0.1],
+    ],
+  );
+  standings.footer = [
+    { label: "", cells: [{ text: "(avg)", value: "(avg)", tone: null }, { text: "9", value: 9, tone: null }] },
+  ];
+  serve({ ...BASICS, [`${LEAGUE}/standings/accumulated`]: { blocks: [standings] } });
+  open("/test-league/standings/accumulated");
+  const header = (name: string) => screen.getByRole("columnheader", { name });
+
+  // numbers start with the largest; equal ones stay as they came, blanks last
+  fireEvent.click(await screen.findByRole("button", { name: "Luck" }));
+  expect(shown("Standings", 1)).toEqual(["Charlie", "bravo", "Delta", "Alpha"]);
+  expect(shown("Standings", 0)).toEqual(["3", "1", "4", "2"]); // the rank stays with its row
+  expect(header("Luck").getAttribute("aria-sort")).toBe("descending");
+  fireEvent.click(screen.getByRole("button", { name: "Luck" }));
+  expect(shown("Standings", 1)).toEqual(["bravo", "Delta", "Charlie", "Alpha"]);
+  expect(header("Luck").getAttribute("aria-sort")).toBe("ascending");
+
+  // text starts at A, in either case
+  fireEvent.click(screen.getByRole("button", { name: "Player" }));
+  expect(shown("Standings", 1)).toEqual(["Alpha", "bravo", "Charlie", "Delta"]);
+  expect(header("Luck").getAttribute("aria-sort")).toBeNull();
+  expect(screen.getByText("(avg)").closest("tfoot")).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("button", { name: "#" }));
+  expect(shown("Standings", 1)).toEqual(["bravo", "Alpha", "Charlie", "Delta"]);
+  expect(header("Player").getAttribute("aria-sort")).toBeNull();
+});
+
+test("what the tool marks does not sort", async () => {
+  const grades = table("Grades", ["Player", "Kept"], [["Alpha", "1/2"]], ["Kept"]);
+  const pairing = table("Pairing", ["Player", "Cats"], [["Alpha", 3]], ["Player", "Cats"]);
+  serve({ ...BASICS, [`${LEAGUE}/standings/accumulated`]: { blocks: [grades, pairing] } });
+  open("/test-league/standings/accumulated");
+
+  expect(await screen.findByText("Grades")).toBeTruthy();
+  expect(tableOf("Grades").getAllByRole("button").map((button) => button.textContent)).toEqual([
+    "#",
+    "Player",
+  ]);
+  expect(tableOf("Pairing").queryAllByRole("button")).toEqual([]);
+});
+
+test("a table that arrives changed is back in the tool's order", async () => {
+  let luck = 0.1;
+  const asked = serve({
+    ...BASICS,
+    [`${LEAGUE}/reload`]: {},
+    [`${LEAGUE}/standings/luck`]: () => ({
+      blocks: [table("Luck ranking", ["Player", "Luck"], [["Alpha", luck], ["Bravo", 0.5]])],
+    }),
+  });
+  open("/test-league/standings/luck");
+  const reloaded = async (times: number) => {
+    fireEvent.click(screen.getByText("Reload from ESPN"));
+    await waitFor(() => {
+      expect(asked.filter((url) => url.endsWith("/standings/luck"))).toHaveLength(times + 1);
+      expect(document.querySelector(".view.stale")).toBeNull();
+    });
+  };
+
+  fireEvent.click(await screen.findByRole("button", { name: "Luck" }));
+  expect(shown("Luck ranking", 1)).toEqual(["Bravo", "Alpha"]);
+  await reloaded(1); // with the same answer
+  expect(shown("Luck ranking", 1)).toEqual(["Bravo", "Alpha"]);
+  luck = 0.2;
+  await reloaded(2);
+  expect(shown("Luck ranking", 2)).toEqual(["0.2", "0.5"]);
 });
 
 test("selections follow the league after a reload", async () => {
