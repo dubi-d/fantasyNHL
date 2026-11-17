@@ -96,7 +96,15 @@ class ReviewOptions(BaseModel):
     drafted: bool
     players: list[PlayerChoice]  # for comparisons, by name
     groups: list[GroupChoice]  # ranking position groups
-    cells: list[Choice]  # what ranking cells can show
+    cells: list[Choice]  # what category cells can show
+
+
+Cells = Literal["pct", "rate", "total"]
+
+
+def _check_cells(context: ReviewContext, cells: Cells | None) -> None:
+    if cells is not None and cells not in cell_choices(context.basis):
+        raise invalid("Season totals need stats=season")
 
 
 @router.get(f"{LEAGUE}/review/options")
@@ -124,7 +132,7 @@ def review_leaders(session: Session,
                    team: int | None = None,
                    group: Literal["F", "D", "FD", "G"] = "F",
                    sort: str = "Score",
-                   cells: Literal["pct", "rate", "total"] = "pct",
+                   cells: Cells = "pct",
                    stats: Stats = "blended") -> View:
     """
     Player ranking.
@@ -141,8 +149,7 @@ def review_leaders(session: Session,
     def build(context: ReviewContext) -> View:
         if sort not in leader_sorts(context, group):
             raise invalid(f"sort must be one of {leader_sorts(context, group)}")
-        if cells not in cell_choices(context.basis):
-            raise invalid("Season totals need stats=season")
+        _check_cells(context, cells)
         return build_leaders(context, scope, team if scope == "team" else None,
                              group, sort, cells)
     return _review(session, stats, build)
@@ -208,17 +215,34 @@ def review_trades(session: Session, stats: Stats = "blended") -> View:
 @view("/review/team")
 def review_team(session: Session, team: int,
                 source: Literal["draft", "current"] = "current",
+                cells: Cells | None = None,
                 stats: Stats = "blended") -> View:
-    """A team's roster: its draft picks or its current players."""
+    """
+    A team's roster: its draft picks or its current players.
+
+    :param cells: add the ranking's columns, their category cells showing
+        percentiles, per-game rates or (season stats only) totals
+    """
     team_row(session, team)
-    return _review(session, stats,
-                   build_team_draft if source == "draft" else build_team_roster,
-                   team, needs_draft=source == "draft")
+
+    def build(context: ReviewContext) -> View:
+        _check_cells(context, cells)
+        return (build_team_draft if source == "draft"
+                else build_team_roster)(context, team, cells)
+    return _review(session, stats, build, needs_draft=source == "draft")
 
 
 @view("/review/gaps")
-def review_gaps(session: Session, team: int,
+def review_gaps(session: Session, team: int, cells: Cells | None = None,
                 stats: Stats = "blended") -> View:
-    """A team's drop candidates next to the best free agents."""
+    """
+    A team's drop candidates next to the best free agents.
+
+    :param cells: as for review/team
+    """
     team_row(session, team)
-    return _review(session, stats, build_gaps, team)
+
+    def build(context: ReviewContext) -> View:
+        _check_cells(context, cells)
+        return build_gaps(context, team, cells)
+    return _review(session, stats, build)

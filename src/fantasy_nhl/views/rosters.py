@@ -29,6 +29,7 @@ from .model import (
     heat,
     note,
 )
+from .players import cells_label, with_profile
 from .review import ReviewContext
 
 GAPS_N = 10  # drop candidates / FA skater targets listed
@@ -173,8 +174,12 @@ def build_acquired(ctx: ReviewContext, acquisition: str, label: str) -> View:
     return View(blocks + ctx.score_legend(players, gap=not players.empty))
 
 
-def build_gaps(ctx: ReviewContext, row: int) -> View:
-    """A team's lowest-scoring players next to the best free agents."""
+def build_gaps(ctx: ReviewContext, row: int, cells: str | None = None) -> View:
+    """A team's lowest-scoring players next to the best free agents.
+
+    :param cells: add the ranking's columns, their category cells showing
+        this key of CELL_CHOICES
+    """
     review, basis = ctx.review, ctx.basis
     name = ctx.data.team_names[row]
     if not review.rosters[row]:
@@ -186,21 +191,34 @@ def build_gaps(ctx: ReviewContext, row: int) -> View:
             "Gap", "Inj"]
     fa_cols = [c for c in cols if c not in ("Slot", "Acq")]
     pool_note = f"of the {len(review.free_agents)} most-owned free agents"
+    shown = f"; {cells_label(cells)}" if cells else ""
     blocks = []
-    for table, columns, title in (
-            (drops, cols, f"{name} — lowest-scoring players (drop candidates)"),
-            (skaters, fa_cols, f"Free-agent skaters by Score (top "
-                               f"{len(skaters)} {pool_note})"),
-            (goalies, fa_cols, f"Free-agent goalies by Score (top "
-                               f"{len(goalies)} {pool_note})")):
+    for table, columns, goalie, title in (
+            (drops, cols, None,
+             f"{name} — lowest-scoring players (drop candidates{shown})"),
+            (skaters, fa_cols, False, f"Free-agent skaters by Score (top "
+                                      f"{len(skaters)} {pool_note}{shown})"),
+            (goalies, fa_cols, True, f"Free-agent goalies by Score (top "
+                                     f"{len(goalies)} {pool_note}{shown})")):
         view = player_view(table, columns)
-        blocks.append(TableView(with_basis(title, basis), view,
-                                column_tones(view, PLAYER_TONES)))
-    return View(blocks + ctx.score_legend(drops, skaters, goalies, gap=True))
+        view, tones = with_profile(
+            ctx, table, view, column_tones(view, PLAYER_TONES), cells, goalie)
+        blocks.append(TableView(with_basis(title, basis), view, tones))
+    return View(blocks + _legend(ctx, cells, drops, skaters, goalies))
 
 
-def build_team_roster(ctx: ReviewContext, row: int) -> View:
-    """A team's current roster, best Score first."""
+def _legend(ctx: ReviewContext, cells: str | None, *shown: pd.DataFrame):
+    legend = ctx.profile_legend if cells else ctx.score_legend
+    return legend(*shown, gap=True)
+
+
+def build_team_roster(ctx: ReviewContext, row: int,
+                      cells: str | None = None) -> View:
+    """A team's current roster, best Score first.
+
+    :param cells: add the ranking's columns, their category cells showing
+        this key of CELL_CHOICES
+    """
     name = ctx.data.team_names[row]
     roster = ctx.review.rosters[row]
     if not roster:
@@ -214,7 +232,10 @@ def build_team_roster(ctx: ReviewContext, row: int) -> View:
                               kind="stable")
     view = player_view(table, ["Player", "Pos", "Slot", "Acq", "Overall",
                                "GP", "Own%", "Chg", "Score", "Gap", "Inj"])
+    view, tones = with_profile(
+        ctx, table, view, column_tones(view, PLAYER_TONES), cells)
     return View([TableView(with_basis(
-        f"{name} — current roster (by Score; Overall = draft position)",
-        ctx.basis), view, column_tones(view, PLAYER_TONES)),
-        *ctx.score_legend(table, gap=True)])
+        f"{name} — current roster (by Score; Overall = draft position"
+        + (f"; {cells_label(cells)})" if cells else ")"),
+        ctx.basis), view, tones),
+        *_legend(ctx, cells, table)])

@@ -1003,6 +1003,7 @@ export interface operations {
         parameters: {
             query: {
                 team: number;
+                cells?: ("pct" | "rate" | "total") | null;
                 stats?: "blended" | "season";
             };
             header?: never;
@@ -1209,6 +1210,7 @@ export interface operations {
             query: {
                 team: number;
                 source?: "draft" | "current";
+                cells?: ("pct" | "rate" | "total") | null;
                 stats?: "blended" | "season";
             };
             header?: never;

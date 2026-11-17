@@ -82,7 +82,8 @@ class ReviewContext:
             notes.append(note(NO_PROJECTION_NOTE, level=INFO))
         return notes
 
-    def profile_legend(self, shown: pd.DataFrame) -> list[Note]:
+    def profile_legend(self, *shown: pd.DataFrame,
+                       gap: bool = False) -> list[Note]:
         return [note(
             f"Percentile = rank of the per-game rate within the player's "
             f"position group (F / D / G) of the {len(self.pool)}-player pool "
@@ -94,7 +95,7 @@ class ReviewContext:
             f"{TIER_ELITE}) / Solid (>= {TIER_SOLID}) / Depth, + specialist "
             f"(Spec >= {SPEC_HIGH}) or all-rounder (Spec <= {SPEC_LOW}); "
             f"shape, not extra value.", level=INFO),
-            *self.score_legend(shown)]
+            *self.score_legend(*shown, gap=gap)]
 
 
 NOBODY = "Nobody to review yet: no rosters, no draft and no free agents."

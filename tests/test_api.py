@@ -36,7 +36,9 @@ VIEWS = [
     "/review/origins", "/review/outlook", "/review/outlook?source=draft",
     "/review/draft-grades", "/review/draft-return", "/review/pickups",
     "/review/trades", "/review/team?team=1", "/review/team?team=1&source=draft",
-    "/review/gaps?team=2",
+    "/review/gaps?team=2", "/review/team?team=1&cells=rate",
+    "/review/team?team=1&source=draft&cells=pct",
+    "/review/team?team=1&cells=total&stats=season", "/review/gaps?team=2&cells=pct",
 ]
 INVALID = [
     "/weekly/awards?week=5", "/weekly/awards?week=0",
@@ -55,6 +57,8 @@ INVALID = [
     "/review/leaders?group=G&sort=Spec", "/review/leaders?cells=total",
     "/review/compare?players=101", "/review/compare?players=101&players=109",
     "/review/compare?players=101&players=1", "/review/team?team=7",
+    "/review/team?team=1&cells=total", "/review/gaps?team=2&cells=total",
+    "/review/gaps?team=2&cells=avg",
 ]
 # a view of every kind of figure
 FIGURES = {
@@ -286,6 +290,53 @@ def test_columns_say_whether_they_sort(api):
         ["Best steal", "Biggest reach", "Kept"], [], ["Rd.Pk"], ["Rd.Pk"]]
     assert unsortable("/review/draft-return") == [["Rd.Pk"], ["Rd.Pk"], []]
     assert unsortable("/review/team?team=1&source=draft") == [["Rd.Pk"]]
+
+
+def test_team_tables_can_carry_the_ranking_columns(api):
+    def tables(path: str) -> list[dict]:
+        blocks = api.client.get(BASE + path).json()["blocks"]
+        return [block for block in blocks if block["type"] == "table"]
+
+    def names(table: dict) -> list[str]:
+        return [column["name"] for column in table["columns"]]
+
+    def cells(table: dict, columns: list[str]) -> dict[str, list[dict]]:
+        """The cells of those columns by player."""
+        at = [names(table).index(column) for column in columns]
+        return {row["cells"][names(table).index("Player")]["text"]:
+                [row["cells"][i] for i in at] for row in table["rows"]}
+
+    profile = ["Level", "Spec", "Elite", "Holes", "Type", "Best"]
+    skater, goalie = ["G", "A", "PPP", "HIT"], ["GAA", "SV%"]
+    added = [profile + skater + goalie] + [
+        profile + skater + goalie, profile + skater, profile + goalie]
+    for cell in ("pct", "rate"):
+        team, draft = "/review/team?team=1", "/review/team?team=1&source=draft"
+        for path, extra in zip((team, draft), added):
+            (plain,), (full,) = tables(path), tables(f"{path}&cells={cell}")
+            assert names(full) == names(plain) + extra
+            assert cells(full, names(plain)) == cells(plain, names(plain))
+        gaps = "/review/gaps?team=1"
+        for plain, full, extra in zip(tables(gaps),
+                                     tables(f"{gaps}&cells={cell}"), added[1:]):
+            assert names(full) == names(plain) + extra
+
+        # the cells of the ranking, tones included; none for the other kind
+        (roster,) = tables(f"{team}&cells={cell}")
+        for group, own, other in (("FD", skater, goalie), ("G", goalie, skater)):
+            (ranking,) = tables("/review/leaders?scope=team&team=1"
+                                f"&group={group}&cells={cell}")
+            ranked = cells(ranking, profile + own)
+            assert ranked and ranked == {
+                player: shown for player, shown
+                in cells(roster, profile + own).items() if player in ranked}
+            assert all(cell["text"] == "" and cell["tone"] is None
+                       for player, blank in cells(roster, other).items()
+                       if player in ranked for cell in blank)
+
+    legend = api.client.get(BASE + "/review/gaps?team=1&cells=pct").json()
+    assert [block["spans"][0]["text"][:10] for block in legend["blocks"][3:5]
+            ] == ["Percentile", "Score = me"]
 
 
 def test_whole_numbers_stay_whole(api):

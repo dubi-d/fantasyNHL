@@ -1617,6 +1617,7 @@ class TestRosterReviewTables:
     def test_player_table_columns(self):
         rosters = self.rosters()
         table = player_table(rosters[0], self.values(rosters), self.TEAMS)
+        assert list(table["PlayerId"]) == [1, 2, 3]
         assert list(table["Player"]) == ["A1", "A2", "AG"]
         assert list(table["Team"]) == ["Alpha"] * 3
         assert list(table["GP"]) == [GP, GP, GP]
@@ -1665,6 +1666,7 @@ class TestRosterReviewTables:
         assert by.loc["B1", "NowOn"] is None
         assert by.loc["A1", "GP"] == GP
         assert list(table["Overall"]) == [1, 2, 3, 4]
+        assert list(table["PlayerId"]) == [1, 2, 5, 4]
         assert table["NoProj"].all()
 
     def test_draft_return_unplayed_pick_is_a_full_bust(self):
@@ -1737,6 +1739,7 @@ class TestRosterReviewTables:
         # A2 is below the skater median, AG is a mid goalie now that there
         # are FA goalies to rank against, A1 is the best skater
         assert list(drops["Player"]) == ["A2", "AG"]
+        assert list(drops["PlayerId"]) == [2, 3]
         assert list(skaters["Player"]) == ["Stud", "Dud"]
         assert list(goalies["Player"]) == ["Wall", "Meh"]  # best GAA first
         assert skaters.loc[0, "Team"] == "FA"

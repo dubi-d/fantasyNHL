@@ -1362,6 +1362,27 @@
           },
           {
             "in": "query",
+            "name": "cells",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pct",
+                    "rate",
+                    "total"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cells"
+            }
+          },
+          {
+            "in": "query",
             "name": "stats",
             "required": false,
             "schema": {
@@ -1786,6 +1807,27 @@
               ],
               "title": "Source",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cells",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pct",
+                    "rate",
+                    "total"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cells"
             }
           },
           {

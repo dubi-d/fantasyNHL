@@ -50,7 +50,7 @@ The dev server proxies `/api` to the backend on `127.0.0.1:8000`
 | [src/pages/Planner.tsx](src/pages/Planner.tsx) | Streaming planner |
 | [src/pages/Schedule.tsx](src/pages/Schedule.tsx) | Schedule outlook and calibration |
 | [src/pages/Players.tsx](src/pages/Players.tsx) | Player ranking and player comparison |
-| [src/pages/Roster.tsx](src/pages/Roster.tsx) | The league's rosters and one team's roster, two views stacked each |
+| [src/pages/Roster.tsx](src/pages/Roster.tsx) | The league's rosters and one team's roster (with the ranking's columns), two views stacked each |
 | `src/styles.css` | All styling, including the tone classes |
 
 Tests sit next to the code: [src/app.test.tsx](src/app.test.tsx),

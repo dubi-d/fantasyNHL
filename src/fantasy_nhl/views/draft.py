@@ -18,6 +18,7 @@ from .model import (
     diverging,
     note,
 )
+from .players import cells_label, with_profile
 from .review import ReviewContext
 
 EXTREMES = 10  # league-wide steals/reaches listed
@@ -116,8 +117,13 @@ def build_draft_return(ctx: ReviewContext) -> View:
     return View(blocks + ctx.score_legend(hits, busts))
 
 
-def build_team_draft(ctx: ReviewContext, row: int) -> View:
-    """A team's picks in draft order with their value and Return."""
+def build_team_draft(ctx: ReviewContext, row: int,
+                     cells: str | None = None) -> View:
+    """A team's picks in draft order with their value and Return.
+
+    :param cells: add the ranking's columns, their category cells showing
+        this key of CELL_CHOICES
+    """
     data, pick_table = ctx.data, ctx.pick_table
     picks = draft_return(ctx.review.picks, ctx.values, data.team_names,
                          ctx.pool)
@@ -128,10 +134,13 @@ def build_team_draft(ctx: ReviewContext, row: int) -> View:
     view = player_view(table, ["Rd.Pk", "Overall", "Player", "Pos", "ADP",
                                "Value", "Rounds", "Rank", "GP", "Own%",
                                "Score", "Return", "NowOn"])
+    view, tones = with_profile(ctx, table, view, column_tones(view, {
+        **PLAYER_TONES, "Value": _value_tone(ctx),
+        "Rounds": lambda v: diverging(v, 1)}), cells)
+    legend = ctx.profile_legend if cells else ctx.score_legend
     return View([TableView(with_basis(
         f"{data.team_names[row]} — draft picks (Value = pick − ADP, Rounds = "
-        f"Value / {ctx.n_teams})", ctx.basis), view,
-        column_tones(view, {**PLAYER_TONES, "Value": _value_tone(ctx),
-                            "Rounds": lambda v: diverging(v, 1)}),
-        unsortable=("Rd.Pk",)),
-        *ctx.score_legend(table)])
+        f"Value / {ctx.n_teams}"
+        + (f"; {cells_label(cells)})" if cells else ")"), ctx.basis),
+        view, tones, unsortable=("Rd.Pk",)),
+        *legend(table)])

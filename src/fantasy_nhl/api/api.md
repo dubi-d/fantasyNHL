@@ -63,6 +63,9 @@ Everything is under `/api`; the interactive description is at
 - Parameters mirror the terminal's prompts. Teams are their row index,
   players their ESPN id, `stats` is `blended` or `season`. A parameter
   left out means the default (current matchup, latest completed matchup).
+  One parameter has no prompt: `cells` on `review/team` and `review/gaps`
+  adds the ranking's columns to their tables, for the web app's roster
+  page; without it they are the terminal's tables.
 - A parameter that is wrong, or that contradicts another one (`simulate`
   on an unfinished matchup, `fit_team` in the full scope), is refused
   with 422 and a reason (`invalid`, `in_range`, `team_row`). "Nothing to

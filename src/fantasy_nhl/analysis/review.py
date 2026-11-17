@@ -22,6 +22,7 @@ def _player_row(player: RosterPlayer, values: pd.DataFrame,
     value = (values.loc[player.player_id]
              if player.player_id in values.index else None)
     return {
+        "PlayerId": player.player_id,
         "Player": player.name,
         "Pos": player.position,
         "TeamRow": player.team_row,
@@ -39,13 +40,14 @@ def _player_row(player: RosterPlayer, values: pd.DataFrame,
     }
 
 
-_PLAYER_COLUMNS = ["Player", "Pos", "TeamRow", "Team", "Slot", "Acq", "GP",
-                   "Own%", "Chg", "Score", "Gap", "Injury", "NoProj"]
+_PLAYER_COLUMNS = ["PlayerId", "Player", "Pos", "TeamRow", "Team", "Slot",
+                   "Acq", "GP", "Own%", "Chg", "Score", "Gap", "Injury",
+                   "NoProj"]
 
 
 def player_table(players: Iterable[RosterPlayer], values: pd.DataFrame,
                  team_names: list[str]) -> pd.DataFrame:
-    """One row per player with ownership, origin and value columns."""
+    """One row per player with his id, ownership, origin and value columns."""
     rows = [_player_row(p, values, team_names) for p in players]
     return pd.DataFrame(rows, columns=_PLAYER_COLUMNS).astype(
         {"Own%": float, "Chg": float, "Score": float, "Gap": float,
@@ -106,6 +108,7 @@ def draft_return(picks: list[DraftPick], values: pd.DataFrame,
             score_pct = 0.0
         player = players.get(pick.player_id)
         rows.append({
+            "PlayerId": pick.player_id,
             "Player": pick.name,
             "Pos": pick.position,
             "TeamRow": pick.team_row,
@@ -123,8 +126,8 @@ def draft_return(picks: list[DraftPick], values: pd.DataFrame,
             "NoProj": False if value is None else bool(value["NoProj"]),
         })
     return pd.DataFrame(rows, columns=[
-        "Player", "Pos", "TeamRow", "Team", "Rd", "Pick", "Overall", "GP",
-        "Own%", "Score", "Return", "NowOn", "NoProj"]).astype(
+        "PlayerId", "Player", "Pos", "TeamRow", "Team", "Rd", "Pick",
+        "Overall", "GP", "Own%", "Score", "Return", "NowOn", "NoProj"]).astype(
             {"GP": "Int64", "Own%": float, "Score": float, "Return": float,
              "NoProj": bool})
 

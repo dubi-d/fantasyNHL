@@ -367,7 +367,10 @@ const REVIEW_OPTIONS = {
   drafted: true,
   players: [{ id: 7, label: "Sniper (C, Alpha)", goalie: false }],
   groups: [],
-  cells: [],
+  cells: [
+    { key: "pct", label: "Percentiles" },
+    { key: "rate", label: "Per-game rates" },
+  ],
 };
 const RANKING = `${LEAGUE}/review/leaders?stats=blended&scope=all&group=F&sort=Score&cells=pct`;
 
@@ -438,15 +441,21 @@ test("the roster page stacks two views and says a shared note once", async () =>
     [`${LEAGUE}/review/origins?stats=blended`]: {
       blocks: [warning, table("Origins", [], []), legend],
     },
-    [`${LEAGUE}/review/team?stats=blended&team=0`]: {
+    [`${LEAGUE}/review/team?stats=blended&team=0&cells=pct`]: {
       blocks: [warning, table("Alpha roster", [], []), legend],
     },
-    [`${LEAGUE}/review/team?stats=blended&team=0&source=draft`]: drafted,
-    [`${LEAGUE}/review/gaps?stats=blended&team=0`]: {
+    [`${LEAGUE}/review/team?stats=blended&team=0&cells=pct&source=draft`]: drafted,
+    [`${LEAGUE}/review/gaps?stats=blended&team=0&cells=pct`]: {
       blocks: [warning, table("Drops", [], []), table("Free agents", [], []), legend],
     },
-    [`${LEAGUE}/review/team?stats=blended&team=1`]: emptied,
-    [`${LEAGUE}/review/gaps?stats=blended&team=1`]: emptied,
+    [`${LEAGUE}/review/team?stats=blended&team=0&cells=rate&source=draft`]: {
+      blocks: [table("Alpha picks per game", [], [])],
+    },
+    [`${LEAGUE}/review/gaps?stats=blended&team=0&cells=rate`]: {
+      blocks: [table("Drops per game", [], [])],
+    },
+    [`${LEAGUE}/review/team?stats=blended&team=1&cells=rate`]: emptied,
+    [`${LEAGUE}/review/gaps?stats=blended&team=1&cells=rate`]: emptied,
   });
   open("/test-league/roster");
   const choose = (label: string, value: string) =>
@@ -476,6 +485,11 @@ test("the roster page stacks two views and says a shared note once", async () =>
     "Score legend",
   );
 
+  // one team's tables carry the ranking's columns: both follow their cells
+  choose("Cells show", "rate");
+  await shows("Alpha picks per game", "Drops per game");
+  expect(address()).toBe("/test-league/roster?view=team&source=draft&cells=rate");
+
   // what both views say instead of tables is said once
   choose("Rosters", "current");
   choose("Team", "1");
@@ -492,8 +506,8 @@ test("stacked views load and fail as one", async () => {
       new Promise((resolve) => (answer = resolve)),
     [`${LEAGUE}/review/origins?stats=blended`]: { blocks: [table("Origins", [], [])] },
     [`${LEAGUE}/review/outlook?stats=blended&source=draft`]: failed,
-    [`${LEAGUE}/review/team?stats=blended&team=0&source=draft`]: failed,
-    [`${LEAGUE}/review/gaps?stats=blended&team=0`]: failed,
+    [`${LEAGUE}/review/team?stats=blended&team=0&cells=pct&source=draft`]: failed,
+    [`${LEAGUE}/review/gaps?stats=blended&team=0&cells=pct`]: failed,
   });
   open("/test-league/roster?source=draft");
 

@@ -29,6 +29,10 @@ GROUP_CHOICES = {"F": "Forwards", "D": "Defense", "FD": "Skaters (F + D)",
                  "G": "Goalies"}
 CELL_CHOICES = {"pct": "Percentiles", "rate": "Per-game rates",
                 "total": "Season totals"}
+PROFILE_COLUMNS = ["Level", "Spec", "Elite", "Holes", "Type", "Best"]
+_PROFILE_TONES = {"Level": percentile_tone,
+                  "Elite": lambda v: diverging(v, 3),
+                  "Holes": lambda v: diverging(-v, 3)}
 
 
 def leader_sorts(ctx: ReviewContext, group: str) -> list[str]:
@@ -67,6 +71,60 @@ def _stat_column(cat: str, values: pd.Series, cells: str) -> pd.Series:
     return values.round(0).astype("Int64")
 
 
+def cells_label(cells: str) -> str:
+    return f"cells: {CELL_CHOICES[cells].lower()}, colored by percentile"
+
+
+def profile_columns(ctx: ReviewContext, ids, names: list[str],
+                    cells: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    The ranking's columns for the players ``ids``, in that order: the
+    profile and one column per category of ``names``.
+
+    :param cells: what the category cells show, a key of CELL_CHOICES
+    :return: (columns, their tones), indexed by player id; blank for a
+        player outside the pool
+    """
+    ids = pd.Index(ids)
+    columns = ctx.profile.reindex(index=ids, columns=PROFILE_COLUMNS)
+    for col in ("Level", "Spec"):
+        columns[col] = columns[col].round(0).astype("Int64")
+    for col in ("Type", "Best"):
+        columns[col] = columns[col].fillna("")
+    source = {"pct": ctx.pcts, "rate": ctx.rates, "total": ctx.totals}[cells]
+    for name in names:
+        columns[name] = _stat_column(name, source[name].reindex(ids), cells)
+    # category cells are colored by percentile whatever they show
+    tones = pd.concat([
+        column_tones(columns, _PROFILE_TONES),
+        ctx.pcts.reindex(index=ids, columns=names).map(percentile_tone)
+        .astype(object)], axis=1)
+    return columns, tones
+
+
+def with_profile(ctx: ReviewContext, table: pd.DataFrame, view: pd.DataFrame,
+                 tones: pd.DataFrame, cells: str | None,
+                 goalies: bool | None = None
+                 ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    A player table as displayed (``view``, ``tones``) with the ranking's
+    columns appended; as it is without ``cells``.
+
+    :param table: the rows behind ``view``, in its order, with PlayerId
+    :param cells: what the category cells show, a key of CELL_CHOICES
+    :param goalies: goalie (True) or skater (False) categories only;
+        default: all, blank where they are not the player's
+    """
+    if cells is None:
+        return view, tones
+    names = ([cat.name for cat in ctx.cats] if goalies is None
+             else ctx.group_cats(goalies))
+    columns, column_tones_ = profile_columns(ctx, table["PlayerId"], names,
+                                             cells)
+    return (pd.concat([view, columns.set_axis(view.index)], axis=1),
+            pd.concat([tones, column_tones_.set_axis(view.index)], axis=1))
+
+
 def build_leaders(ctx: ReviewContext, scope: str, row: int | None,
                   group: str, sort: str, cells: str) -> View:
     """
@@ -93,33 +151,21 @@ def build_leaders(ctx: ReviewContext, scope: str, row: int | None,
                           kind="stable").index
     if scope != "team":
         ids = ids[:LEADERS_N]
-    source = {"pct": pcts, "rate": ctx.rates, "total": ctx.totals}[cells]
+    stats, stat_tones = profile_columns(ctx, ids, names, cells)
     table = pd.concat([info.loc[ids, ["Player", "Pos", "Team", "GP",
                                       "Injury", "NoProj"]],
-                       profile.loc[ids, ["Score", "Level", "Spec",
-                                         "Elite", "Holes", "Type",
-                                         "Best"]]], axis=1)
-    for col in ("Level", "Spec"):
-        table[col] = table[col].round(0).astype("Int64")
-    for name in names:
-        table[name] = _stat_column(name, source.loc[ids, name], cells)
+                       profile.loc[ids, ["Score"]], stats], axis=1)
     view = player_view(table, ["Player", "Pos", "Team", "GP", "Inj",
-                               "Score", "Level", "Spec", "Elite",
-                               "Holes", "Type", "Best", *names])
-    # category cells are colored by percentile whatever they show
-    tones = pd.concat([
-        column_tones(view, {**PLAYER_TONES, "Level": percentile_tone,
-                            "Elite": lambda v: diverging(v, 3),
-                            "Holes": lambda v: diverging(-v, 3)}),
-        pcts.loc[ids, names].map(percentile_tone).astype(object)
-        .set_axis(view.index)], axis=1)
+                               "Score", *PROFILE_COLUMNS, *names])
+    tones = pd.concat([column_tones(view, PLAYER_TONES),
+                       stat_tones.set_axis(view.index)], axis=1)
     where = {"all": "pool", "fa": "free agents",
              "team": data.team_names[row] if row is not None else ""}[scope]
     sort_label = f"{sort} percentile" if sort in names else sort
     blocks = [TableView(with_basis(
         f"Player ranking — {GROUP_CHOICES[group]}, "
-        f"{where} (cells: {CELL_CHOICES[cells].lower()}, colored "
-        f"by percentile; by {sort_label})", ctx.basis), view, tones),
+        f"{where} ({cells_label(cells)}; by {sort_label})", ctx.basis),
+        view, tones),
         *ctx.profile_legend(table)]
 
     background = profile[profile["Group"].isin(list(group))]

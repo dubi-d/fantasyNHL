@@ -181,5 +181,10 @@ In the web app, a click on a column header sorts a table by that column
     separately, since Scores compare within a position group), each with
     roster%, 7-day change, the crowd-vs-stats `Gap` (see
     [Player value](methodology.md#player-value)) and
-    injury status; always the roster of today.
+    injury status; always the roster of today. In the web app all of
+    these tables also carry the columns of the **Player ranking**: the
+    profile (`Level`, `Spec`, `Elite`, `Holes`, `Type`, `Best`) and one
+    column per category, with the same *Cells show* choice. A table of
+    skaters and goalies has the categories of both; those that are not a
+    player's kind are blank. The terminal is too narrow for them.
 
