@@ -82,11 +82,12 @@ Downloads the regular-season stats of every NHL player for the given
 finished seasons from the NHL's stats API into `data/nhl/` (gitignored),
 one CSV file per season. A season is named by the year it ends in, as in
 `config.yaml` (`2026` is 2025-26). A season already stored is skipped
-unless `--refresh` is given; one whose regular season is not over is
-refused. The web app shows the stored seasons per player (*Player
-history*) and keeps the current season next to them itself, in
-`data/nhl/current_<season>.csv`. The columns and the terms of the
-source are in [nhl.md](src/fantasy_nhl/sources/nhl/nhl.md).
+unless `--refresh` is given; one whose totals are not final (until two
+days after its regular season ends) is refused. The web app shows the
+stored seasons per player (*Player history*). It keeps the current
+season there too and stores it with the others once it has ended, so
+the command is only needed for past seasons. The columns and the terms
+of the source are in [nhl.md](src/fantasy_nhl/sources/nhl/nhl.md).
 
 ## Web app
 
@@ -113,11 +114,10 @@ Below the menu, *NHL history* has one page that belongs to no league:
 [stored NHL stats](#historical-nhl-stats) and, in a row below their
 average, his current season. The stored seasons are local files, so
 they show without an internet connection. The current season is
-downloaded from the NHL once a day, when the page first needs it, and
-when you click *Refresh current season*; offline the page shows the last
-download. A league whose data cannot be
-loaded from ESPN shows the error on its own pages and leaves the rest
-usable.
+downloaded from the NHL once a day and when you click *Refresh current
+season*; offline the page shows the last download. A league whose data
+cannot be loaded from ESPN shows the error on its own pages and leaves
+the rest usable.
 
 How fresh the data is: the league itself (standings, rosters, current
 matchup) is read from ESPN again once it is 15 minutes old, everything

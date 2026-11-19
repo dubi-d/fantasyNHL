@@ -60,7 +60,7 @@ def history_options(history: History) -> HistoryOptions:
 
 
 @view("/history/player")
-def player_history(store: Store, history: History, player: int,
+def player_history(store: Store, player: int,
                    columns: Literal["fantasy", "all"] = "fantasy",
                    cells: Literal["total", "rate"] = "total",
                    current: bool = False) -> View:
@@ -73,9 +73,11 @@ def player_history(store: Store, history: History, player: int,
     :param current: add the current season, downloaded from the NHL if it
         was not today; without it nothing is asked from anyone
     """
+    season, failed = store.current() if current else (None, False)
+    # read after that: it may just have stored a season that ended
+    history = store.frame()
     if not (history["player_id"] == player).any():
         raise invalid("Unknown player")
-    season, failed = store.current() if current else (None, False)
     return build_player_history(history, player, columns, cells, season,
                                 failed)
 

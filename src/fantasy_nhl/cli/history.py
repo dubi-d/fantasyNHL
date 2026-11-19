@@ -5,8 +5,9 @@ from datetime import date
 
 from ..sources.nhl import (
     NhlStatsError,
-    fetch_season_ends,
+    fetch_season_dates,
     fetch_season_stats,
+    final_day,
     save_season_stats,
     season_label,
     season_path,
@@ -14,20 +15,22 @@ from ..sources.nhl import (
 
 
 def _download(years: list[int], refresh: bool) -> None:
-    ends = None
+    dates = None
     for year in dict.fromkeys(years):
         label, path = season_label(year), season_path(year)
         if path.exists() and not refresh:
             print(f"{label}: already in {path} (--refresh downloads it again)")
             continue
-        if ends is None:
-            ends = fetch_season_ends()
-        if year not in ends:
+        if dates is None:
+            dates = fetch_season_dates()
+        if year not in dates:
             raise NhlStatsError(f"The NHL has no season ending in {year}.")
-        if date.today() <= ends[year]:
+        final = final_day(dates[year][1])
+        if date.today() < final:
             raise NhlStatsError(
-                f"The {label} regular season is not over (it ends on "
-                f"{ends[year]:%Y-%m-%d}); its totals would be partial.")
+                f"The {label} totals are not final before {final:%Y-%m-%d}, "
+                "two days after the regular season ends; they would be "
+                "partial.")
         rows = fetch_season_stats(year)
         save_season_stats(year, rows)
         goalies = sum(row["position"] == "G" for row in rows)

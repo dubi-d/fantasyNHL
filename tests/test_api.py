@@ -6,7 +6,7 @@ import os
 import re
 import time
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -595,22 +595,23 @@ def test_outdated_frontend_build_is_noticed(monkeypatch, tmp_path, caplog):
 @pytest.fixture
 def nhl(monkeypatch):
     """The NHL's answers about the current season: ``down`` makes it
-    unreachable, ``tried`` and ``asked`` count the attempts and the
-    downloads."""
-    nhl = SimpleNamespace(down=False, tried=0, asked=0)
+    unreachable, ``over`` ends its regular season; ``tried`` and ``asked``
+    count the attempts and the downloads."""
+    nhl = SimpleNamespace(down=False, over=False, tried=0, asked=0)
 
-    def season(today=None, timeout=None):
+    def dates(timeout=None):
         nhl.tried += 1
         if nhl.down:
             raise NhlStatsError(
                 "Unable to read 'season' from the NHL stats API.")
-        return CURRENT_YEAR
+        end = date.today() + timedelta(days=-10 if nhl.over else 100)
+        return {CURRENT_YEAR: (date.min, end)}
 
     def stats(year, timeout=None):
         nhl.asked += 1
         return CURRENT
 
-    patch_everywhere(monkeypatch, "fetch_current_season", season)
+    patch_everywhere(monkeypatch, "fetch_season_dates", dates)
     patch_everywhere(monkeypatch, "fetch_season_stats", stats)
     return nhl
 
@@ -883,6 +884,28 @@ def test_a_season_stored_as_finished_is_no_current_one(history_api, nhl,
     assert history_api.post(REFRESH, json={}).json() == {
         "season": None, "loaded_at": None}
     assert os.listdir(tmp_path).count("current_20262027.csv") == 0
+
+
+def test_a_season_that_ended_joins_the_stored_ones(history_api, nhl,
+                                                   tmp_path):
+    path = current_path(CURRENT_YEAR, tmp_path)
+    history_api.get(NOW)
+    earlier = time.time() - 2 * 86400
+    os.utime(path, (earlier, earlier))
+    nhl.over = True
+    # the request that stores it already shows it as a season
+    view = history_api.get(NOW).json()
+    assert _tables(view)[0][3] == ["", "2026-27", *SO_FAR[2:]]
+    assert _tables(view)[0][-1][1] == "Average"
+    assert len(_note_texts(view)) == 2
+    assert "season_20262027.csv" in os.listdir(tmp_path)
+    assert not path.exists()
+    options = history_api.get(HISTORY + "/players").json()
+    assert options["seasons"][-1] == "2026-27"
+    assert "Rex Rookie (C, SJ)" in [
+        player["label"] for player in options["players"]]
+    history_api.get(NOW)
+    assert nhl.asked == 2
 
 
 def test_a_league_cannot_take_the_address_of_a_page():

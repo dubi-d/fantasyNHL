@@ -2,7 +2,7 @@
 answers: nothing asks the NHL."""
 import csv
 import json
-from datetime import date
+from datetime import date, timedelta
 from io import BytesIO
 from unittest.mock import Mock
 from urllib.error import URLError
@@ -147,47 +147,54 @@ def test_a_failed_request_is_explained(monkeypatch, failure):
         history._get("season")
 
 
-def test_season_ends_are_keyed_by_closing_year(monkeypatch):
-    monkeypatch.setattr(history, "_get", Mock(return_value={"data": [
-        {"id": 20252026, "regularSeasonEndDate": "2026-04-17T00:00:00"},
-        {"id": 20262027, "regularSeasonEndDate": "2027-04-10T00:00:00"}]}))
-    assert history.fetch_season_ends() == {
-        2026: date(2026, 4, 17), 2027: date(2027, 4, 10)}
+def test_season_dates_are_keyed_by_closing_year(monkeypatch):
+    get = Mock(return_value={"data": [
+        {"id": 20252026, "startDate": "2025-10-07T17:00:00",
+         "regularSeasonEndDate": "2026-04-17T00:00:00"},
+        {"id": 20262027, "startDate": "2026-09-29T17:00:00",
+         "regularSeasonEndDate": "2027-04-10T00:00:00"}]})
+    monkeypatch.setattr(history, "_get", get)
+    assert history.fetch_season_dates() == {
+        2026: (date(2025, 10, 7), date(2026, 4, 17)),
+        2027: (date(2026, 9, 29), date(2027, 4, 10))}
+    history.fetch_season_dates(timeout=5)
+    assert [call.args for call in get.call_args_list] == [
+        ("season", 30), ("season", 5)]
+    # the last games end a day later east of North America
+    assert history.final_day(date(2026, 4, 17)) == date(2026, 4, 19)
 
 
 def test_an_unexpected_season_list_is_refused(monkeypatch):
     monkeypatch.setattr(history, "_get", Mock(return_value={"data": [
-        {"id": 20252026}]}))
+        {"id": 20252026, "regularSeasonEndDate": "2026-04-17T00:00:00"}]}))
     with pytest.raises(history.NhlStatsError, match="season list"):
-        history.fetch_season_ends()
-    with pytest.raises(history.NhlStatsError, match="season list"):
-        history.fetch_current_season()
+        history.fetch_season_dates()
 
 
-def test_the_current_season_is_the_newest_that_has_started(monkeypatch):
-    get = Mock(return_value={"data": [
-        {"id": 20262027, "startDate": "2026-09-29T17:00:00"},
-        {"id": 20252026, "startDate": "2025-10-07T17:00:00"},
-        {"id": 20272028, "startDate": "2027-10-05T17:00:00"}]})
-    monkeypatch.setattr(history, "_get", get)
-    assert history.fetch_current_season(date(2026, 9, 29)) == 2027
-    # also between two seasons
-    assert history.fetch_current_season(date(2026, 9, 28), timeout=5) == 2026
-    assert [call.args for call in get.call_args_list] == [
-        ("season", 30), ("season", 5)]
-    with pytest.raises(history.NhlStatsError, match="no season"):
-        history.fetch_current_season(date(2025, 10, 6))
+DATES = {2022: (date(2021, 10, 12), date(2022, 4, 29)),
+         2023: (date(2022, 10, 7), date(2023, 4, 14))}
+
+
+@pytest.fixture
+def dates(monkeypatch):
+    stub = Mock(return_value=DATES)
+    monkeypatch.setattr(history, "fetch_season_dates", stub)
+    return stub
+
+
+def _files(folder):
+    return sorted(path.name for path in folder.iterdir())
 
 
 def test_the_current_season_is_stored_apart_from_the_finished(
-        reports, monkeypatch, tmp_path):
-    season = Mock(return_value=2022)
-    monkeypatch.setattr(history, "fetch_current_season", season)
+        reports, dates, tmp_path):
     assert history.current_file(tmp_path) is None
-    path = history.refresh_current_season(tmp_path)
+    with pytest.raises(history.NhlStatsError, match="no season"):
+        history.refresh_current_season(tmp_path, date(2021, 10, 11))
+    path = history.refresh_current_season(tmp_path, date(2021, 10, 12))
     assert path == tmp_path / "current_20212022.csv" == (
         history.current_file(tmp_path))
-    season.assert_called_once_with(timeout=10)
+    assert dates.call_args.kwargs == {"timeout": 10}
     assert [call.args for call in reports["get"].call_args_list] == [
         ("skater/summary", 10), ("skater/realtime", 10),
         ("goalie/summary", 10)]
@@ -207,11 +214,49 @@ def test_the_current_season_is_stored_apart_from_the_finished(
     # the finished season replaces it, and is not downloaded as current
     history.save_season_stats(2022, history.fetch_season_stats(2022),
                               tmp_path)
-    assert [p.name for p in tmp_path.iterdir()] == ["season_20212022.csv"]
+    assert _files(tmp_path) == ["season_20212022.csv"]
     requests = reports["get"].call_count
-    assert history.refresh_current_season(tmp_path) is None
+    assert history.refresh_current_season(tmp_path, date(2022, 1, 15)) is None
     assert reports["get"].call_count == requests
     assert history.current_file(tmp_path) is None
+
+
+def test_a_season_whose_totals_are_final_is_stored_as_finished(
+        reports, dates, tmp_path):
+    # on the day after its last games it is still the current one
+    path = history.refresh_current_season(tmp_path, date(2022, 4, 30))
+    assert _files(tmp_path) == [path.name] == ["current_20212022.csv"]
+    assert history.refresh_current_season(tmp_path, date(2022, 5, 1)) is None
+    assert _files(tmp_path) == ["season_20212022.csv"]
+    assert history.read_history(tmp_path)["name"].tolist() == [
+        "Luke Schenn", "Connor McDavid", "Connor Hellebuyck"]
+
+    # also without a file from while it was played, and only once
+    other = tmp_path / "other"
+    assert history.refresh_current_season(other, date(2022, 7, 1)) is None
+    assert _files(other) == ["season_20212022.csv"]
+    requests = reports["get"].call_count
+    assert history.refresh_current_season(other, date(2022, 7, 2)) is None
+    assert reports["get"].call_count == requests
+
+
+def test_a_season_left_unfinished_is_stored_once_the_next_one_runs(
+        reports, dates, tmp_path):
+    history.refresh_current_season(tmp_path, date(2022, 4, 1))
+    path = history.refresh_current_season(tmp_path, date(2022, 11, 1))
+    assert _files(tmp_path) == ["current_20222023.csv",
+                                "season_20212022.csv"]
+    assert path == history.current_file(tmp_path)
+    assert history.read_current_season(path).season == 20222023
+
+
+def test_a_failed_final_download_keeps_the_current_file(reports, dates,
+                                                        tmp_path):
+    history.refresh_current_season(tmp_path, date(2022, 4, 1))
+    reports["goalie/summary"] = _answer(_goalie(1), total=2)
+    with pytest.raises(history.NhlStatsError, match="incomplete"):
+        history.refresh_current_season(tmp_path, date(2022, 6, 1))
+    assert _files(tmp_path) == ["current_20212022.csv"]
 
 
 def test_the_stored_current_season_is_the_newest_unfinished(tmp_path):
@@ -299,14 +344,14 @@ def test_a_file_that_is_no_season_is_refused(tmp_path, content, message):
 def nhl(monkeypatch, tmp_path):
     """The command in an empty working directory, with the NHL stubbed."""
     monkeypatch.chdir(tmp_path)
-    ends = Mock(return_value={2022: date(2022, 4, 29), 2023: date(2023, 4, 14),
-                              2999: date.max})
+    dates = Mock(return_value={**DATES, 2999: (date(2998, 10, 1),
+                                               date(2999, 4, 10))})
     stats = Mock(side_effect=lambda year: [
         {"season": history.season_id(year), "position": "C"},
         {"season": history.season_id(year), "position": "G"}])
-    monkeypatch.setattr(command, "fetch_season_ends", ends)
+    monkeypatch.setattr(command, "fetch_season_dates", dates)
     monkeypatch.setattr(command, "fetch_season_stats", stats)
-    return Mock(ends=ends, stats=stats, folder=tmp_path / "data" / "nhl")
+    return Mock(dates=dates, stats=stats, folder=tmp_path / "data" / "nhl")
 
 
 def test_command_stores_each_selected_season(nhl, capsys):
@@ -315,7 +360,7 @@ def test_command_stores_each_selected_season(nhl, capsys):
         "season_20212022.csv", "season_20222023.csv"]
     assert [call.args for call in nhl.stats.call_args_list] == [
         (2022,), (2023,)]
-    nhl.ends.assert_called_once_with()
+    nhl.dates.assert_called_once_with()
     assert capsys.readouterr().out.splitlines() == [
         "2021-22: 1 skaters and 1 goalies -> data/nhl/season_20212022.csv",
         "2022-23: 1 skaters and 1 goalies -> data/nhl/season_20222023.csv"]
@@ -328,20 +373,30 @@ def test_command_keeps_a_stored_season_unless_refreshed(nhl, capsys):
     assert command.main(["2022"]) == 0
     assert stored.read_text() == "stored"
     assert "already in" in capsys.readouterr().out
-    nhl.ends.assert_not_called()
+    nhl.dates.assert_not_called()
     nhl.stats.assert_not_called()
     assert command.main(["2022", "--refresh"]) == 0
     assert stored.read_text().startswith("season,player_id")
 
 
 @pytest.mark.parametrize("year, message", [
-    ("2999", "2998-99 regular season is not over"),
+    ("2999", "2998-99 totals are not final before 2999-04-12"),
     ("2024", "no season ending in 2024")])
 def test_command_refuses_a_season_without_final_totals(nhl, capsys, year,
                                                        message):
     assert command.main(["2022", year, "2023"]) == 1
     assert message in capsys.readouterr().err
     assert [p.name for p in nhl.folder.iterdir()] == ["season_20212022.csv"]
+
+
+def test_command_waits_a_day_after_the_last_games(nhl, capsys):
+    yesterday = date.today() - timedelta(days=1)
+    nhl.dates.return_value = {2022: (date(2021, 10, 12), yesterday)}
+    assert command.main(["2022"]) == 1
+    assert "not final before" in capsys.readouterr().err
+    nhl.dates.return_value = {
+        2022: (date(2021, 10, 12), yesterday - timedelta(days=1))}
+    assert command.main(["2022"]) == 0
 
 
 def test_command_reports_an_api_failure(nhl, capsys):

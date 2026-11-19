@@ -66,11 +66,11 @@ expected tables in `test_api.py` can be checked by hand.
 
 `CURRENT` is the season after those (`CURRENT_YEAR`) while it is played:
 some of the same players, one of them traded, and a rookie the history
-does not know. A test or the fake server stubs `fetch_current_season`
-and `fetch_season_stats` with it, so the real download code stores it;
-the `nhl` fixture of `test_api.py` can also make the NHL unreachable
-and counts how often it was asked. A download of another day is a file
-whose modification time the test sets back.
+does not know. Tests and the fake server stub `fetch_season_dates` and
+`fetch_season_stats` with it, so the real code stores it. The `nhl`
+fixture of `test_api.py` can also make the NHL unreachable or end the
+season. A download of another day is a file whose modification time
+the test sets back.
 
 ## Golden transcripts
 

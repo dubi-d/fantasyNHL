@@ -8,6 +8,7 @@ current NHL season are the synthetic ones as well.
 """
 import sys
 import tempfile
+from datetime import date, timedelta
 from pathlib import Path
 
 import uvicorn
@@ -32,8 +33,9 @@ def main() -> None:
         patch_everywhere(patches, name, getattr(league, name))
     patch_everywhere(patches, "fetch_league_data", lambda config: league.data)
     patch_everywhere(patches, "save_calibration", lambda name, calibration: None)
-    patch_everywhere(patches, "fetch_current_season",
-                     lambda today=None, timeout=None: CURRENT_YEAR)
+    running = (date.min, date.today() + timedelta(days=100))
+    patch_everywhere(patches, "fetch_season_dates",
+                     lambda timeout=None: {CURRENT_YEAR: running})
     patch_everywhere(patches, "fetch_season_stats",
                      lambda year, timeout=None: CURRENT)
     with tempfile.TemporaryDirectory() as history:

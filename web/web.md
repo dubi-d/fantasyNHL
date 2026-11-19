@@ -68,15 +68,16 @@ Tests sit next to the code: [src/app.test.tsx](src/app.test.tsx),
   is never held in `useState`.
 - **One address has no league.** `#/history?<choices>` is the player
   history. It asks for the list of leagues (from `config.yaml`) and the
-  stored NHL seasons only, so it works when ESPN cannot be reached. No
-  league may have the id `history`; the backend sees to that.
+  NHL history, nothing of a league, so it works when ESPN cannot be
+  reached. No league may have the id `history`; the backend sees to
+  that.
 - **The current season comes second.** The history page asks for a
   player's view twice: without the current season, which the backend
   answers from its files at once, and with it (`current=true`), for
-  which the backend may first download from the NHL. The stored seasons
-  are shown until the second view is there and stay if it fails.
-  *Refresh current season* has the backend download it now and then
-  asks for the history's views again.
+  which the backend may first ask the NHL. The stored seasons are shown
+  until the second view is there and stay if it fails. *Refresh current
+  season* has the backend ask the NHL now, then asks for the history's
+  views again.
 - **One sidebar everywhere.** The league select, the menu and the link
   to the player history are on every page (`useShell`). What needs a
   loaded league (player stats, reload, its warnings) is shown only on a

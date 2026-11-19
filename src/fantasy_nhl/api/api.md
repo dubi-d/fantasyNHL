@@ -67,19 +67,19 @@ frontend that renders it is in [web](../../../web/web.md).
 - A file that cannot be read as a season is answered as 500 with the
   reason (`NhlStatsError`).
 - **The current season** is added to a player's history only with
-  `current=true`; without it the endpoint asks nobody, which is what
-  lets the page show the stored seasons at once and offline.
-  `HistoryStore.current()` gives the season as
-  [sources/nhl](../sources/nhl/nhl.md) stores it and has it downloaded
-  first when its file was not written today. The file's date decides,
-  not the server's memory, so a restart downloads nothing twice. Once a
-  download failed, the next is tried after `RETRY_SECONDS` (a minute).
+  `current=true`; without it the endpoint asks nobody, which lets the
+  page show the stored seasons at once and offline. With it,
+  `HistoryStore.current()` first has
+  [sources/nhl](../sources/nhl/nhl.md) refresh the season if its file
+  was not written today (without such a file: if the NHL was not asked
+  today since the server started). That also stores a season that has
+  ended, so the endpoint reads the stored seasons after this call.
+  After a failure the next try waits `RETRY_SECONDS` (a minute).
 - With `current=true` a known player is always answered with 200: when
   the NHL cannot be reached, the view shows the last download and says
-  how old it is, or says that there is none. Nothing is added when the
-  season is stored as a finished one.
-- `POST /api/history/current/refresh` downloads it now, whatever the
-  file's date; a failure is a 502 with the reason.
+  from when it is, or that there is none.
+  `POST /api/history/current/refresh` refreshes now, whatever the
+  file's date; its failure is a 502 with the reason.
 
 ## Endpoints
 
@@ -107,9 +107,8 @@ Everything is under `/api`; the interactive description is at
   is not an error: the view is a single warning note.
 - Reads are `GET` and change nothing in a league. What changes state
   (reload, saving a calibration, refreshing the NHL's current season) is
-  `POST`/`PUT` behind `local_write`. One `GET` writes a file: a player's
-  history with `current=true` stores the current season when it is not
-  of today.
+  `POST`/`PUT` behind `local_write`. One `GET` writes files: a player's
+  history with `current=true`, when the current season is due.
 
 ## What the JSON looks like
 

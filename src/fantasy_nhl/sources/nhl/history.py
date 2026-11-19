@@ -3,7 +3,7 @@ import csv
 import json
 import re
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import urlencode
@@ -70,33 +70,25 @@ def _get(resource: str, timeout: float = _TIMEOUT, **params) -> dict:
             f"Unable to read '{resource}' from the NHL stats API.") from exc
 
 
-def _season_dates(field: str, timeout: float = _TIMEOUT) -> dict[int, date]:
-    """A date of every season by the year it ends in (one request)."""
+def fetch_season_dates(timeout: float = _TIMEOUT,
+                       ) -> dict[int, tuple[date, date]]:
+    """The first and the last day of every regular season, by the year
+    the season ends in (one request)."""
     try:
-        return {row["id"] % 10000: datetime.fromisoformat(row[field]).date()
+        return {row["id"] % 10000: (
+                    datetime.fromisoformat(row["startDate"]).date(),
+                    datetime.fromisoformat(row["regularSeasonEndDate"]).date())
                 for row in _get("season", timeout)["data"]}
     except (KeyError, TypeError, ValueError) as exc:
         raise NhlStatsError(
             "The NHL stats API returned an unexpected season list.") from exc
 
 
-def fetch_season_ends() -> dict[int, date]:
-    """Last day of the regular season by the year a season ends in (one
-    request)."""
-    return _season_dates("regularSeasonEndDate")
-
-
-def fetch_current_season(today: date | None = None,
-                         timeout: float = _TIMEOUT) -> int:
-    """The newest season that has started, as the year it ends in (one
-    request). It stays the current one until the next season starts."""
-    today = today or date.today()
-    starts = _season_dates("startDate", timeout)
-    started = [year for year, start in starts.items() if start <= today]
-    if not started:
-        raise NhlStatsError("The NHL stats API lists no season that has "
-                            "started.")
-    return max(started)
+def final_day(end: date) -> date:
+    """The first day the totals of a regular season ending on `end` are
+    final."""
+    # east of North America its last games end on the following day
+    return end + timedelta(days=2)
 
 
 def _report(report: str, year: int, timeout: float) -> dict[int, dict]:
@@ -176,15 +168,34 @@ def save_season_stats(year: int, rows: list[dict],
     return path
 
 
-def refresh_current_season(folder: Path = DATA_DIR) -> Path | None:
-    """Download the current season and store it as its file of `folder`,
-    replacing an earlier download (four requests). Nothing is downloaded,
-    and None returned, if it is stored as a finished season."""
-    year = fetch_current_season(timeout=_QUICK)
-    if year in stored_seasons(folder):
+def refresh_current_season(folder: Path = DATA_DIR,
+                           today: date | None = None) -> Path | None:
+    """Bring the current season of `folder` up to date (the season list
+    and three requests per season downloaded). The current season is the
+    newest that has started. While its totals are not final it is
+    downloaded into its own file, replacing an earlier download. Once
+    they are, it is stored as a finished season instead, and so is an
+    older season that only has a file from while it was played.
+
+    :return: the current season's file; None if it is stored as finished
+    """
+    today = today or date.today()
+    dates = fetch_season_dates(timeout=_QUICK)
+    started = [year for year, (start, _) in dates.items() if start <= today]
+    if not started:
+        raise NhlStatsError("The NHL stats API lists no season that has "
+                            "started.")
+    current = max(started)
+    unfinished = {current, *_seasons(folder, "current")} - set(
+        stored_seasons(folder))
+    for year in sorted(unfinished):
+        if year in dates and today >= final_day(dates[year][1]):
+            save_season_stats(year, fetch_season_stats(year, timeout=_QUICK),
+                              folder)
+    if current in stored_seasons(folder):
         return None
-    return _write(current_path(year, folder),
-                  fetch_season_stats(year, timeout=_QUICK))
+    return _write(current_path(current, folder),
+                  fetch_season_stats(current, timeout=_QUICK))
 
 
 def _seasons(folder: Path, kind: str) -> list[int]:
