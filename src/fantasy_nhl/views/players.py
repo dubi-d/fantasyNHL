@@ -230,6 +230,34 @@ def check_pick(ctx: ReviewContext, by_label: dict[str, int],
     return True
 
 
+def _by_category(ctx: ReviewContext, ids: tuple[int, ...], labels: list[str],
+                 names: list[str]) -> TableView:
+    """The compared players' stats, one row per category."""
+    basis, pcts = ctx.basis, ctx.pcts
+
+    def cell(pid: int, name: str) -> str:
+        # season totals only next to season rates; a ratio is its own total
+        total = (_stat_text(name, ctx.totals.at[pid, name], per_game=False)
+                 if basis.season_only and name not in RATIO_CATEGORIES
+                 else "")
+        return " · ".join(filter(None, (
+            total, _stat_text(name, ctx.rates.at[pid, name], per_game=True),
+            "" if pd.isna(pcts.at[pid, name])
+            else f"{pcts.at[pid, name]:.0f}")))
+    cells = pd.DataFrame({label: [cell(pid, name) for name in names]
+                          for label, pid in zip(labels, ids)})
+    cells.insert(0, "Cat", names)
+    cells.index = range(1, len(cells) + 1)
+    tones = pd.DataFrame(
+        {label: [percentile_tone(pcts.at[pid, name]) for name in names]
+         for label, pid in zip(labels, ids)}, index=cells.index, dtype=object)
+    return TableView(with_basis(
+        "Player comparison ("
+        + ("season total · " if basis.season_only else "")
+        + "per game · percentile within group)", basis),
+        cells, tones, fixed=True)
+
+
 def _profile_summary(ctx: ReviewContext, ids: tuple[int, ...],
                      labels: list[str]) -> TableView:
     """The compared players' profile metrics, one column per player."""
@@ -258,16 +286,14 @@ def _profile_summary(ctx: ReviewContext, ids: tuple[int, ...],
 
 def build_compare(ctx: ReviewContext, ids: tuple[int, ...],
                   cells: str | None = None) -> View:
-    """Per-category comparison of 2-4 skaters or goalies (player ids),
-    their profile metrics and the percentile radar.
+    """Comparison of 2-4 skaters or goalies (player ids): their stats by
+    category, their profile metrics and the percentile radar.
 
-    :param cells: show the profile as the players' rows of the ranking,
-        their category cells showing this key of CELL_CHOICES, instead of
-        the profile summary
+    :param cells: show one table instead of the two, the players' rows of
+        the ranking, their category cells showing this key of CELL_CHOICES
     """
-    data, info, profile, pcts = ctx.data, ctx.info, ctx.profile, ctx.pcts
-    basis = ctx.basis
-    names = ctx.group_cats(profile.at[ids[0], "Group"] == "G")
+    data, info, pcts = ctx.data, ctx.info, ctx.pcts
+    names = ctx.group_cats(ctx.profile.at[ids[0], "Group"] == "G")
     labels = [info.at[pid, "Player"] for pid in ids]
     if len(set(labels)) < len(labels):
         labels = [f"{name} ({info.at[pid, 'Team']})"
@@ -278,39 +304,18 @@ def build_compare(ctx: ReviewContext, ids: tuple[int, ...],
     labels = [f"{label} {NO_PROJECTION}" if info.at[pid, "NoProj"]
               else label for label, pid in zip(labels, ids)]
 
-    def cell(pid: int, name: str) -> str:
-        # season totals only next to season rates; a ratio is its own total
-        total = (_stat_text(name, ctx.totals.at[pid, name], per_game=False)
-                 if basis.season_only and name not in RATIO_CATEGORIES
-                 else "")
-        return " · ".join(filter(None, (
-            total, _stat_text(name, ctx.rates.at[pid, name], per_game=True),
-            "" if pd.isna(pcts.at[pid, name])
-            else f"{pcts.at[pid, name]:.0f}")))
-    cells_table = pd.DataFrame({label: [cell(pid, name) for name in names]
-                                for label, pid in zip(labels, ids)})
-    cells_table.insert(0, "Cat", names)
-    cells_table.index = range(1, len(cells_table) + 1)
-    cell_tones = pd.DataFrame(
-        {label: [percentile_tone(pcts.at[pid, name]) for name in names]
-         for label, pid in zip(labels, ids)}, index=cells_table.index,
-        dtype=object)
-
     if cells:
         _, view, tones = _ranking_rows(ctx, ids, names, cells, COMPARE_COLUMNS)
-        players = TableView(with_basis(
-            f"Compared players ({cells_label(cells)})", basis), view, tones)
+        tables = [TableView(with_basis(
+            f"Compared players ({cells_label(cells)})", ctx.basis), view,
+            tones)]
     else:
-        players = _profile_summary(ctx, ids, labels)
+        tables = [_by_category(ctx, ids, labels, names),
+                  _profile_summary(ctx, ids, labels)]
     radar = pcts.loc[list(ids), names]
     radar.index = labels
     return View([
-        TableView(with_basis(
-            "Player comparison ("
-            + ("season total · " if basis.season_only else "")
-            + "per game · percentile within group)", basis),
-            cells_table, cell_tones, fixed=True),
-        players,
+        *tables,
         *ctx.profile_legend(info.loc[list(ids)]),
         FigureBlock("category_radar", "player_radar", {
             "pcts": radar,

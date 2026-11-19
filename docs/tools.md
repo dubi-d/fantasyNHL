@@ -140,9 +140,9 @@ In the web app, a click on a column header sorts a table by that column
     skaters or 2–4 goalies by name (autocomplete) for a per-category table
     (per game · percentile; with *This season only* stats also the season
     total), their profile metrics and a
-    radar PNG. The web app shows the profile metrics as the players' rows
-    of the ranking, with `Peak` and `Breadth` added and the same
-    *Cells show* choice. See
+    radar PNG. The web app shows one table in place of the two: the
+    players' rows of the ranking, with `Peak` and `Breadth` added and the
+    same *Cells show* choice. See
     [Player category profiles](methodology.md#player-category-profiles).
   - *League* — **Roster origins**: per team, how many players were
     drafted, added or traded in, how many sit on IR, average roster% and

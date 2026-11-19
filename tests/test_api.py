@@ -341,12 +341,11 @@ def test_team_tables_can_carry_the_ranking_columns(api):
             ] == ["Percentile", "Score = me"]
 
     # a comparison can show its players as rows of the ranking, as picked,
-    # in place of the profile summary: with what Spec is made of
+    # in place of its two tables: with what Spec is made of
     compare = "/review/compare?players=102&players=101"
     (ranking,) = tables("/review/leaders?scope=team&team=0&group=F&cells=rate")
-    by_category, summary = tables(compare)
-    first, rows = tables(f"{compare}&cells=rate")
-    assert first == by_category
+    _, summary = tables(compare)
+    (rows,) = tables(f"{compare}&cells=rate")
     assert names(rows) == [
         name for column in names(ranking)
         for name in ([column, "Peak", "Breadth"] if column == "Level"

@@ -65,7 +65,7 @@ Everything is under `/api`; the interactive description is at
   left out means the default (current matchup, latest completed matchup).
   One parameter has no prompt: `cells` on `review/team`, `review/gaps`
   and `review/compare` adds the ranking's columns (in the comparison:
-  its players' rows of the ranking, in place of the profile summary),
+  its players' rows of the ranking, in place of its two tables),
   for the web app's pages; without it they are the terminal's tables.
 - A parameter that is wrong, or that contradicts another one (`simulate`
   on an unfinished matchup, `fit_team` in the full scope), is refused
