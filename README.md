@@ -72,6 +72,20 @@ quits); **Ctrl-C** quits immediately from anywhere. Stepping back doesn't
 repeat fetches or tables already shown; only the steps after the changed
 answer re-run.
 
+## Historical NHL stats
+
+```bash
+.venv/bin/fantasy-nhl-history 2022 2023 2024 2025 2026
+```
+
+Downloads the regular-season stats of every NHL player for the given
+finished seasons from the NHL's stats API into `data/nhl/` (gitignored),
+one CSV file per season. A season is named by the year it ends in, as in
+`config.yaml` (`2026` is 2025-26). A season already stored is skipped
+unless `--refresh` is given; one whose regular season is not over is
+refused. Nothing uses the files yet. The columns and the terms of the
+source are in [nhl.md](src/fantasy_nhl/sources/nhl/nhl.md).
+
 ## Web app
 
 The same tools in the browser: a local FastAPI backend serving every view
@@ -139,6 +153,7 @@ For working on it:
 - Each layer documents itself in its folder:
   [analysis](src/fantasy_nhl/analysis/analysis.md),
   [sources/espn](src/fantasy_nhl/sources/espn/espn.md),
+  [sources/nhl](src/fantasy_nhl/sources/nhl/nhl.md),
   [views](src/fantasy_nhl/views/views.md),
   [cli](src/fantasy_nhl/cli/cli.md),
   [api](src/fantasy_nhl/api/api.md),

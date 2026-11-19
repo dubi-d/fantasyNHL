@@ -19,6 +19,7 @@ from [views](../views/views.md).
 | [prompts.py](prompts.py) | The prompt primitives: `ask`, the steps `Ask` and `Do`, the `BACK` sentinel |
 | [display.py](display.py) | Rendering: `print_df` for tables, tones to `rich` styles, notes to markup |
 | [tools.py](tools.py) | The tools themselves and the `TOOLS` menu tree |
+| [history.py](history.py) | The separate `fantasy-nhl-history` command: stores finished NHL seasons through [sources/nhl](../sources/nhl/nhl.md). No league, no menu, plain `print` |
 
 ## The menu
 
@@ -100,3 +101,5 @@ candidates are shown in pages.
   (colors, alignment) and wizard regressions.
 - The golden transcripts drive every tool through the real menu (see
   [tests.md](../../../tests/tests.md)).
+- [tests/test_nhl_history.py](../../../tests/test_nhl_history.py): the
+  `fantasy-nhl-history` command.

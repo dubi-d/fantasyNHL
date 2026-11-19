@@ -13,6 +13,7 @@ flowchart TD
     api["api: web backend"] --> views
     cli --> espn
     api --> espn
+    cli --> nhl["sources/nhl: NHL stats history"]
     cli --> plots
     api --> plots
     views["views: what a tool shows"] --> analysis
@@ -25,6 +26,7 @@ flowchart TD
 | --- | --- | --- |
 | `analysis` | Computes. Pure functions of records and tables. | [analysis.md](../src/fantasy_nhl/analysis/analysis.md) |
 | `sources/espn` | Fetches from ESPN and returns plain data. | [espn.md](../src/fantasy_nhl/sources/espn/espn.md) |
+| `sources/nhl` | Downloads finished seasons' player stats from the NHL into local CSV files. | [nhl.md](../src/fantasy_nhl/sources/nhl/nhl.md) |
 | `views` | Builds what a tool shows: tables, notes, text, figures. | [views.md](../src/fantasy_nhl/views/views.md) |
 | `plots.py` | Draws the figures a view describes. | below |
 | `cli` | Terminal front end: prompts, fetches, renders. | [cli.md](../src/fantasy_nhl/cli/cli.md) |
@@ -84,12 +86,14 @@ src/fantasy_nhl/
   config.py, plots.py        # see above
   analysis/                  # pure logic
   sources/espn/              # ESPN access
+  sources/nhl/               # historical stats from the NHL
   views/                     # what each tool shows
   cli/                       # the terminal front end
   api/                       # the web backend
 web/                         # the browser front end (Vite, React, TypeScript)
 tests/                       # pytest suite, synthetic league, golden transcripts
 plots/                       # figures saved by the terminal app (gitignored)
+data/                        # downloaded NHL stats (gitignored)
 ```
 
 Each folder's own doc lists its files.

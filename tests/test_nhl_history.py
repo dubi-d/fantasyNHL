@@ -1,0 +1,241 @@
+"""The NHL stats download, on stubbed API answers: nothing asks the NHL."""
+import csv
+import json
+from datetime import date
+from io import BytesIO
+from unittest.mock import Mock
+from urllib.error import URLError
+
+import pytest
+
+from fantasy_nhl.cli import history as command
+from fantasy_nhl.sources.nhl import history
+
+SEASON = "seasonId=20212022 and gameTypeId=2"
+
+
+def _skater(player_id, name="Skater", position="C", teams="EDM", **stats):
+    return {"playerId": player_id, "skaterFullName": name,
+            "positionCode": position, "teamAbbrevs": teams,
+            "gamesPlayed": 80, "goals": 44, "assists": 79, "ppPoints": 44,
+            "shPoints": 1, "shots": 314, **stats}
+
+
+def _realtime(player_id, hits=75, blocks=27):
+    return {"playerId": player_id, "hits": hits, "blockedShots": blocks}
+
+
+def _goalie(player_id, name="Goalie", **stats):
+    return {"playerId": player_id, "goalieFullName": name, "teamAbbrevs": "WPG",
+            "gamesPlayed": 66, "gamesStarted": 66, "wins": 29, "losses": 27,
+            "otLosses": 10, "shotsAgainst": 2155, "saves": 1962,
+            "goalsAgainst": 193, "goalsAgainstAverage": 2.96656,
+            "savePct": 0.91044, "shutouts": 4, **stats}
+
+
+def _answer(*rows, total=None):
+    return {"data": list(rows), "total": len(rows) if total is None else total}
+
+
+@pytest.fixture
+def reports(monkeypatch):
+    """The three reports of a season; a test replaces what it needs."""
+    answers = {
+        "skater/summary": _answer(
+            _skater(8478402, "Connor McDavid"),
+            _skater(8474568, "Luke Schenn", "D", "VAN,TOR")),
+        "skater/realtime": _answer(_realtime(8474568, 318, 98),
+                                   _realtime(8478402)),
+        "goalie/summary": _answer(_goalie(8476945, "Connor Hellebuyck")),
+    }
+    get = Mock(side_effect=lambda resource, **params: answers[resource])
+    monkeypatch.setattr(history, "_get", get)
+    answers["get"] = get
+    return answers
+
+
+def test_seasons_are_named_by_the_year_they_end_in(tmp_path):
+    assert history.season_id(2026) == 20252026
+    assert history.season_label(2026) == "2025-26"
+    assert history.season_label(2000) == "1999-00"
+    assert history.season_path(2026, tmp_path) == (
+        tmp_path / "season_20252026.csv")
+
+
+def test_a_season_is_one_row_per_player(reports):
+    rows = history.fetch_season_stats(2022)
+    assert [row["name"] for row in rows] == [
+        "Luke Schenn", "Connor McDavid", "Connor Hellebuyck"]
+    assert rows[0] == {
+        "season": 20212022, "player_id": 8474568, "name": "Luke Schenn",
+        "position": "D", "teams": "VAN,TOR", "GP": 80, "G": 44, "A": 79,
+        "PPP": 44, "SHP": 1, "SOG": 314, "HIT": 318, "BLK": 98}
+    assert rows[2] == {
+        "season": 20212022, "player_id": 8476945,
+        "name": "Connor Hellebuyck", "position": "G", "teams": "WPG",
+        "GP": 66, "GS": 66, "W": 29, "L": 27, "OTL": 10, "SA": 2155,
+        "SV": 1962, "GA": 193, "GAA": 2.96656, "SV%": 0.91044, "SO": 4}
+
+
+def test_every_other_field_is_kept_under_its_nhl_name(reports):
+    reports["skater/summary"] = _answer(_skater(
+        1, seasonId=20212022, penaltyMinutes=45, timeOnIcePerGame=1323.975))
+    reports["skater/realtime"] = _answer({
+        **_realtime(1), "gamesPlayed": 80, "timeOnIcePerGame": 1323.98,
+        "takeaways": 70, "totalShotAttempts": None})
+    reports["goalie/summary"] = _answer(_goalie(
+        2, goals=0, assists=2, timeOnIce=234210))
+    skater, goalie = history.fetch_season_stats(2022)
+    assert set(skater) - set(history.COLUMNS) == {
+        "penaltyMinutes", "timeOnIcePerGame", "takeaways",
+        "totalShotAttempts"}
+    assert (skater["penaltyMinutes"], skater["timeOnIcePerGame"],
+            skater["takeaways"], skater["totalShotAttempts"]) == (
+        45, 1323.975, 70, None)
+    assert set(goalie) - set(history.COLUMNS) == {"timeOnIce"}
+    assert (goalie["G"], goalie["A"], goalie["timeOnIce"]) == (0, 2, 234210)
+
+
+def test_whole_regular_season_reports_are_requested(reports):
+    history.fetch_season_stats(2022)
+    assert [call.args for call in reports["get"].call_args_list] == [
+        ("skater/summary",), ("skater/realtime",), ("goalie/summary",)]
+    assert all(call.kwargs == {"limit": -1, "cayenneExp": SEASON}
+               for call in reports["get"].call_args_list)
+
+
+@pytest.mark.parametrize("report, answer, message", [
+    ("goalie/summary", _answer(_goalie(1), total=2), "incomplete"),
+    ("goalie/summary", _answer(_goalie(1), _goalie(1)), "incomplete"),
+    ("goalie/summary", {"rows": []}, "unexpected"),
+    ("skater/realtime", _answer(_realtime(8478402), _realtime(1)),
+     "different players"),
+    ("goalie/summary", _answer({"playerId": 1, "teamAbbrevs": "WPG"}),
+     "no longer reports gamesPlayed, gamesStarted, goalieFullName, "),
+    ("skater/realtime", _answer({"playerId": 8474568, "hits": 318},
+                                _realtime(8478402)),
+     "no longer reports blockedShots\\."),
+])
+def test_a_report_that_cannot_be_trusted_is_refused(reports, report, answer,
+                                                    message):
+    reports[report] = answer
+    with pytest.raises(history.NhlStatsError, match=message):
+        history.fetch_season_stats(2022)
+
+
+def test_request_goes_to_the_stats_api_with_a_timeout(monkeypatch):
+    request = Mock(return_value=BytesIO(json.dumps(_answer()).encode()))
+    monkeypatch.setattr(history, "urlopen", request)
+    assert history._get("skater/summary", limit=-1, cayenneExp=SEASON) == (
+        _answer())
+    args, kwargs = request.call_args
+    assert args[0].full_url == (
+        "https://api.nhle.com/stats/rest/en/skater/summary?limit=-1"
+        "&cayenneExp=seasonId%3D20212022+and+gameTypeId%3D2")
+    assert kwargs == {"timeout": 30}
+
+
+@pytest.mark.parametrize("failure", [
+    Mock(side_effect=URLError("down")), Mock(side_effect=TimeoutError),
+    Mock(return_value=BytesIO(b"<html>not json"))])
+def test_a_failed_request_is_explained(monkeypatch, failure):
+    monkeypatch.setattr(history, "urlopen", failure)
+    with pytest.raises(history.NhlStatsError, match="Unable to read 'season'"):
+        history._get("season")
+
+
+def test_season_ends_are_keyed_by_closing_year(monkeypatch):
+    monkeypatch.setattr(history, "_get", Mock(return_value={"data": [
+        {"id": 20252026, "regularSeasonEndDate": "2026-04-17T00:00:00"},
+        {"id": 20262027, "regularSeasonEndDate": "2027-04-10T00:00:00"}]}))
+    assert history.fetch_season_ends() == {
+        2026: date(2026, 4, 17), 2027: date(2027, 4, 10)}
+
+
+def test_an_unexpected_season_list_is_refused(monkeypatch):
+    monkeypatch.setattr(history, "_get", Mock(return_value={"data": [
+        {"id": 20252026}]}))
+    with pytest.raises(history.NhlStatsError, match="season list"):
+        history.fetch_season_ends()
+
+
+def test_a_season_is_stored_as_csv(reports, tmp_path):
+    reports["skater/summary"]["data"][0]["penaltyMinutes"] = 45
+    reports["goalie/summary"] = _answer(_goalie(
+        1, "No Shots", savePct=None, goalsAgainstAverage=None, timeOnIce=60))
+    stale = history.season_path(2022, tmp_path)
+    stale.write_text("old")
+    path = history.save_season_stats(
+        2022, history.fetch_season_stats(2022), tmp_path)
+    assert path == stale and [p.name for p in tmp_path.iterdir()] == [
+        "season_20212022.csv"]
+    with path.open(newline="", encoding="utf-8") as file:
+        header, schenn, mcdavid, goalie = csv.reader(file)
+    assert history.COLUMNS == [
+        "season", "player_id", "name", "position", "teams", "GP", "G", "A",
+        "PPP", "SHP", "SOG", "HIT", "BLK", "GS", "W", "L", "OTL", "SA",
+        "SV", "GA", "GAA", "SV%", "SO"]
+    assert header == history.COLUMNS + ["penaltyMinutes", "timeOnIce"]
+    assert schenn == ["20212022", "8474568", "Luke Schenn", "D", "VAN,TOR",
+                      "80", "44", "79", "44", "1", "314", "318", "98",
+                      *[""] * 12]
+    assert mcdavid[-2:] == ["45", ""]
+    assert goalie == ["20212022", "1", "No Shots", "G", "WPG", "66",
+                      *[""] * 7, "66", "29", "27", "10", "2155", "1962",
+                      "193", "", "", "4", "", "60"]
+
+
+@pytest.fixture
+def nhl(monkeypatch, tmp_path):
+    """The command in an empty working directory, with the NHL stubbed."""
+    monkeypatch.chdir(tmp_path)
+    ends = Mock(return_value={2022: date(2022, 4, 29), 2023: date(2023, 4, 14),
+                              2999: date.max})
+    stats = Mock(side_effect=lambda year: [
+        {"season": history.season_id(year), "position": "C"},
+        {"season": history.season_id(year), "position": "G"}])
+    monkeypatch.setattr(command, "fetch_season_ends", ends)
+    monkeypatch.setattr(command, "fetch_season_stats", stats)
+    return Mock(ends=ends, stats=stats, folder=tmp_path / "data" / "nhl")
+
+
+def test_command_stores_each_selected_season(nhl, capsys):
+    assert command.main(["2022", "2023", "2022"]) == 0
+    assert sorted(p.name for p in nhl.folder.iterdir()) == [
+        "season_20212022.csv", "season_20222023.csv"]
+    assert [call.args for call in nhl.stats.call_args_list] == [
+        (2022,), (2023,)]
+    nhl.ends.assert_called_once_with()
+    assert capsys.readouterr().out.splitlines() == [
+        "2021-22: 1 skaters and 1 goalies -> data/nhl/season_20212022.csv",
+        "2022-23: 1 skaters and 1 goalies -> data/nhl/season_20222023.csv"]
+
+
+def test_command_keeps_a_stored_season_unless_refreshed(nhl, capsys):
+    nhl.folder.mkdir(parents=True)
+    stored = nhl.folder / "season_20212022.csv"
+    stored.write_text("stored")
+    assert command.main(["2022"]) == 0
+    assert stored.read_text() == "stored"
+    assert "already in" in capsys.readouterr().out
+    nhl.ends.assert_not_called()
+    nhl.stats.assert_not_called()
+    assert command.main(["2022", "--refresh"]) == 0
+    assert stored.read_text().startswith("season,player_id")
+
+
+@pytest.mark.parametrize("year, message", [
+    ("2999", "2998-99 regular season is not over"),
+    ("2024", "no season ending in 2024")])
+def test_command_refuses_a_season_without_final_totals(nhl, capsys, year,
+                                                       message):
+    assert command.main(["2022", year, "2023"]) == 1
+    assert message in capsys.readouterr().err
+    assert [p.name for p in nhl.folder.iterdir()] == ["season_20212022.csv"]
+
+
+def test_command_reports_an_api_failure(nhl, capsys):
+    nhl.stats.side_effect = history.NhlStatsError("The NHL is down.")
+    assert command.main(["2022"]) == 1
+    assert capsys.readouterr().err == "Error: The NHL is down.\n"
+    assert not nhl.folder.exists()

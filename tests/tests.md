@@ -1,6 +1,7 @@
 # tests
 
-The Python test suite. It runs offline: nothing in it asks ESPN. The
+The Python test suite. It runs offline: nothing in it asks ESPN or the
+NHL. The
 frontend's tests live in `web/src` and are described in
 [web.md](../web/web.md).
 
@@ -19,6 +20,7 @@ frontend's tests live in `web/src` and are described in
 | [test_analysis.py](test_analysis.py) | The functions of `analysis`, grouped in classes by function |
 | [test_config.py](test_config.py) | Loading `config.yaml` and `secrets.yaml`, the default league, storing calibrations |
 | [test_espn_data.py](test_espn_data.py) | The ESPN layer on ESPN-shaped data and stub sessions: calendar parsing, saved lineups, IR, today's games |
+| [test_nhl_history.py](test_nhl_history.py) | The NHL stats download on stubbed API answers: the season's rows, refused reports, the CSV file, the `fantasy-nhl-history` command |
 | [test_plots.py](test_plots.py) | The player figures render to PNG |
 | [test_views_model.py](test_views_model.py) | Tones, their terminal styles, cell texts |
 | [test_prompts.py](test_prompts.py) | ESC and Ctrl-C against real `questionary` prompts |
