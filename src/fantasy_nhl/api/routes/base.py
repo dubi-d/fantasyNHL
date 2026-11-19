@@ -77,11 +77,13 @@ def week_dates(session: LeagueSession) -> dict | None:
         return None
 
 
-def view(router: APIRouter, path: str, meta: type[BaseModel] | None = None):
+def view(router: APIRouter, path: str, meta: type[BaseModel] | None = None,
+         prefix: str = LEAGUE):
     """Register a function building a View from path and query parameters
     as a JSON endpoint, plus the PNG endpoint of its figures.
 
     :param meta: model of the view's ``meta`` (default: it has none)
+    :param prefix: what the path follows (default: a league)
     """
     model = view_model(meta)
 
@@ -111,9 +113,9 @@ def view(router: APIRouter, path: str, meta: type[BaseModel] | None = None):
             return Response(render(blocks[figure], mark),
                             media_type="image/png", headers=headers)
 
-        router.add_api_route(LEAGUE + path, as_json, name=build.__name__,
+        router.add_api_route(prefix + path, as_json, name=build.__name__,
                              response_model=model)
-        router.add_api_route(f"{LEAGUE}{path}/figures/{{figure}}.png", as_png,
+        router.add_api_route(f"{prefix}{path}/figures/{{figure}}.png", as_png,
                              include_in_schema=False)
         return build
     return register

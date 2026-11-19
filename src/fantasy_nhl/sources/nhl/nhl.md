@@ -3,22 +3,24 @@
 Historical player stats from the NHL's own stats API
 (`api.nhle.com/stats/rest`): everything its season reports hold on every
 skater and goalie of a finished regular season, stored as one CSV file
-per season. It is the data basis for own projections; nothing reads the
-files yet.
+per season, and the reading of those files. They are the data basis for
+own projections; so far the web app's *Player history* shows them.
 
 ## Boundaries
 
-- Imports only the standard library: nothing of ESPN, of `analysis` or of
-  a front end.
-- Knows no league and needs no credentials. It is used by the
-  `fantasy-nhl-history` command in [cli](../../cli/cli.md) only.
+- Imports the standard library and `pandas`: nothing of ESPN, of
+  `analysis` or of a front end.
+- Knows no league and needs no credentials. The
+  `fantasy-nhl-history` command in [cli](../../cli/cli.md) downloads,
+  the web backend ([api](../../api/api.md)) reads.
+- Only the download asks the NHL; reading works offline.
 - The public names are re-exported by [`__init__.py`](__init__.py).
 
 ## Layout
 
 | File | Holds |
 | --- | --- |
-| [history.py](history.py) | `fetch_season_stats`, `fetch_season_ends`, `save_season_stats`, the season naming (`season_id`, `season_label`, `season_path`), `COLUMNS` and `NhlStatsError` |
+| [history.py](history.py) | The download (`fetch_season_stats`, `fetch_season_ends`, `save_season_stats`), the reading (`stored_seasons`, `read_history`), the season naming (`season_id`, `season_label`, `season_path`), `COLUMNS` and `NhlStatsError` |
 
 ## Key concepts
 
@@ -55,6 +57,12 @@ files yet.
   unless asked to, so partial totals of a running season would stay. The
   command therefore refuses a season before the day after
   `fetch_season_ends` says its regular season ends.
+- **Reading.** `read_history` gives every stored season as one table, a
+  row per player and season with the columns of all files; a blank cell
+  is missing, and only a blank cell (a name may be `NA`). No stored
+  season is an empty table with `COLUMNS`. A `season_*.csv` that does
+  not start with `COLUMNS` raises `NhlStatsError` instead of being
+  skipped.
 
 ## The API
 
@@ -83,5 +91,7 @@ files yet.
 ## Tests
 
 [tests/test_nhl_history.py](../../../../tests/test_nhl_history.py) runs
-the download and the command on stubbed API answers; no test asks the
-NHL.
+the download and the command on stubbed API answers and the reading on
+files it writes; no test asks the NHL. The synthetic history the other
+layers are tested on is in
+[tests/support.py](../../../../tests/support.py).

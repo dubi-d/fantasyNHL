@@ -14,21 +14,25 @@ import {
 import { useSession } from "../session";
 import { toneClasses, toneColor } from "../tone";
 
-/** A view of the current league; ``params`` are its query parameters.
- * While another choice loads, the previous view stays on screen. */
-export function useView<V extends View = View>(
-  path: string,
-  params: Params = {},
-  enabled = true,
-) {
-  const { meta } = useSession();
-  const url = apiUrl(`/leagues/${meta.id}${path}`, params);
+/** The view at an API address. While another one loads, the previous
+ * view stays on screen. */
+export function useViewAt<V extends View = View>(url: string, enabled = true) {
   return useQuery({
     queryKey: [url],
     queryFn: () => request<V>(url),
     placeholderData: keepPreviousData,
     enabled,
   });
+}
+
+/** A view of the current league; ``params`` are its query parameters. */
+export function useView<V extends View = View>(
+  path: string,
+  params: Params = {},
+  enabled = true,
+) {
+  const { meta } = useSession();
+  return useViewAt<V>(apiUrl(`/leagues/${meta.id}${path}`, params), enabled);
 }
 
 /** The meta of the view that was asked for: none while a previous view

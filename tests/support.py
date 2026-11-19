@@ -18,6 +18,7 @@ from fantasy_nhl.analysis import (
     matchup_result,
 )
 from fantasy_nhl.config import Category, LeagueConfig, ScheduleCalibration
+from fantasy_nhl.sources.nhl import save_season_stats, season_id
 
 
 def package_modules() -> list:
@@ -487,3 +488,80 @@ def undrafted() -> FakeLeague:
 
 SCENARIOS = {factory.__name__: factory for factory in (
     midseason, finished, opening_day, preseason, pre_draft, undrafted)}
+
+
+# a small NHL history, shaped like the files of fantasy-nhl-history
+
+def _history_skater(year: int, pid: int, name: str, position: str,
+                    teams: str, gp: int, g: int, a: int, ppp: int, shp: int,
+                    sog: int, hit: int, blk: int, pim: int, plus_minus: int,
+                    toi: int, attempts: int | None = None) -> dict:
+    """:param toi: seconds on ice per game"""
+    return {
+        "season": season_id(year), "player_id": pid, "name": name,
+        "position": position, "teams": teams, "GP": gp, "G": g, "A": a,
+        "PPP": ppp, "SHP": shp, "SOG": sog, "HIT": hit, "BLK": blk,
+        "points": g + a, "penaltyMinutes": pim, "plusMinus": plus_minus,
+        "timeOnIcePerGame": toi, "pointsPerGame": round((g + a) / gp, 5),
+        "shootingPct": round(g / sog, 5),
+        "hitsPer60": round(hit * 3600 / (toi * gp), 2),
+        "totalShotAttempts": attempts, "lastName": name.split()[-1],
+        "shootsCatches": "L"}
+
+
+def _history_goalie(year: int, pid: int, name: str, teams: str, gp: int,
+                    gs: int, w: int, l: int, otl: int, sa: int, ga: int,
+                    so: int, toi: int) -> dict:
+    """:param toi: seconds on ice over the season"""
+    return {
+        "season": season_id(year), "player_id": pid, "name": name,
+        "position": "G", "teams": teams, "GP": gp, "G": 0, "A": 1,
+        "GS": gs, "W": w, "L": l, "OTL": otl, "SA": sa, "SV": sa - ga,
+        "GA": ga, "GAA": round(ga * 3600 / toi, 5),
+        "SV%": round((sa - ga) / sa, 5), "SO": so, "points": 1,
+        "penaltyMinutes": 0, "timeOnIce": toi,
+        "lastName": name.split()[-1], "shootsCatches": "L"}
+
+
+# on purpose: a traded player, three namesakes (two with one label), a
+# player without the middle season, a goalie with a short and a full
+# season, a stat the oldest season lacks (shot attempts)
+HISTORY = {
+    2024: [
+        _history_skater(2024, 1, "Alex Center", "C", "EDM", 80, 40, 40, 20,
+                        0, 200, 40, 20, 20, 8, 1200),
+        _history_skater(2024, 3, "Sam Twin", "L", "NYR", 50, 5, 10, 0, 0,
+                        60, 80, 20, 30, -4, 720),
+        _history_skater(2024, 7, "Mia Gap", "R", "DAL", 20, 4, 6, 2, 0, 40,
+                        10, 5, 2, 1, 900)],
+    2025: [
+        _history_skater(2025, 1, "Alex Center", "C", "EDM", 40, 10, 30, 10,
+                        2, 100, 10, 10, 4, -4, 1080, 180),
+        _history_skater(2025, 2, "Tom Trade", "D", "VAN,TOR", 70, 4, 18, 0,
+                        2, 81, 300, 98, 60, 5, 1000, 150),
+        _history_skater(2025, 3, "Sam Twin", "L", "NYR", 60, 6, 9, 1, 0, 70,
+                        90, 25, 40, -2, 750, 120),
+        _history_goalie(2025, 6, "Gus Goalie", "WPG", 6, 5, 2, 3, 0, 150,
+                        15, 0, 18000)],
+    2026: [
+        _history_skater(2026, 1, "Alex Center", "C", "EDM", 80, 48, 52, 32,
+                        1, 300, 32, 28, 12, 24, 1260, 520),
+        _history_skater(2026, 2, "Tom Trade", "D", "TOR", 82, 6, 20, 2, 0,
+                        100, 280, 110, 50, -8, 1100, 190),
+        _history_skater(2026, 3, "Sam Twin", "L", "NYR", 40, 2, 4, 0, 0, 30,
+                        60, 10, 20, -6, 600, 60),
+        _history_skater(2026, 4, "Sam Twin", "L", "NYR", 10, 1, 1, 0, 0, 12,
+                        8, 2, 0, 0, 660, 20),
+        _history_skater(2026, 5, "Sam Twin", "D", "CAR", 75, 8, 22, 6, 0,
+                        140, 90, 120, 26, 12, 1320, 260),
+        _history_skater(2026, 7, "Mia Gap", "R", "DAL", 60, 15, 15, 5, 1,
+                        120, 30, 12, 18, 3, 960, 210),
+        _history_goalie(2026, 6, "Gus Goalie", "WPG", 60, 60, 40, 15, 5,
+                        1800, 144, 4, 216000)],
+}
+
+
+def write_history(folder, years=tuple(HISTORY)) -> None:
+    """Store the synthetic seasons as the download would."""
+    for year in years:
+        save_season_stats(year, HISTORY[year], folder)

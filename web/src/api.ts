@@ -11,6 +11,7 @@ export type Note = Schemas["NoteBlock"];
 export type LeagueInfo = Schemas["LeagueInfo"];
 export type LeagueMeta = Schemas["LeagueMeta"];
 export type ReviewOptions = Schemas["ReviewOptions"];
+export type HistoryOptions = Schemas["HistoryOptions"];
 export type CalibrationInfo = Schemas["CalibrationInfo"];
 export type Stats = "blended" | "season";
 

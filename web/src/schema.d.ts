@@ -4,6 +4,43 @@
  */
 
 export interface paths {
+    "/api/history/player": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Player History */
+        get: operations["player_history_api_history_player_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/history/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * History Options
+         * @description Whose history can be asked for.
+         */
+        get: operations["history_options_api_history_players_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/leagues": {
         parameters: {
             query?: never;
@@ -560,6 +597,20 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HistoryOptions */
+        HistoryOptions: {
+            /** Players */
+            players: components["schemas"]["HistoryPlayer"][];
+            /** Seasons */
+            seasons: string[];
+        };
+        /** HistoryPlayer */
+        HistoryPlayer: {
+            /** Id */
+            id: number;
+            /** Label */
+            label: string;
+        };
         /** LeagueInfo */
         LeagueInfo: {
             /** Default */
@@ -783,6 +834,59 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    player_history_api_history_player_get: {
+        parameters: {
+            query: {
+                player: number;
+                columns?: "fantasy" | "all";
+                cells?: "total" | "rate";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    history_options_api_history_players_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryOptions"];
+                };
+            };
+        };
+    };
     leagues_api_leagues_get: {
         parameters: {
             query?: never;

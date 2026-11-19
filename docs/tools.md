@@ -189,4 +189,19 @@ In the web app, a click on a column header sorts a table by that column
     column per category, with the same *Cells show* choice. A table of
     skaters and goalies has the categories of both; those that are not a
     player's kind are blank. The terminal is too narrow for them.
+- **Player history** (web app only, under *NHL history*) — Not a tool of
+  a league: it shows the NHL seasons stored by `fantasy-nhl-history`
+  (see the [README](../README.md#historical-nhl-stats)) and asks nothing
+  from ESPN, so it also works offline. Type a name to pick a player; the
+  table has one row per stored regular season he played in, with his
+  team or teams, and an `Average` row below (see
+  [Player history average](methodology.md#player-history-average)).
+  *Columns* chooses between the stats fantasy leagues score (skaters:
+  `GP`, `G`, `A`, `P`, `PPP`, `SHP`, `STP`, `SOG`, `HIT`, `BLK`, `PIM`,
+  `+/-`, `TOI/GP`; goalies: `GP`, `GS`, `W`, `L`, `OTL`, `SA`, `SV`,
+  `GA`, `GAA`, `SV%`, `SO`) and all the NHL reports, the further ones
+  under the NHL's own names. *Cells show* chooses between season totals
+  and per game. A season he did not play in the NHL is left out and
+  named in the note below the table. The current season is not part of
+  it: it is stored only once it is over.
 

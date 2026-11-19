@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -12,11 +13,19 @@ from fastapi.testclient import TestClient
 
 from fantasy_nhl.api import app as app_module
 from fantasy_nhl.api import create_app, figures, state
-from support import FakeLeague, finished, midseason, patch_everywhere, pre_draft
+from support import (
+    FakeLeague,
+    finished,
+    midseason,
+    patch_everywhere,
+    pre_draft,
+    write_history,
+)
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
 OPENAPI = Path(__file__).parents[1] / "web" / "openapi.json"
 BASE = "/api/leagues/test-league"
+HISTORY = "/api/history"
 STREAMERS = "streamers=102&streamers=108"  # Alpha C2 and Alpha D3
 VIEWS = [
     "/weekly/scores", "/weekly/awards", "/weekly/awards?week=2",
@@ -572,6 +581,153 @@ def test_outdated_frontend_build_is_noticed(monkeypatch, tmp_path, caplog):
     with caplog.at_level(logging.WARNING):
         create_app([])
     assert not caplog.text
+
+
+@pytest.fixture
+def history_api(monkeypatch, tmp_path):
+    """A client of the app on the synthetic NHL history, with leagues that
+    cannot be loaded."""
+    def offline(config):
+        raise AssertionError("the history needs no league")
+    patch_everywhere(monkeypatch, "fetch_league_data", offline)
+    write_history(tmp_path)
+    return TestClient(create_app(midseason().sources, tmp_path),
+                      base_url="http://127.0.0.1")
+
+
+def test_history_offers_every_stored_player(history_api):
+    options = history_api.get(HISTORY + "/players").json()
+    assert options["seasons"] == ["2023-24", "2024-25", "2025-26"]
+    # by name, of the latest season; namesakes stay apart
+    assert [(player["id"], player["label"])
+            for player in options["players"]] == [
+        (1, "Alex Center (C, EDM)"), (6, "Gus Goalie (G, WPG)"),
+        (7, "Mia Gap (R, DAL)"), (3, "Sam Twin (L, NYR)"),
+        (4, "Sam Twin (L, NYR) #4"), (5, "Sam Twin (D, CAR)"),
+        (2, "Tom Trade (D, TOR)")]
+
+
+def _note_texts(view: dict) -> list[str]:
+    return ["".join(span["text"] for span in block["spans"])
+            for block in view["blocks"] if block["type"] == "note"]
+
+
+def test_history_of_a_skater(history_api):
+    view = history_api.get(HISTORY + "/player?player=1").json()
+    table = view["blocks"][0]
+    assert table["title"] == (
+        "Alex Center (C) — NHL regular seasons, season totals")
+    assert [column["name"] for column in table["columns"]] == [
+        "Season", "Team", "GP", "G", "A", "P", "PPP", "SHP", "STP", "SOG",
+        "HIT", "BLK", "PIM", "+/-", "TOI/GP"]
+    assert all(column["sortable"] for column in table["columns"])
+    assert _tables(view) == [[
+        ["", "2023-24", "EDM", "80", "40", "40", "80", "20", "0", "20",
+         "200", "40", "20", "20", "8", "20:00"],
+        ["", "2024-25", "EDM", "40", "10", "30", "40", "10", "2", "12",
+         "100", "10", "10", "4", "-4", "18:00"],
+        ["", "2025-26", "EDM", "80", "48", "52", "100", "32", "1", "33",
+         "300", "32", "28", "12", "24", "21:00"],
+        ["", "Average", "", "66.7", "32.7", "40.7", "73.3", "20.7", "1.0",
+         "21.7", "200.0", "27.3", "19.3", "12.0", "9.3", "20:00"]]]
+    legend, stored = _note_texts(view)
+    assert "counts are the mean of the seasons listed" in legend
+    assert stored == "Stored: 2023-24 to 2025-26."
+
+    view = history_api.get(HISTORY + "/player?player=1&cells=rate").json()
+    assert view["blocks"][0]["title"].endswith("per game")
+    assert _tables(view) == [[
+        ["", "2023-24", "EDM", "80", "0.5", "0.5", "1.0", "0.25", "0.0",
+         "0.25", "2.5", "0.5", "0.25", "0.25", "0.1", "20:00"],
+        ["", "2024-25", "EDM", "40", "0.25", "0.75", "1.0", "0.25", "0.05",
+         "0.3", "2.5", "0.25", "0.25", "0.1", "-0.1", "18:00"],
+        ["", "2025-26", "EDM", "80", "0.6", "0.65", "1.25", "0.4", "0.01",
+         "0.41", "3.75", "0.4", "0.35", "0.15", "0.3", "21:00"],
+        # all 200 games together: 98 goals are 0.49 a game
+        ["", "Average", "", "66.7", "0.49", "0.61", "1.1", "0.31", "0.02",
+         "0.32", "3.0", "0.41", "0.29", "0.18", "0.14", "20:00"]]]
+    assert "per game over all his games listed (GP: the mean per season)" in (
+        _note_texts(view)[0])
+
+
+def test_history_of_a_goalie_weights_his_seasons(history_api):
+    view = history_api.get(HISTORY + "/player?player=6").json()
+    assert [column["name"] for column in view["blocks"][0]["columns"]] == [
+        "Season", "Team", "GP", "GS", "W", "L", "OTL", "SA", "SV", "GA",
+        "GAA", "SV%", "SO"]
+    assert _tables(view) == [[
+        ["", "2024-25", "WPG", "6", "5", "2", "3", "0", "150", "135", "15",
+         "3.0", "0.9", "0"],
+        ["", "2025-26", "WPG", "60", "60", "40", "15", "5", "1800", "1656",
+         "144", "2.4", "0.92", "4"],
+        # GAA and SV% of both seasons' games together, not 2.7 and 0.91
+        ["", "Average", "", "33.0", "32.5", "21.0", "9.0", "2.5", "975.0",
+         "895.5", "79.5", "2.45", "0.918", "2.0"]]]
+    legend, stored = _note_texts(view)
+    assert "(GAA, SV%)" in legend and "STP" not in legend
+    assert stored == "Stored: 2023-24 to 2025-26; no NHL games in 2023-24."
+
+
+def test_history_with_all_columns_and_special_seasons(history_api):
+    view = history_api.get(HISTORY + "/player?player=1&columns=all").json()
+    table = view["blocks"][0]
+    # what the NHL has beyond the fantasy stats, without empty columns
+    assert [column["name"] for column in table["columns"]][15:] == [
+        "hitsPer60", "pointsPerGame", "shootingPct", "totalShotAttempts",
+        "TOI"]
+    assert [[cell["text"] for cell in row["cells"][15:]]
+            for row in table["rows"] + table["footer"]] == [
+        ["1.5", "1.0", "0.2", "", "1600"],
+        ["0.83", "1.0", "0.1", "180", "720"],
+        ["1.14", "1.25", "0.16", "520", "1680"],
+        ["1.23", "1.1", "0.163", "350.0", "1333.3"]]
+    assert "TOI in minutes" in _note_texts(view)[0]
+
+    rates = history_api.get(
+        HISTORY + "/player?player=6&columns=all&cells=rate").json()
+    assert [column["name"] for column in rates["blocks"][0]["columns"]][13:] == [
+        "G", "A", "PIM", "P", "TOI/GP"]
+    assert _tables(rates)[0][-1][-1] == "59:05"
+
+    traded = history_api.get(HISTORY + "/player?player=2").json()
+    assert [row[2] for row in _tables(traded)[0]] == ["VAN/TOR", "TOR", ""]
+    gap = history_api.get(HISTORY + "/player?player=7").json()
+    assert [row[1] for row in _tables(gap)[0]] == [
+        "2023-24", "2025-26", "Average"]
+    assert _note_texts(gap)[1].endswith("no NHL games in 2024-25.")
+    namesake = history_api.get(HISTORY + "/player?player=4").json()
+    assert _tables(namesake)[0][0][3] == "10"
+
+
+@pytest.mark.parametrize("query", [
+    "", "?player=99", "?player=Alex", "?player=1&columns=some",
+    "?player=1&cells=pct"])
+def test_history_refuses_what_it_cannot_show(history_api, query):
+    assert history_api.get(HISTORY + "/player" + query).status_code == 422
+
+
+def test_history_follows_the_stored_files(tmp_path):
+    folder = tmp_path / "nhl"
+    client = TestClient(create_app([], folder), base_url="http://127.0.0.1")
+    players = HISTORY + "/players"
+    assert client.get(players).json() == {"seasons": [], "players": []}
+    assert client.get(HISTORY + "/player?player=1").status_code == 422
+
+    write_history(folder, years=(2024,))
+    assert client.get(players).json()["seasons"] == ["2023-24"]
+    write_history(folder)
+    assert len(client.get(players).json()["seasons"]) == 3
+
+    (folder / "season_20252026.csv").write_text("player,goals\nA,1\n")
+    broken = client.get(players)
+    assert broken.status_code == 500
+    assert "is not a stored season" in broken.json()["detail"]
+
+
+def test_a_league_cannot_take_the_address_of_a_page():
+    config = replace(midseason().config, name="History")
+    assert list(state.LeagueStore([config]).leagues) == [
+        f"history-{config.year}"]
 
 
 def test_committed_api_schema_is_current():

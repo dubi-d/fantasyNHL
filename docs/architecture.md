@@ -14,6 +14,7 @@ flowchart TD
     cli --> espn
     api --> espn
     cli --> nhl["sources/nhl: NHL stats history"]
+    api --> nhl
     cli --> plots
     api --> plots
     views["views: what a tool shows"] --> analysis
@@ -26,7 +27,7 @@ flowchart TD
 | --- | --- | --- |
 | `analysis` | Computes. Pure functions of records and tables. | [analysis.md](../src/fantasy_nhl/analysis/analysis.md) |
 | `sources/espn` | Fetches from ESPN and returns plain data. | [espn.md](../src/fantasy_nhl/sources/espn/espn.md) |
-| `sources/nhl` | Downloads finished seasons' player stats from the NHL into local CSV files. | [nhl.md](../src/fantasy_nhl/sources/nhl/nhl.md) |
+| `sources/nhl` | Downloads finished seasons' player stats from the NHL into local CSV files, and reads them. | [nhl.md](../src/fantasy_nhl/sources/nhl/nhl.md) |
 | `views` | Builds what a tool shows: tables, notes, text, figures. | [views.md](../src/fantasy_nhl/views/views.md) |
 | `plots.py` | Draws the figures a view describes. | below |
 | `cli` | Terminal front end: prompts, fetches, renders. | [cli.md](../src/fantasy_nhl/cli/cli.md) |
@@ -57,6 +58,10 @@ The import rules are checked by
 4. It renders the view: the terminal prints tables and saves figures to
    `plots/`; the backend serializes it to JSON, and the browser renders
    that.
+
+The web app's player history runs the same way without a league: the
+backend reads the stored NHL seasons through `sources/nhl` instead of
+fetching from ESPN.
 
 ## Top-level modules
 

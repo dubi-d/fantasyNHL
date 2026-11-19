@@ -4,6 +4,8 @@ What each tool shows, independent of where it is shown. A builder turns
 league data and the user's choices into a `View`: an ordered list of
 tables, notes, text and figures. The terminal app and the web backend
 render the same views, which is why both always show the same thing.
+One view is of no league: the player history is built from the stored
+NHL seasons.
 
 ## Boundaries
 
@@ -33,6 +35,7 @@ render the same views, which is why both always show the same thing.
 | [players.py](players.py) | Player ranking and player comparison; `with_profile` adds the ranking's columns to the player tables of the next two |
 | [rosters.py](rosters.py) | Roster origins, category outlook, pickups and trades, team roster, drop candidates |
 | [draft.py](draft.py) | Draft grades, hits and busts, a team's picks |
+| [history.py](history.py) | Player history: a player's stored NHL seasons and his average; the labels to pick him by |
 
 ## The view model
 
@@ -74,7 +77,8 @@ both front ends, so that logic sits next to the builders and not in a
 front end: `select_schedule`, `schedule_scores` and `lead_choices` for the
 schedule scopes and sort columns, `leader_sorts`, `cell_choices`,
 `player_labels` and `check_pick` for the player views, `streaming_context`
-for the planner, `has_players` for the review.
+for the planner, `has_players` for the review, `history_players`,
+`COLUMN_CHOICES` and `CELL_CHOICES` for the player history.
 
 ## Extending
 
@@ -106,4 +110,5 @@ The golden transcripts run every builder through the terminal app, and
 the API tests compare the served tables with those transcripts (see
 [tests.md](../../../tests/tests.md)).
 [tests/test_views_model.py](../../../tests/test_views_model.py) covers
-tones and cell texts.
+tones and cell texts. The player history has no terminal tool; its
+tables are pinned by [tests/test_api.py](../../../tests/test_api.py).

@@ -286,3 +286,23 @@ most rosters were rebuilt on the wire. ESPN's projections also regress young
 players toward the mean, so a draft built on breakouts looks weak on paper.
 *Draft hits & busts* and *Waiver pickups* show what actually happened.
 
+## Player history average
+
+The `Average` row of the player history takes the listed seasons
+together, weighted by games, so that a season of five games does not
+count like one of eighty:
+
+- **Counts** (goals, shots, saves, ...): with *Season totals* the mean
+  per season he played; with *Per game* the sum over all seasons divided
+  by all his games.
+- **Games** (`GP`, `GS`): always the mean per season.
+- **Rates and ratios**: what they are over all his games together, which
+  is the seasons' values weighted by what the rate is a rate of: games
+  for `TOI/GP` and other per-game values, ice time for `GAA` and per-60
+  values, shots against for `SV%`, shots for the shooting percentage.
+  A goalie with a 3.00 GAA in five starts and a 2.40 in sixty averages
+  2.45, not 2.70.
+
+A season in which the NHL has no value for a stat does not count for
+that stat. Seasons he did not play in are not part of the average.
+

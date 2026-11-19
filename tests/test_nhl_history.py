@@ -1,4 +1,5 @@
-"""The NHL stats download, on stubbed API answers: nothing asks the NHL."""
+"""The NHL stats download and the reading of its files, on stubbed API
+answers: nothing asks the NHL."""
 import csv
 import json
 from datetime import date
@@ -183,6 +184,46 @@ def test_a_season_is_stored_as_csv(reports, tmp_path):
     assert goalie == ["20212022", "1", "No Shots", "G", "WPG", "66",
                       *[""] * 7, "66", "29", "27", "10", "2155", "1962",
                       "193", "", "", "4", "", "60"]
+
+
+def test_stored_seasons_are_read_as_one_table(tmp_path):
+    history.save_season_stats(2025, [
+        {"season": 20242025, "player_id": 1, "name": "NA", "position": "D",
+         "teams": "VAN,TOR", "GP": 70, "takeaways": 11}], tmp_path)
+    history.save_season_stats(2026, [
+        {"season": 20252026, "player_id": 1, "name": "NA", "position": "D",
+         "teams": "TOR", "GP": 82, "plusMinus": -3},
+        {"season": 20252026, "player_id": 2, "name": "Gus", "position": "G",
+         "teams": "WPG", "GP": 60, "GAA": 2.4}], tmp_path)
+    for other in ("season_20252026.part", "season_2026.csv",
+                  "season_20252027.csv", "notes.csv"):
+        (tmp_path / other).write_text("not a season")
+    assert history.stored_seasons(tmp_path) == [2025, 2026]
+
+    table = history.read_history(tmp_path)
+    assert list(table.columns) == history.COLUMNS + ["takeaways", "plusMinus"]
+    assert table[["season", "player_id", "name", "teams", "GP"]
+                 ].values.tolist() == [
+        [20242025, 1, "NA", "VAN,TOR", 70], [20252026, 1, "NA", "TOR", 82],
+        [20252026, 2, "Gus", "WPG", 60]]
+    assert table["takeaways"].tolist()[0] == 11
+    assert table["takeaways"].isna().tolist() == [False, True, True]
+    assert table["GAA"].isna().tolist() == [True, True, False]
+
+
+def test_no_stored_seasons_are_an_empty_table(tmp_path):
+    for folder in (tmp_path, tmp_path / "missing"):
+        assert history.stored_seasons(folder) == []
+        table = history.read_history(folder)
+        assert table.empty and list(table.columns) == history.COLUMNS
+
+
+@pytest.mark.parametrize("content, message", [
+    ("", "cannot be read"), ("player,goals\nA,1\n", "is not a stored season")])
+def test_a_file_that_is_no_season_is_refused(tmp_path, content, message):
+    (tmp_path / "season_20252026.csv").write_text(content)
+    with pytest.raises(history.NhlStatsError, match=message):
+        history.read_history(tmp_path)
 
 
 @pytest.fixture

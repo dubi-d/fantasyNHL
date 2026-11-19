@@ -119,8 +119,11 @@ function Address() {
   return <output data-testid="address">{location.pathname + location.search}</output>;
 }
 
-function open(address: string) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+/** Open the app at an address; ``staleTime`` as the real app has one. */
+function open(address: string, staleTime = 0) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime } },
+  });
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[address]}>
@@ -588,6 +591,111 @@ test("problems are said: no leagues, a league that does not load, warnings", asy
   // the other league stays reachable
   fireEvent.change(screen.getByLabelText("League"), { target: { value: "old-league" } });
   expect(await screen.findByText(/matchups have no dates/)).toBeTruthy();
+});
+
+const HISTORY_OPTIONS = {
+  seasons: ["2023-24", "2024-25", "2025-26"],
+  players: [
+    { id: 1, label: "Alex Center (C, EDM)" },
+    { id: 6, label: "Gus Goalie (G, WPG)" },
+  ],
+};
+const historyOf = (player: number, columns: string, cells: string) =>
+  `/api/history/player?player=${player}&columns=${columns}&cells=${cells}`;
+const seasons = (title: string) => ({ blocks: [table(title, ["Season"], [["2025-26"]])] });
+
+test("history: no league is asked for, the choices are in the address", async () => {
+  const asked = serve({
+    "/api/leagues": LEAGUES,
+    "/api/history/players": HISTORY_OPTIONS,
+    [historyOf(1, "fantasy", "total")]: seasons("Alex, totals"),
+    [historyOf(1, "fantasy", "rate")]: seasons("Alex, per game"),
+    [historyOf(6, "fantasy", "rate")]: seasons("Gus, per game"),
+    [historyOf(6, "all", "rate")]: seasons("Gus, everything per game"),
+  });
+  open("/history?player=1");
+  expect(await screen.findByText("Alex, totals")).toBeTruthy();
+  const player = () => screen.getByLabelText("Player") as HTMLInputElement;
+  expect(player().value).toBe("Alex Center (C, EDM)");
+  expect(asked.filter((url) => url.startsWith("/api/leagues/"))).toEqual([]);
+  // what belongs to a loaded league is not offered
+  expect(screen.queryByLabelText("Player stats")).toBeNull();
+  expect(screen.queryByText("Reload from ESPN")).toBeNull();
+
+  fireEvent.change(screen.getByLabelText("Cells show"), { target: { value: "rate" } });
+  expect(await screen.findByText("Alex, per game")).toBeTruthy();
+  expect(address()).toBe("/history?player=1&cells=rate");
+
+  // a name is taken once it is one of the list
+  fireEvent.change(player(), { target: { value: "Gus" } });
+  expect(address()).toBe("/history?player=1&cells=rate");
+  fireEvent.change(player(), { target: { value: "Gus Goalie (G, WPG)" } });
+  expect(await screen.findByText("Gus, per game")).toBeTruthy();
+  expect(address()).toBe("/history?cells=rate&player=6");
+
+  fireEvent.change(screen.getByLabelText("Columns"), { target: { value: "all" } });
+  expect(await screen.findByText("Gus, everything per game")).toBeTruthy();
+  expect(address()).toBe("/history?cells=rate&player=6&columns=all");
+  fireEvent.change(screen.getByLabelText("Columns"), { target: { value: "fantasy" } });
+  expect(address()).toBe("/history?cells=rate&player=6");
+});
+
+test("history and a league's pages lead to each other, the league is loaded once", async () => {
+  const asked = serve({
+    ...BASICS,
+    "/api/history/players": HISTORY_OPTIONS,
+    [`${LEAGUE}/standings/luck`]: { blocks: [table("Luck here", ["Player"], [])] },
+  });
+  const luck = () => screen.getByText("Luck ranking").getAttribute("href");
+  open("/test-league/standings/luck", 60_000);
+  expect(await screen.findByText("Luck here")).toBeTruthy();
+
+  fireEvent.click(screen.getByText("Player history"));
+  expect(await screen.findByText(/Pick a player .* 2023-24 to 2025-26/)).toBeTruthy();
+  expect(address()).toBe("/history");
+  // the menu leads back into the league that was open
+  expect(luck()).toBe("/test-league/standings/luck");
+  fireEvent.click(screen.getByText("Luck ranking"));
+  expect(await screen.findByText("Luck here")).toBeTruthy();
+  expect(screen.getByText("Reload from ESPN")).toBeTruthy();
+  expect(asked.filter((url) => url === LEAGUE)).toHaveLength(1);
+
+  // on the history page another league only changes where the menu leads
+  fireEvent.click(screen.getByText("Player history"));
+  fireEvent.change(screen.getByLabelText("League"), { target: { value: "old-league" } });
+  expect(address()).toBe("/history");
+  expect(luck()).toBe("/old-league/standings/luck");
+  expect(asked).not.toContain("/api/leagues/old-league");
+});
+
+test("history: reachable without ESPN and without leagues, its problems are said", async () => {
+  serve({
+    "/api/leagues": LEAGUES,
+    [LEAGUE]: () =>
+      Response.json({ detail: "The request to ESPN failed (Timeout)." }, { status: 502 }),
+    "/api/history/players": { seasons: [], players: [] },
+  });
+  open("/test-league/standings/luck");
+  expect(await screen.findByText("The request to ESPN failed (Timeout).")).toBeTruthy();
+  fireEvent.click(screen.getByText("Player history"));
+  expect(await screen.findByText(/No NHL seasons are stored yet/)).toBeTruthy();
+  expect(screen.queryByLabelText("Player")).toBeNull();
+  cleanup();
+
+  let broken = true;
+  serve({
+    "/api/leagues": [],
+    "/api/history/players": () =>
+      broken
+        ? Response.json({ detail: "'season_20252026.csv' cannot be read." }, { status: 500 })
+        : HISTORY_OPTIONS,
+  });
+  open("/history");
+  expect(await screen.findByText("'season_20252026.csv' cannot be read.")).toBeTruthy();
+  expect(screen.queryByLabelText("League")).toBeNull();
+  broken = false;
+  fireEvent.click(screen.getByText("Try again"));
+  expect(await screen.findByText(/Pick a player/)).toBeTruthy();
 });
 
 test("errors of the server read as one line", () => {

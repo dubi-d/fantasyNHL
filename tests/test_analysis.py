@@ -20,6 +20,7 @@ from fantasy_nhl.analysis import (
     average_points,
     blended_per_game,
     calibrate_night_value,
+    career_average,
     category_contestedness,
     category_leaders,
     category_outlook,
@@ -34,6 +35,7 @@ from fantasy_nhl.analysis import (
     effective_games,
     has_projection,
     has_season_games,
+    is_rate,
     lineup_game_counts,
     luck,
     market_gaps,
@@ -44,8 +46,10 @@ from fantasy_nhl.analysis import (
     off_night_periods,
     open_seat_counts,
     percentile_ranks,
+    per_game,
     pick_weekly_awards,
     player_rate,
+    player_seasons,
     player_table,
     player_value_scores,
     player_values,
@@ -58,6 +62,7 @@ from fantasy_nhl.analysis import (
     roster_origins,
     round_robin,
     schedule_summary,
+    season_name,
     season_totals,
     seat_counts,
     team_gap_coverage,
@@ -1761,3 +1766,113 @@ class TestRosterReviewTables:
             rosters[1], [], self.values(rosters), self.TEAMS, 50, 5)
         assert len(drops) == 2
         assert skaters.empty and goalies.empty
+
+
+class TestPlayerHistory:
+    @staticmethod
+    def history() -> pd.DataFrame:
+        """A skater (id 1) with three seasons, not in order and the oldest
+        without shot attempts, and a goalie (id 2) with a short and a full
+        one."""
+        skater = [  # season, GP, G, PPP, SHP, SOG, HIT, +/-, seconds a game
+            (20252026, 80, 48, 32, 1, 300, 32, 24, 1260, 520.0),
+            (20232024, 80, 40, 20, 0, 200, 40, 8, 1200, None),
+            (20242025, 40, 10, 10, 2, 100, 10, -4, 1080, 180.0)]
+        goalie = [  # season, GP, GS, SA, GA, seconds on ice
+            (20242025, 6, 5, 150, 15, 18000),
+            (20252026, 60, 60, 1800, 144, 216000)]
+        return pd.DataFrame([
+            {"season": season, "player_id": 1, "name": "Alex",
+             "position": "C", "teams": "EDM", "GP": gp, "G": g, "PPP": ppp,
+             "SHP": shp, "SOG": sog, "HIT": hit, "points": 2 * g,
+             "penaltyMinutes": 10, "plusMinus": plus_minus,
+             "timeOnIcePerGame": toi, "shootingPct": g / sog,
+             "hitsPer60": hit * 3600 / (toi * gp),
+             "totalShotAttempts": attempts}
+            for season, gp, g, ppp, shp, sog, hit, plus_minus, toi, attempts
+            in skater] + [
+            {"season": season, "player_id": 2, "name": "Gus",
+             "position": "G", "teams": "WPG", "GP": gp, "GS": gs, "SA": sa,
+             "SV": sa - ga, "GA": ga, "GAA": ga * 3600 / toi,
+             "SV%": (sa - ga) / sa, "timeOnIce": toi}
+            for season, gp, gs, sa, ga, toi in goalie])
+
+    def test_names(self):
+        assert season_name(20252026) == "2025-26"
+        assert season_name(19992000) == "1999-00"
+        assert all(map(is_rate, ["GAA", "SV%", "TOI/GP", "hitsPer60",
+                                 "pointsPerGame", "faceoffWinPct"]))
+        assert not any(map(is_rate, ["G", "GP", "TOI", "+/-", "SA"]))
+
+    def test_player_seasons(self):
+        history = self.history()
+        untouched = history.copy()
+        seasons = player_seasons(history, 1)
+        assert list(seasons.index) == [20232024, 20242025, 20252026]
+        assert list(seasons["P"]) == [80, 20, 96]
+        assert list(seasons["PIM"]) == [10, 10, 10]
+        assert list(seasons["+/-"]) == [8, -4, 24]
+        assert list(seasons["STP"]) == [20, 12, 33]
+        assert list(seasons["TOI"]) == [96000, 43200, 100800]
+        assert list(seasons["TOI/GP"]) == [1200, 1080, 1260]
+        assert not {"player_id", "points", "timeOnIce",
+                    "timeOnIcePerGame"} & set(seasons.columns)
+
+        goalie = player_seasons(history, 2)
+        assert list(goalie["TOI"]) == [18000, 216000]
+        assert list(goalie["TOI/GP"]) == [3000, 3600]
+        assert goalie["STP"].isna().all()
+        assert player_seasons(history, 9).empty
+        pd.testing.assert_frame_equal(history, untouched)
+
+    def test_per_game(self):
+        seasons = player_seasons(self.history(), 1)
+        rates = per_game(seasons)
+        assert list(rates["G"]) == pytest.approx([0.5, 0.25, 0.6])
+        assert list(rates["+/-"]) == pytest.approx([0.1, -0.1, 0.3])
+        assert list(rates["TOI"]) == [1200, 1080, 1260]
+        assert pd.isna(rates["totalShotAttempts"].iloc[0])
+        assert rates["totalShotAttempts"].iloc[1] == 4.5
+        # the games and what is a rate already stay
+        for column in ("GP", "shootingPct", "hitsPer60", "TOI/GP"):
+            assert rates[column].equals(seasons[column])
+
+        goalie = per_game(player_seasons(self.history(), 2))
+        assert list(goalie["GS"]) == [5, 60]
+        assert list(goalie["SA"]) == [25, 30]
+        assert list(goalie["GAA"]) == pytest.approx([3.0, 2.4])
+
+    def test_career_average_of_totals(self):
+        average = career_average(player_seasons(self.history(), 1))
+        assert average["GP"] == pytest.approx(200 / 3)
+        assert average["G"] == pytest.approx(98 / 3)
+        assert average["+/-"] == pytest.approx(28 / 3)
+        # a season without the stat does not count for it
+        assert average["totalShotAttempts"] == 350
+        # rates are those of all games together, not the seasons' mean
+        assert average["TOI/GP"] == pytest.approx(240000 / 200)
+        assert average["shootingPct"] == pytest.approx(98 / 600)
+        assert average["hitsPer60"] == pytest.approx(82 * 3600 / 240000)
+        assert pd.isna(average["GAA"]) and pd.isna(average["GS"])
+        assert "teams" not in average
+
+    def test_career_average_per_game(self):
+        average = career_average(player_seasons(self.history(), 1), rate=True)
+        assert average["G"] == pytest.approx(98 / 200)
+        assert average["TOI"] == pytest.approx(1200)
+        assert average["GP"] == pytest.approx(200 / 3)
+        # over the games of the seasons that have the stat
+        assert average["totalShotAttempts"] == pytest.approx(700 / 120)
+        assert average["shootingPct"] == pytest.approx(98 / 600)
+
+    def test_career_average_of_a_goalie_is_weighted(self):
+        seasons = player_seasons(self.history(), 2)
+        average = career_average(seasons)
+        # the five-start season barely counts: a plain mean would be 2.7
+        assert average["GAA"] == pytest.approx(159 * 3600 / 234000)
+        assert average["SV%"] == pytest.approx(1791 / 1950)
+        assert average["GS"] == 32.5 and average["SA"] == 975
+        per_game_played = career_average(seasons, rate=True)
+        assert per_game_played["GS"] == 32.5
+        assert per_game_played["SA"] == pytest.approx(1950 / 66)
+        assert per_game_played["GAA"] == average["GAA"]

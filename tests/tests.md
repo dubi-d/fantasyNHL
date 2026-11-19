@@ -15,19 +15,19 @@ frontend's tests live in `web/src` and are described in
 
 | File | Tests |
 | --- | --- |
-| [support.py](support.py) | Not a test: the synthetic league, its scenarios, and helpers to find and patch package names |
-| [fake_server.py](fake_server.py) | Not a test: the web backend on the synthetic league, for frontend work |
+| [support.py](support.py) | Not a test: the synthetic league, its scenarios, the synthetic NHL history, and helpers to find and patch package names |
+| [fake_server.py](fake_server.py) | Not a test: the web backend on the synthetic league and history, for frontend work |
 | [test_analysis.py](test_analysis.py) | The functions of `analysis`, grouped in classes by function |
 | [test_config.py](test_config.py) | Loading `config.yaml` and `secrets.yaml`, the default league, storing calibrations |
 | [test_espn_data.py](test_espn_data.py) | The ESPN layer on ESPN-shaped data and stub sessions: calendar parsing, saved lineups, IR, today's games |
-| [test_nhl_history.py](test_nhl_history.py) | The NHL stats download on stubbed API answers: the season's rows, refused reports, the CSV file, the `fantasy-nhl-history` command |
+| [test_nhl_history.py](test_nhl_history.py) | The NHL stats download on stubbed API answers: the season's rows, refused reports, the CSV file, the `fantasy-nhl-history` command; reading the stored files |
 | [test_plots.py](test_plots.py) | The player figures render to PNG |
 | [test_views_model.py](test_views_model.py) | Tones, their terminal styles, cell texts |
 | [test_prompts.py](test_prompts.py) | ESC and Ctrl-C against real `questionary` prompts |
 | [test_cli.py](test_cli.py) | The wizard runner and the menu |
 | [test_tools.py](test_tools.py) | Planner rendering in the terminal and wizard regressions |
 | [test_golden.py](test_golden.py) | Every tool through the real menu, compared with the transcripts in `golden/` |
-| [test_api.py](test_api.py) | The web backend on the synthetic league |
+| [test_api.py](test_api.py) | The web backend on the synthetic league and the synthetic NHL history |
 | [test_layering.py](test_layering.py) | The import rules between the layers |
 | [test_docs.py](test_docs.py) | The documentation: links resolve, every layer has its doc, a module doc names its files |
 
@@ -54,6 +54,15 @@ names.
 `patch_everywhere(monkeypatch, name, value)` replaces it in every module
 that imported it. Tests written with them keep working when code moves
 between modules.
+
+## The synthetic NHL history
+
+`write_history(folder)` in `support.py` stores three small seasons
+(`HISTORY`) the way the download does. They hold the awkward cases too:
+a traded player, three namesakes of whom two share a label, a player
+without the middle season, a goalie with a five-start and a sixty-start
+season, a stat the oldest season lacks. The numbers are round, so the
+expected tables in `test_api.py` can be checked by hand.
 
 ## Golden transcripts
 
@@ -102,6 +111,6 @@ intended API change regenerate it as described in
 ## Manual checks
 
 `fake_server.py [scenario]` serves the built frontend on the synthetic
-league at `http://127.0.0.1:8000`, without ESPN and without touching
-`calibration.yaml`. A check against real leagues is manual: start
+league and the synthetic NHL history at `http://127.0.0.1:8000`, without
+ESPN and without touching `calibration.yaml` or `data/`. A check against real leagues is manual: start
 `.venv/bin/fantasy-nhl-web`.

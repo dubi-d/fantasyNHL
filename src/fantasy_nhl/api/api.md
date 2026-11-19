@@ -1,7 +1,8 @@
 # api
 
 The web backend: a local FastAPI app that serves every view as JSON, with
-the terminal's prompts as query parameters, and the figures as PNG. The
+the terminal's prompts as query parameters, and the figures as PNG. It
+also serves the stored NHL history, which needs no league. The
 frontend that renders it is in [web](../../../web/web.md).
 
 ## Boundaries
@@ -18,8 +19,8 @@ frontend that renders it is in [web](../../../web/web.md).
 
 | File | Holds |
 | --- | --- |
-| [app.py](app.py) | `create_app`: local-only middleware, the ESPN error handler, the static frontend (or a hint how to build it); `main` runs it on `127.0.0.1:8000` |
-| [state.py](state.py) | `LeagueStore`, `LeagueEntry`, `LeagueSession`: loading, caching and reloading leagues |
+| [app.py](app.py) | `create_app`: local-only middleware, the error handlers, the static frontend (or a hint how to build it); `main` runs it on `127.0.0.1:8000` |
+| [state.py](state.py) | `LeagueStore`, `LeagueEntry`, `LeagueSession`: loading, caching and reloading leagues; `HistoryStore`: the stored NHL seasons |
 | [serialize.py](serialize.py) | The response models and `serialize_view`: a `View` as JSON |
 | [figures.py](figures.py) | Figures as PNG: content fingerprint and a small cache of rendered images |
 | [routes/base.py](routes/base.py) | Shared by the route modules: league dependencies, the write guard, parameter checks, `view()` |
@@ -27,11 +28,14 @@ frontend that renders it is in [web](../../../web/web.md).
 | [routes/standings.py](routes/standings.py) | Weekly scores and awards, season standings |
 | [routes/planning.py](routes/planning.py) | Matchup preview, streaming planner, schedule outlook and calibration |
 | [routes/review.py](routes/review.py) | Players, rosters and the draft |
+| [routes/history.py](routes/history.py) | The stored NHL seasons: who is in them, a player's history |
 
 ## Leagues, sessions and caching
 
 - `LeagueStore` holds one `LeagueEntry` per league of `config.yaml`. Its
-  id is the league's name as a slug and appears in every address.
+  id is the league's name as a slug and appears in every address. A
+  league is never given the id `history`: that is the web app's one
+  address without a league (`PAGES`).
 - A `LeagueSession` is **one load** of a league: the `LeagueData` snapshot,
   when it was read (`loaded_at`), and everything fetched or derived for
   it. `LeagueEntry.session()` loads the league on first use and again once
@@ -47,6 +51,21 @@ frontend that renders it is in [web](../../../web/web.md).
 - A failed fetch becomes `UpstreamError`, answered as 502 with the
   exception type only. The log gets the type and the traceback frames but
   not the message, which can contain the ESPN cookies.
+
+## The NHL history
+
+- `/api/history/players` and `/api/history/player` are under no league:
+  they take no session, so no league is loaded and nothing is asked
+  from ESPN. The view is registered with `@view(path, prefix="")`.
+- `HistoryStore` keeps the table that
+  [sources/nhl](../sources/nhl/nhl.md) reads from `data/nhl/` and reads
+  it again when a season file changed, came or went: a season downloaded
+  while the server runs is served without a restart. Every request gets
+  the same table, so nothing may change it.
+- Players are their NHL id here, not ESPN's. An unknown one is refused
+  with 422; with no season stored, the list of players is empty.
+- A file that cannot be read as a season is answered as 500 with the
+  reason (`NhlStatsError`).
 
 ## Endpoints
 
@@ -145,5 +164,6 @@ A test on each side fails when one of the two files is out of date.
 [tests/test_api.py](../../../tests/test_api.py) runs the app on the
 synthetic league: every view is served, its tables equal the terminal's,
 wrong parameters are refused, sessions expire and reload cleanly, state
-changes are guarded, failures leak nothing. See
+changes are guarded, failures leak nothing. The history endpoints run on
+the synthetic NHL seasons, with leagues that cannot be loaded. See
 [tests.md](../../../tests/tests.md).

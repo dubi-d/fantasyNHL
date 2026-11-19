@@ -32,6 +32,7 @@ is about the code.
 | [outlook.py](outlook.py) | Projected full-season category totals per roster, replacement-level fill, their round-robin outlook |
 | [values.py](values.py) | Player value: `Score`, category rates, percentiles and profiles |
 | [review.py](review.py) | The roster-review tables: player table, origins, draft return, acquisitions, drop candidates |
+| [history.py](history.py) | One player's seasons in the stored NHL history: derived stats, per-game rates, his average over the seasons |
 
 ## Key concepts
 
@@ -63,6 +64,11 @@ is about the code.
   NHL teams play on one is `playing_by_period`, which periods a matchup
   has is `week_periods`. Both come from the ESPN layer, see
   [espn.md](../sources/espn/espn.md).
+- **The NHL history** is not league data: a table with a row per player
+  and season, as [sources/nhl](../sources/nhl/nhl.md) reads it, with
+  players by their NHL id. In it a stat is a count, which adds up over
+  seasons, or a rate (`is_rate`), which has to be weighted by what it is
+  a rate of.
 
 ## Extending
 

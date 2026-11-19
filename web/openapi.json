@@ -380,6 +380,48 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HistoryOptions": {
+        "properties": {
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryPlayer"
+            },
+            "title": "Players",
+            "type": "array"
+          },
+          "seasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Seasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "seasons",
+          "players"
+        ],
+        "title": "HistoryOptions",
+        "type": "object"
+      },
+      "HistoryPlayer": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "HistoryPlayer",
+        "type": "object"
+      },
       "LeagueInfo": {
         "properties": {
           "default": {
@@ -997,6 +1039,92 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/history/player": {
+      "get": {
+        "operationId": "player_history_api_history_player_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "player",
+            "required": true,
+            "schema": {
+              "title": "Player",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "columns",
+            "required": false,
+            "schema": {
+              "default": "fantasy",
+              "enum": [
+                "fantasy",
+                "all"
+              ],
+              "title": "Columns",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cells",
+            "required": false,
+            "schema": {
+              "default": "total",
+              "enum": [
+                "total",
+                "rate"
+              ],
+              "title": "Cells",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Player History"
+      }
+    },
+    "/api/history/players": {
+      "get": {
+        "description": "Whose history can be asked for.",
+        "operationId": "history_options_api_history_players_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "History Options"
+      }
+    },
     "/api/leagues": {
       "get": {
         "operationId": "leagues_api_leagues_get",

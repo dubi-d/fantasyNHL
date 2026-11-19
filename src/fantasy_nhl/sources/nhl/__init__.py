@@ -5,10 +5,12 @@ from .history import (
     NhlStatsError,
     fetch_season_ends,
     fetch_season_stats,
+    read_history,
     save_season_stats,
     season_id,
     season_label,
     season_path,
+    stored_seasons,
 )
 
 __all__ = [
@@ -17,8 +19,10 @@ __all__ = [
     "NhlStatsError",
     "fetch_season_ends",
     "fetch_season_stats",
+    "read_history",
     "save_season_stats",
     "season_id",
     "season_label",
     "season_path",
+    "stored_seasons",
 ]

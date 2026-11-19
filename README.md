@@ -83,7 +83,8 @@ finished seasons from the NHL's stats API into `data/nhl/` (gitignored),
 one CSV file per season. A season is named by the year it ends in, as in
 `config.yaml` (`2026` is 2025-26). A season already stored is skipped
 unless `--refresh` is given; one whose regular season is not over is
-refused. Nothing uses the files yet. The columns and the terms of the
+refused. The web app shows the stored seasons per player (*Player
+history*). The columns and the terms of the
 source are in [nhl.md](src/fantasy_nhl/sources/nhl/nhl.md).
 
 ## Web app
@@ -105,6 +106,13 @@ as four pages (Players, Roster, Draft recap, Transactions). The league, the
 **Player stats** setting and *Reload from ESPN* sit on top, with the time
 the league was read ("as of"). A new browser tab opens on the
 `default_league`; without a built frontend the server says how to build it.
+
+Below the menu, *NHL history* has one page that belongs to no league:
+**Player history** (`#/history`) shows a player's seasons from the
+[stored NHL stats](#historical-nhl-stats). It reads local files only, so
+it works without an internet connection; a league whose data cannot be
+loaded from ESPN shows the error on its own pages and leaves the rest
+usable.
 
 How fresh the data is: the league itself (standings, rosters, current
 matchup) is read from ESPN again once it is 15 minutes old, everything

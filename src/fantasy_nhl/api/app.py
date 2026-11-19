@@ -9,8 +9,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from ..config import LeagueConfig, load_config
+from ..sources.nhl import DATA_DIR, NhlStatsError
 from .routes import LOCAL_HOSTS, router
-from .state import LeagueStore, UpstreamError
+from .state import HistoryStore, LeagueStore, UpstreamError
 
 HOST = "127.0.0.1"
 PORT = 8000
@@ -31,14 +32,17 @@ def _build_is_outdated() -> bool:
                if path.is_file())
 
 
-def create_app(leagues: list[LeagueConfig] | None = None) -> FastAPI:
+def create_app(leagues: list[LeagueConfig] | None = None,
+               history: Path = DATA_DIR) -> FastAPI:
     """
     :param leagues: the leagues to serve (default: those of config.yaml)
+    :param history: the folder of the stored NHL seasons
     """
     app = FastAPI(title="fantasyNHL", docs_url="/api/docs", redoc_url=None,
                   openapi_url="/api/openapi.json")
     app.state.store = LeagueStore(load_config() if leagues is None
                                   else leagues)
+    app.state.history = HistoryStore(history)
     # a page of another site can reach a local server through DNS rebinding
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(LOCAL_HOSTS))
     app.include_router(router)
@@ -48,6 +52,11 @@ def create_app(leagues: list[LeagueConfig] | None = None) -> FastAPI:
         return JSONResponse(
             {"detail": f"The request to ESPN failed ({error})."},
             status_code=502)
+
+    @app.exception_handler(NhlStatsError)
+    def history_unreadable(request: Request,
+                           error: NhlStatsError) -> JSONResponse:
+        return JSONResponse({"detail": str(error)}, status_code=500)
 
     if (WEB_DIST / "index.html").is_file():
         if _build_is_outdated():

@@ -1,11 +1,14 @@
 """Regular-season stats of every NHL player, stored as one CSV per season."""
 import csv
 import json
+import re
 from datetime import date, datetime
 from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+
+import pandas as pd
 
 _API = "https://api.nhle.com/stats/rest/en"
 # relative to the working directory, like config.yaml
@@ -139,3 +142,32 @@ def save_season_stats(year: int, rows: list[dict],
         writer.writerows(rows)
     partial.replace(path)
     return path
+
+
+def stored_seasons(folder: Path = DATA_DIR) -> list[int]:
+    """The seasons stored in `folder`, as the years they end in."""
+    names = (re.fullmatch(r"season_(\d{4})(\d{4})\.csv", path.name)
+             for path in folder.glob("season_*.csv"))
+    return sorted(int(name[2]) for name in names
+                  if name and int(name[2]) == int(name[1]) + 1)
+
+
+def read_history(folder: Path = DATA_DIR) -> pd.DataFrame:
+    """Every stored season as one table: a row per player and season, the
+    columns of all files (COLUMNS first), blank cells missing."""
+    seasons = []
+    for year in stored_seasons(folder):
+        path = season_path(year, folder)
+        try:
+            # only a blank cell is missing: "NA" could be a name
+            season = pd.read_csv(path, keep_default_na=False, na_values=[""])
+        except (OSError, ValueError) as exc:
+            raise NhlStatsError(f"'{path}' cannot be read.") from exc
+        if list(season.columns[:len(COLUMNS)]) != COLUMNS:
+            raise NhlStatsError(
+                f"'{path}' is not a stored season; download it again with "
+                "fantasy-nhl-history --refresh.")
+        seasons.append(season)
+    if not seasons:
+        return pd.DataFrame(columns=COLUMNS)
+    return pd.concat(seasons, ignore_index=True)

@@ -16,10 +16,12 @@ import {
   type Stats,
 } from "./api";
 
+/** The first part of the one address that names no league. */
+export const HISTORY = "history";
+
 type Session = {
   leagues: LeagueInfo[];
   meta: LeagueMeta;
-  setLeague: (id: string) => void;
   stats: Stats;
   setStats: (stats: Stats) => void;
   /** Re-read the league from ESPN. */
@@ -28,10 +30,33 @@ type Session = {
   refreshError: string | null;
 };
 
-const SessionContext = createContext<Session | null>(null);
+/** What every page has, whether a league is loaded or not. */
+type Shell = {
+  leagues: LeagueInfo[];
+  /** The league the address names; none on the history page. */
+  league?: LeagueInfo;
+  /** The league the menu leads into: that of the address, else this
+   * tab's last one. None only when none is configured. */
+  home?: LeagueInfo;
+  setLeague: (id: string) => void;
+  /** The league of the address once it is loaded. */
+  session: Session | null;
+  /** Why it did not load, if it did not. */
+  problem: string | null;
+  retry: () => void;
+};
 
+const ShellContext = createContext<Shell | null>(null);
+
+export function useShell(): Shell {
+  const shell = useContext(ShellContext);
+  if (!shell) throw new Error("no session provider");
+  return shell;
+}
+
+/** The loaded league, for the pages that belong to one. */
 export function useSession(): Session {
-  const session = useContext(SessionContext);
+  const { session } = useShell();
   if (!session) throw new Error("no league session");
   return session;
 }
@@ -45,13 +70,16 @@ function useStored(storage: Storage, key: string, fallback: string) {
   return [value, store] as const;
 }
 
-/** Loads the league the address names (#/<league>/<page>) and provides it
- * to the pages below. */
+/** Knows the leagues and loads the one the address names
+ * (#/<league>/<page>); the history page (#/history) names none and loads
+ * none. */
 export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
   const [stats, setStats] = useStored(localStorage, "stats", "blended");
+  // per tab: a new one starts on the configured default league
+  const [last, setLast] = useStored(sessionStorage, "league", "");
   const leagues = useQuery({
     queryKey: ["leagues"],
     queryFn: () => request<LeagueInfo[]>(apiUrl("/leagues")),
@@ -65,8 +93,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   });
   const leagueId = league?.id;
   useEffect(() => {
-    // per tab: a new one starts on the configured default league
-    if (leagueId) sessionStorage.setItem("league", leagueId);
+    if (leagueId) setLast(leagueId);
   }, [leagueId]);
 
   if (leagues.error) {
@@ -75,67 +102,39 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   if (!leagues.data) {
     return <p className="note note-info">Loading leagues…</p>;
   }
-  if (leagues.data.length === 0) {
-    return (
-      <p className="note note-warning">
-        No leagues are configured: add one to config.yaml and restart the
-        server.
-      </p>
-    );
-  }
-  if (!league) {
+  const home =
+    league ??
+    leagues.data.find((entry) => entry.id === last) ??
+    leagues.data.find((entry) => entry.default) ??
+    leagues.data[0];
+  if (!league && home && first !== HISTORY) {
     // an address without league: this tab's last one, else the default
-    const last = sessionStorage.getItem("league");
-    const start =
-      leagues.data.find((entry) => entry.id === last) ??
-      leagues.data.find((entry) => entry.default) ??
-      leagues.data[0];
     const rest = location.pathname === "/" ? "" : location.pathname;
-    return <Navigate replace to={`/${start.id}${rest}${location.search}`} />;
+    return <Navigate replace to={`/${home.id}${rest}${location.search}`} />;
   }
-  // the choices of a page belong to its league: they are not carried over
-  const setLeague = (id: string) => navigate(`/${id}/${page.join("/")}`);
-  if (!meta.data) {
-    // a league that does not load must not lock the others away
-    return (
-      <main>
-        <label className="field">
-          <span>League</span>
-          <select
-            value={league.id}
-            onChange={(event) => setLeague(event.target.value)}
-          >
-            {leagues.data.map((entry) => (
-              <option key={entry.id} value={entry.id}>
-                {entry.name} ({entry.year})
-              </option>
-            ))}
-          </select>
-        </label>
-        {meta.error ? (
-          <>
-            <p className="note note-warning">{meta.error.message}</p>
-            <button onClick={() => meta.refetch()}>Try again</button>
-          </>
-        ) : (
-          <p className="note note-info">Loading league data from ESPN…</p>
-        )}
-      </main>
-    );
-  }
-  const session: Session = {
+  const setLeague = (id: string) =>
+    // the choices of a page belong to its league: they are not carried over
+    league ? navigate(`/${id}/${page.join("/")}`) : setLast(id);
+  const shell: Shell = {
     leagues: leagues.data,
-    meta: meta.data,
+    league,
+    home,
     setLeague,
-    stats: stats === "season" ? "season" : "blended",
-    setStats,
-    reload: async () => {
-      await request(apiUrl(`/leagues/${meta.data.id}/reload`), "POST");
-      await queryClient.invalidateQueries();
-    },
-    refreshError: meta.error?.message ?? null,
+    session: meta.data
+      ? {
+          leagues: leagues.data,
+          meta: meta.data,
+          stats: stats === "season" ? "season" : "blended",
+          setStats,
+          reload: async () => {
+            await request(apiUrl(`/leagues/${meta.data.id}/reload`), "POST");
+            await queryClient.invalidateQueries();
+          },
+          refreshError: meta.error?.message ?? null,
+        }
+      : null,
+    problem: meta.data ? null : (meta.error?.message ?? null),
+    retry: () => void meta.refetch(),
   };
-  return (
-    <SessionContext.Provider value={session}>{children}</SessionContext.Provider>
-  );
+  return <ShellContext.Provider value={shell}>{children}</ShellContext.Provider>;
 }

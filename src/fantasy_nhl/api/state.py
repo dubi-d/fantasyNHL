@@ -1,6 +1,6 @@
-"""Server-side league state: every configured league, loaded on first use
-and again once the load is old, with a short-lived cache of what else was
-fetched from ESPN."""
+"""Server-side state: every configured league, loaded on first use and
+again once the load is old, with a short-lived cache of what else was
+fetched from ESPN; and the stored NHL seasons."""
 import logging
 import re
 import threading
@@ -8,13 +8,19 @@ import time
 import traceback
 from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path
 from typing import Any
+
+import pandas as pd
 
 from ..config import LeagueConfig
 from ..sources.espn import LeagueData, fetch_league_data
+from ..sources.nhl import read_history, season_path, stored_seasons
 
 CACHE_SECONDS = 300  # a fetch within a session
 SESSION_SECONDS = 900  # the league load itself
+# first parts of the web app's addresses that name no league
+PAGES = ("history",)
 
 log = logging.getLogger(__name__)
 
@@ -113,8 +119,31 @@ class LeagueStore:
         for config in configs:
             base = re.sub(r"[^a-z0-9]+", "-", config.name.lower()).strip("-")
             league_id = base or "league"
-            if league_id in self.leagues:
+            if league_id in self.leagues or league_id in PAGES:
                 league_id = f"{league_id}-{config.year}"
             if league_id in self.leagues:
                 league_id = f"{league_id}-{len(self.leagues)}"
             self.leagues[league_id] = LeagueEntry(league_id, config)
+
+
+class HistoryStore:
+    """The stored NHL seasons of a folder, read again when a file of
+    theirs changed, came or went."""
+
+    def __init__(self, folder: Path) -> None:
+        self._folder = folder
+        self._lock = threading.Lock()
+        self._read: tuple[list, pd.DataFrame] | None = None
+
+    def frame(self) -> pd.DataFrame:
+        """A row per player and season (see read_history); not to be
+        changed, every request gets the same table."""
+        with self._lock:
+            files = []
+            for year in stored_seasons(self._folder):
+                path = season_path(year, self._folder)
+                written = path.stat()
+                files.append((path.name, written.st_mtime_ns, written.st_size))
+            if self._read is None or self._read[0] != files:
+                self._read = (files, read_history(self._folder))
+            return self._read[1]
