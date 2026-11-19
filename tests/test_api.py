@@ -340,16 +340,25 @@ def test_team_tables_can_carry_the_ranking_columns(api):
     assert [block["spans"][0]["text"][:10] for block in legend["blocks"][3:5]
             ] == ["Percentile", "Score = me"]
 
-    # a comparison can add its players' rows of the ranking, as picked
+    # a comparison can show its players as rows of the ranking, as picked,
+    # in place of the profile summary: with what Spec is made of
     compare = "/review/compare?players=102&players=101"
     (ranking,) = tables("/review/leaders?scope=team&team=0&group=F&cells=rate")
-    *before, rows = tables(f"{compare}&cells=rate")
-    assert [table["title"] for table in before] == [
-        table["title"] for table in tables(compare)]
-    assert names(rows) == names(ranking)
+    by_category, summary = tables(compare)
+    first, rows = tables(f"{compare}&cells=rate")
+    assert first == by_category
+    assert names(rows) == [
+        name for column in names(ranking)
+        for name in ([column, "Peak", "Breadth"] if column == "Level"
+                     else [column])]
     assert list(cells(rows, names(rows))) == ["Alpha C2", "Alpha C1"]
-    assert cells(rows, names(rows)).items() <= cells(
+    assert cells(rows, names(ranking)).items() <= cells(
         ranking, names(ranking)).items()
+    for row in summary["rows"]:
+        metric, *shown = [cell["text"] for cell in row["cells"]]
+        if metric in ("Peak", "Breadth"):
+            assert shown == [cell[0]["text"] for cell
+                             in cells(rows, [metric]).values()]
     assert all(column["sortable"] for column in rows["columns"])
 
 

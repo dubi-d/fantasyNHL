@@ -162,7 +162,8 @@ def review_compare(session: Session,
                    stats: Stats = "blended") -> View:
     """
     :param players: ids of 2-4 skaters or 2-4 goalies (see review/options)
-    :param cells: add the players' rows of the ranking, as for review/team
+    :param cells: show the profile as the players' rows of the ranking
+        (cells as for review/team) instead of the profile summary
     """
     def build(context: ReviewContext) -> View:
         _check_cells(context, cells)

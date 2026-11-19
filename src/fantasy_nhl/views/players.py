@@ -30,7 +30,11 @@ GROUP_CHOICES = {"F": "Forwards", "D": "Defense", "FD": "Skaters (F + D)",
 CELL_CHOICES = {"pct": "Percentiles", "rate": "Per-game rates",
                 "total": "Season totals"}
 PROFILE_COLUMNS = ["Level", "Spec", "Elite", "Holes", "Type", "Best"]
-_PROFILE_TONES = {"Level": percentile_tone,
+# a comparison also shows what Spec is made of
+COMPARE_COLUMNS = ["Level", "Peak", "Breadth", "Spec", "Elite", "Holes",
+                   "Type", "Best"]
+_PROFILE_TONES = {"Level": percentile_tone, "Peak": percentile_tone,
+                  "Breadth": percentile_tone,
                   "Elite": lambda v: diverging(v, 3),
                   "Holes": lambda v: diverging(-v, 3)}
 
@@ -75,19 +79,21 @@ def cells_label(cells: str) -> str:
     return f"cells: {CELL_CHOICES[cells].lower()}, colored by percentile"
 
 
-def profile_columns(ctx: ReviewContext, ids, names: list[str],
-                    cells: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+def profile_columns(ctx: ReviewContext, ids, names: list[str], cells: str,
+                    metrics: list[str] = PROFILE_COLUMNS
+                    ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     The ranking's columns for the players ``ids``, in that order: the
-    profile and one column per category of ``names``.
+    profile (``metrics``) and one column per category of ``names``.
 
     :param cells: what the category cells show, a key of CELL_CHOICES
     :return: (columns, their tones), indexed by player id; blank for a
         player outside the pool
     """
     ids = pd.Index(ids)
-    columns = ctx.profile.reindex(index=ids, columns=PROFILE_COLUMNS)
-    for col in ("Level", "Spec"):
+    columns = ctx.profile.reindex(index=ids, columns=metrics)
+    for col in columns.columns.intersection(
+            ["Level", "Peak", "Breadth", "Spec"]):
         columns[col] = columns[col].round(0).astype("Int64")
     for col in ("Type", "Best"):
         columns[col] = columns[col].fillna("")
@@ -125,19 +131,20 @@ def with_profile(ctx: ReviewContext, table: pd.DataFrame, view: pd.DataFrame,
             pd.concat([tones, column_tones_.set_axis(view.index)], axis=1))
 
 
-def _ranking_rows(ctx: ReviewContext, ids, names: list[str], cells: str
+def _ranking_rows(ctx: ReviewContext, ids, names: list[str], cells: str,
+                  metrics: list[str] = PROFILE_COLUMNS
                   ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """The ranking's table of the players ``ids``, in that order.
 
     :return: (the rows behind it, the frame as displayed, its tones)
     """
     ids = list(ids)
-    stats, stat_tones = profile_columns(ctx, ids, names, cells)
+    stats, stat_tones = profile_columns(ctx, ids, names, cells, metrics)
     table = pd.concat([ctx.info.loc[ids, ["Player", "Pos", "Team", "GP",
                                           "Injury", "NoProj"]],
                        ctx.profile.loc[ids, ["Score"]], stats], axis=1)
     view = player_view(table, ["Player", "Pos", "Team", "GP", "Inj",
-                               "Score", *PROFILE_COLUMNS, *names])
+                               "Score", *metrics, *names])
     tones = pd.concat([column_tones(view, PLAYER_TONES),
                        stat_tones.set_axis(view.index)], axis=1)
     return table, view, tones
@@ -223,13 +230,40 @@ def check_pick(ctx: ReviewContext, by_label: dict[str, int],
     return True
 
 
+def _profile_summary(ctx: ReviewContext, ids: tuple[int, ...],
+                     labels: list[str]) -> TableView:
+    """The compared players' profile metrics, one column per player."""
+    metrics = ["Pos", "Team", "GP", "Score", *COMPARE_COLUMNS]
+    rows = pd.concat([ctx.info.loc[list(ids), ["Pos", "Team", "GP"]],
+                      ctx.profile.loc[list(ids), metrics[3:]]], axis=1)
+    text = {"Score": lambda v: f"{v:.2f}",
+            **{m: lambda v: f"{v:.0f}"
+               for m in ("Level", "Peak", "Breadth", "Spec")}}
+    summary = pd.DataFrame(
+        {label: ["" if pd.isna(rows.at[pid, m])
+                 else text.get(m, str)(rows.at[pid, m]) for m in metrics]
+         for label, pid in zip(labels, ids)})
+    summary.insert(0, "Metric", metrics)
+    summary.index = range(1, len(summary) + 1)
+    toner = {"Score": score_tone, "Level": percentile_tone,
+             "Peak": percentile_tone, "Breadth": percentile_tone}
+    tones = pd.DataFrame(
+        {label: [toner[m](rows.at[pid, m]) if m in toner else None
+                 for m in metrics]
+         for label, pid in zip(labels, ids)}, index=summary.index,
+        dtype=object)
+    return TableView(with_basis("Profile summary", ctx.basis), summary,
+                     tones, fixed=True)
+
+
 def build_compare(ctx: ReviewContext, ids: tuple[int, ...],
                   cells: str | None = None) -> View:
     """Per-category comparison of 2-4 skaters or goalies (player ids),
     their profile metrics and the percentile radar.
 
-    :param cells: add the players' rows of the ranking, their category
-        cells showing this key of CELL_CHOICES
+    :param cells: show the profile as the players' rows of the ranking,
+        their category cells showing this key of CELL_CHOICES, instead of
+        the profile summary
     """
     data, info, profile, pcts = ctx.data, ctx.info, ctx.profile, ctx.pcts
     basis = ctx.basis
@@ -262,43 +296,21 @@ def build_compare(ctx: ReviewContext, ids: tuple[int, ...],
          for label, pid in zip(labels, ids)}, index=cells_table.index,
         dtype=object)
 
-    metrics = ["Pos", "Team", "GP", "Score", "Level", "Peak", "Breadth",
-               "Spec", "Elite", "Holes", "Type", "Best"]
-    rows = pd.concat([info.loc[list(ids), ["Pos", "Team", "GP"]],
-                      profile.loc[list(ids), metrics[3:]]], axis=1)
-    text = {"Score": lambda v: f"{v:.2f}",
-            **{m: lambda v: f"{v:.0f}"
-               for m in ("Level", "Peak", "Breadth", "Spec")}}
-    summary = pd.DataFrame(
-        {label: ["" if pd.isna(rows.at[pid, m])
-                 else text.get(m, str)(rows.at[pid, m]) for m in metrics]
-         for label, pid in zip(labels, ids)})
-    summary.insert(0, "Metric", metrics)
-    summary.index = range(1, len(summary) + 1)
-    toner = {"Score": score_tone, "Level": percentile_tone,
-             "Peak": percentile_tone, "Breadth": percentile_tone}
-    summary_tones = pd.DataFrame(
-        {label: [toner[m](rows.at[pid, m]) if m in toner else None
-                 for m in metrics]
-         for label, pid in zip(labels, ids)}, index=summary.index,
-        dtype=object)
-
+    if cells:
+        _, view, tones = _ranking_rows(ctx, ids, names, cells, COMPARE_COLUMNS)
+        players = TableView(with_basis(
+            f"Compared players ({cells_label(cells)})", basis), view, tones)
+    else:
+        players = _profile_summary(ctx, ids, labels)
     radar = pcts.loc[list(ids), names]
     radar.index = labels
-    ranking = []
-    if cells:
-        _, view, tones = _ranking_rows(ctx, ids, names, cells)
-        ranking.append(TableView(with_basis(
-            f"Compared players ({cells_label(cells)})", basis), view, tones))
     return View([
         TableView(with_basis(
             "Player comparison ("
             + ("season total · " if basis.season_only else "")
             + "per game · percentile within group)", basis),
             cells_table, cell_tones, fixed=True),
-        TableView(with_basis("Profile summary", basis), summary,
-                  summary_tones, fixed=True),
-        *ranking,
+        players,
         *ctx.profile_legend(info.loc[list(ids)]),
         FigureBlock("category_radar", "player_radar", {
             "pcts": radar,
