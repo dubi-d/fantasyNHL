@@ -304,5 +304,6 @@ count like one of eighty:
   2.45, not 2.70.
 
 A season in which the NHL has no value for a stat does not count for
-that stat. Seasons he did not play in are not part of the average.
+that stat. Seasons he did not play in are not part of the average, nor
+is the current season in its row below.
 

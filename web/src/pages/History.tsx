@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiUrl, request, type HistoryOptions } from "../api";
@@ -16,8 +16,10 @@ const CELLS = [
 ];
 
 /** A player's stored NHL seasons. It belongs to no league and asks
- * nothing from ESPN. */
+ * nothing from ESPN. The current season is asked for apart, as the server
+ * may have to download it from the NHL first. */
 export function PlayerHistory() {
+  const queryClient = useQueryClient();
   const page = usePageParams();
   const player = page.get("player");
   const columns = page.get("columns") === "all" ? "all" : "fantasy";
@@ -31,10 +33,22 @@ export function PlayerHistory() {
   const options = optionsQuery.data;
   const seasons = options?.seasons ?? [];
   const stored = options === undefined || seasons.length > 0;
-  const query = useViewAt(
-    apiUrl("/history/player", { player, columns, cells }),
-    player !== "" && stored,
+  const choices = { player, columns, cells };
+  const asked = player !== "" && stored;
+  const offline = useViewAt(apiUrl("/history/player", choices), asked);
+  const online = useViewAt(
+    apiUrl("/history/player", { ...choices, current: true }),
+    asked,
   );
+  // the stored seasons stand until the view with the current one is there
+  const arrived = online.data !== undefined && !online.isPlaceholderData && !online.error;
+  const refresh = useMutation({
+    mutationFn: () => request(apiUrl("/history/current/refresh"), "POST"),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        predicate: (query) => String(query.queryKey[0]).startsWith("/api/history/"),
+      }),
+  });
 
   return (
     <Page
@@ -60,10 +74,20 @@ export function PlayerHistory() {
               options={CELLS}
               onChange={(next) => page.set({ cells: next === "rate" ? next : null })}
             />
+            <div className="field">
+              <button
+                onClick={() => refresh.mutate()}
+                disabled={refresh.isPending}
+                title="Download the current season from the NHL again"
+              >
+                {refresh.isPending ? "Refreshing…" : "Refresh current season"}
+              </button>
+            </div>
           </>
         )
       }
     >
+      {refresh.error && <p className="note note-warning">{refresh.error.message}</p>}
       {optionsQuery.error ? (
         <>
           <p className="note note-warning">{optionsQuery.error.message}</p>
@@ -77,7 +101,16 @@ export function PlayerHistory() {
           <code>fantasy-nhl-history</code> (see the README) and reload this page.
         </p>
       ) : player ? (
-        <ViewPanel query={query} />
+        <>
+          <ViewPanel query={arrived ? online : offline} />
+          {offline.error ? null : online.error ? (
+            <p className="note note-info">
+              The current season is not shown: {online.error.message}
+            </p>
+          ) : (
+            !arrived && offline.data && <p className="note note-info">Reading the current season…</p>
+          )}
+        </>
       ) : (
         <p className="note note-info">
           Pick a player to see his seasons. Stored: {seasons[0]}

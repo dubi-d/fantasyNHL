@@ -603,15 +603,17 @@ const HISTORY_OPTIONS = {
 const historyOf = (player: number, columns: string, cells: string) =>
   `/api/history/player?player=${player}&columns=${columns}&cells=${cells}`;
 const seasons = (title: string) => ({ blocks: [table(title, ["Season"], [["2025-26"]])] });
+/** A view as the page asks for it: without and with the current season. */
+const twice = (url: string, view: View) => ({ [url]: view, [`${url}&current=true`]: view });
 
 test("history: no league is asked for, the choices are in the address", async () => {
   const asked = serve({
     "/api/leagues": LEAGUES,
     "/api/history/players": HISTORY_OPTIONS,
-    [historyOf(1, "fantasy", "total")]: seasons("Alex, totals"),
-    [historyOf(1, "fantasy", "rate")]: seasons("Alex, per game"),
-    [historyOf(6, "fantasy", "rate")]: seasons("Gus, per game"),
-    [historyOf(6, "all", "rate")]: seasons("Gus, everything per game"),
+    ...twice(historyOf(1, "fantasy", "total"), seasons("Alex, totals")),
+    ...twice(historyOf(1, "fantasy", "rate"), seasons("Alex, per game")),
+    ...twice(historyOf(6, "fantasy", "rate"), seasons("Gus, per game")),
+    ...twice(historyOf(6, "all", "rate"), seasons("Gus, everything per game")),
   });
   open("/history?player=1");
   expect(await screen.findByText("Alex, totals")).toBeTruthy();
@@ -638,6 +640,64 @@ test("history: no league is asked for, the choices are in the address", async ()
   expect(address()).toBe("/history?cells=rate&player=6&columns=all");
   fireEvent.change(screen.getByLabelText("Columns"), { target: { value: "fantasy" } });
   expect(address()).toBe("/history?cells=rate&player=6");
+});
+
+test("history: the current season joins the stored ones and can be refreshed", async () => {
+  const stored = historyOf(1, "fantasy", "total");
+  const refresh = "/api/history/current/refresh";
+  let arrive = () => {};
+  const download = new Promise<void>((resolve) => (arrive = resolve));
+  let downloads = 0;
+  let reachable = true;
+  const unreachable = () =>
+    Response.json(
+      { detail: "Unable to read 'season' from the NHL stats API." },
+      { status: 502 },
+    );
+  serve({
+    "/api/leagues": LEAGUES,
+    "/api/history/players": HISTORY_OPTIONS,
+    [stored]: seasons("Alex, stored"),
+    [`${stored}&current=true`]: async () => {
+      await download;
+      return reachable ? seasons(`Alex, download ${downloads}`) : unreachable();
+    },
+    [refresh]: () => {
+      if (!reachable) return unreachable();
+      downloads += 1;
+      return { season: "2026-27", loaded_at: "2026-11-19T14:05:00+01:00" };
+    },
+  });
+  open("/history?player=1");
+  // the stored seasons do not wait for the NHL
+  expect(await screen.findByText("Alex, stored")).toBeTruthy();
+  expect(screen.getByText("Reading the current season…")).toBeTruthy();
+  arrive();
+  expect(await screen.findByText("Alex, download 0")).toBeTruthy();
+  expect(screen.queryByText("Alex, stored")).toBeNull();
+  expect(screen.queryByText("Reading the current season…")).toBeNull();
+
+  fireEvent.click(screen.getByText("Refresh current season"));
+  expect(await screen.findByText("Alex, download 1")).toBeTruthy();
+  const sent = vi.mocked(fetch).mock.calls.find(([url]) => url === refresh);
+  expect(sent?.[1]?.method).toBe("POST");
+
+  reachable = false;
+  fireEvent.click(screen.getByText("Refresh current season"));
+  expect(
+    await screen.findByText("Unable to read 'season' from the NHL stats API."),
+  ).toBeTruthy();
+  expect(screen.getByText("Alex, download 1")).toBeTruthy();
+  cleanup();
+
+  // a view with the current season that fails leaves the stored seasons
+  open("/history?player=1");
+  expect(
+    await screen.findByText(
+      "The current season is not shown: Unable to read 'season' from the NHL stats API.",
+    ),
+  ).toBeTruthy();
+  expect(screen.getByText("Alex, stored")).toBeTruthy();
 });
 
 test("history and a league's pages lead to each other, the league is loaded once", async () => {

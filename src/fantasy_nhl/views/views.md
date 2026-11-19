@@ -5,7 +5,7 @@ league data and the user's choices into a `View`: an ordered list of
 tables, notes, text and figures. The terminal app and the web backend
 render the same views, which is why both always show the same thing.
 One view is of no league: the player history is built from the stored
-NHL seasons.
+NHL seasons, with the season being played in a row of its own.
 
 ## Boundaries
 
@@ -13,8 +13,9 @@ NHL seasons.
   (the league, fetched data, the choices, the `StatBasis`) is passed in.
 - Imports `analysis` and `config` only: nothing of the ESPN layer, the
   front ends,
-  `plots`, `rich`, `questionary` or `matplotlib`. The types of the ESPN
-  layer (`LeagueData`, `PreviewData`, ...) are imported under
+  `plots`, `rich`, `questionary` or `matplotlib`. The types of the
+  source layers (`LeagueData`, `PreviewData`, `CurrentSeason`, ...) are
+  imported under
   `TYPE_CHECKING` for annotations. Checked by
   [tests/test_layering.py](../../../tests/test_layering.py).
 - No styles: a cell says *what* it is (a tone), each front end decides how
@@ -35,7 +36,7 @@ NHL seasons.
 | [players.py](players.py) | Player ranking and player comparison; `with_profile` adds the ranking's columns to the player tables of the next two |
 | [rosters.py](rosters.py) | Roster origins, category outlook, pickups and trades, team roster, drop candidates |
 | [draft.py](draft.py) | Draft grades, hits and busts, a team's picks |
-| [history.py](history.py) | Player history: a player's stored NHL seasons and his average; the labels to pick him by |
+| [history.py](history.py) | Player history: a player's stored NHL seasons, his average and his current season; the labels to pick him by |
 
 ## The view model
 

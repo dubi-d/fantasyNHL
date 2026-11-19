@@ -163,6 +163,39 @@
         "title": "Column",
         "type": "object"
       },
+      "CurrentInfo": {
+        "properties": {
+          "loaded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loaded At"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          }
+        },
+        "required": [
+          "season",
+          "loaded_at"
+        ],
+        "title": "CurrentInfo",
+        "type": "object"
+      },
       "DayInfo": {
         "properties": {
           "label": {
@@ -1039,6 +1072,25 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/history/current/refresh": {
+      "post": {
+        "description": "Download the current season from the NHL now.",
+        "operationId": "refresh_current_api_history_current_refresh_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Refresh Current"
+      }
+    },
     "/api/history/player": {
       "get": {
         "operationId": "player_history_api_history_player_get",
@@ -1078,6 +1130,16 @@
               ],
               "title": "Cells",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "current",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Current",
+              "type": "boolean"
             }
           }
         ],

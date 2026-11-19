@@ -4,7 +4,9 @@ import json
 import logging
 import os
 import re
+import time
 from dataclasses import replace
+from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -13,7 +15,14 @@ from fastapi.testclient import TestClient
 
 from fantasy_nhl.api import app as app_module
 from fantasy_nhl.api import create_app, figures, state
+from fantasy_nhl.sources.nhl import (
+    NhlStatsError,
+    current_path,
+    save_season_stats,
+)
 from support import (
+    CURRENT,
+    CURRENT_YEAR,
     FakeLeague,
     finished,
     midseason,
@@ -584,7 +593,30 @@ def test_outdated_frontend_build_is_noticed(monkeypatch, tmp_path, caplog):
 
 
 @pytest.fixture
-def history_api(monkeypatch, tmp_path):
+def nhl(monkeypatch):
+    """The NHL's answers about the current season: ``down`` makes it
+    unreachable, ``tried`` and ``asked`` count the attempts and the
+    downloads."""
+    nhl = SimpleNamespace(down=False, tried=0, asked=0)
+
+    def season(today=None, timeout=None):
+        nhl.tried += 1
+        if nhl.down:
+            raise NhlStatsError(
+                "Unable to read 'season' from the NHL stats API.")
+        return CURRENT_YEAR
+
+    def stats(year, timeout=None):
+        nhl.asked += 1
+        return CURRENT
+
+    patch_everywhere(monkeypatch, "fetch_current_season", season)
+    patch_everywhere(monkeypatch, "fetch_season_stats", stats)
+    return nhl
+
+
+@pytest.fixture
+def history_api(monkeypatch, tmp_path, nhl):
     """A client of the app on the synthetic NHL history, with leagues that
     cannot be loaded."""
     def offline(config):
@@ -722,6 +754,135 @@ def test_history_follows_the_stored_files(tmp_path):
     broken = client.get(players)
     assert broken.status_code == 500
     assert "is not a stored season" in broken.json()["detail"]
+
+
+NOW = HISTORY + "/player?player=1&current=true"
+REFRESH = HISTORY + "/current/refresh"
+SO_FAR = ["", "2026-27 so far", "EDM", "20", "10", "15", "25", "8", "0",
+          "8", "60", "10", "5", "4", "6", "20:30"]
+
+
+def test_history_adds_the_current_season_below_the_average(
+        history_api, nhl, tmp_path):
+    plain = history_api.get(HISTORY + "/player?player=1").json()
+    assert nhl.tried == 0 and len(_note_texts(plain)) == 2
+
+    view = history_api.get(NOW).json()
+    assert _tables(view) == [_tables(plain)[0] + [SO_FAR]]
+    assert len(view["blocks"][0]["footer"]) == 2
+    assert re.fullmatch(
+        r"2026-27 so far: the NHL's numbers of [A-Z][a-z]{2} \d{1,2}, "
+        r"\d\d:\d\d; not part of the Average\.", _note_texts(view)[2])
+    rate = history_api.get(NOW + "&cells=rate").json()
+    assert _tables(rate)[0][-1] == [
+        "", "2026-27 so far", "EDM", "20", "0.5", "0.75", "1.25", "0.4",
+        "0.0", "0.4", "3.0", "0.5", "0.25", "0.2", "0.3", "20:30"]
+    everything = history_api.get(NOW + "&columns=all").json()
+    assert _tables(everything)[0][-1][16:] == [
+        "1.46", "1.25", "0.167", "130", "410"]
+
+    # it is stored, but is no season of the history
+    assert "current_20262027.csv" in os.listdir(tmp_path)
+    options = history_api.get(HISTORY + "/players").json()
+    assert options["seasons"] == ["2023-24", "2024-25", "2025-26"]
+    assert len(options["players"]) == 7
+    assert history_api.get(
+        HISTORY + "/player?player=8&current=true").status_code == 422
+
+    goalie = history_api.get(HISTORY + "/player?player=6&current=true")
+    assert _tables(goalie.json())[0][-1] == [
+        "", "2026-27 so far", "WPG", "15", "14", "9", "4", "1", "420",
+        "385", "35", "2.5", "0.917", "1"]
+    traded = history_api.get(HISTORY + "/player?player=2&current=true")
+    assert [row[2] for row in _tables(traded.json())[0]] == [
+        "VAN/TOR", "TOR", "", "TOR/BOS"]
+    absent = history_api.get(
+        HISTORY + "/player?player=7&current=true").json()
+    assert _tables(absent)[0][-1][1] == "Average"
+    assert _note_texts(absent)[2].startswith(
+        "No NHL games in 2026-27 so far, by the NHL's numbers of ")
+    # one download serves every player
+    assert (nhl.tried, nhl.asked) == (1, 1)
+
+
+def test_the_current_season_is_downloaded_once_a_day_and_on_request(
+        history_api, nhl, tmp_path):
+    path = current_path(CURRENT_YEAR, tmp_path)
+    history_api.get(NOW)
+    history_api.get(NOW)
+    assert nhl.asked == 1
+    earlier = time.time() - 2 * 86400
+    os.utime(path, (earlier, earlier))
+    assert _tables(history_api.get(NOW).json())[0][-1] == SO_FAR
+    assert nhl.asked == 2
+    assert date.fromtimestamp(path.stat().st_mtime) == date.today()
+
+    info = history_api.post(REFRESH, json={})
+    assert info.status_code == 200 and info.json()["season"] == "2026-27"
+    assert info.json()["loaded_at"][:10] == str(date.today())
+    assert nhl.asked == 3
+    # a state change like the others: JSON, from this machine
+    assert history_api.post(REFRESH).status_code == 415
+    assert history_api.post(REFRESH, json={}, headers={
+        "origin": "https://evil.example"}).status_code == 403
+    assert nhl.asked == 3
+
+
+def test_an_unreachable_nhl_leaves_what_is_stored(history_api, nhl,
+                                                  tmp_path):
+    nhl.down = True
+    view = history_api.get(NOW).json()
+    assert _tables(view)[0][-1][1] == "Average"
+    assert _note_texts(view)[2] == (
+        "The current season could not be read from the NHL.")
+    # it is left alone for a while, unless asked for
+    nhl.down = False
+    assert len(_note_texts(history_api.get(NOW).json())) == 3
+    assert (nhl.tried, nhl.asked) == (1, 0)
+    assert history_api.post(REFRESH, json={}).status_code == 200
+    assert _tables(history_api.get(NOW).json())[0][-1] == SO_FAR
+
+    # an older download is shown as what it is
+    path = current_path(CURRENT_YEAR, tmp_path)
+    earlier = time.time() - 2 * 86400
+    os.utime(path, (earlier, earlier))
+    history_api.app.state.history = state.HistoryStore(tmp_path)
+    nhl.down = True
+    view = history_api.get(NOW).json()
+    assert _tables(view)[0][-1] == SO_FAR
+    assert re.fullmatch(
+        r"2026-27 so far: the NHL's numbers of .* \(they could not be "
+        r"refreshed\); not part of the Average\.", _note_texts(view)[2])
+    refused = history_api.post(REFRESH, json={})
+    assert refused.status_code == 502 and refused.json() == {
+        "detail": "Unable to read 'season' from the NHL stats API."}
+    assert path.stat().st_mtime == pytest.approx(earlier, abs=1)
+
+
+def test_the_nhl_is_asked_again_after_a_while(history_api, nhl,
+                                              monkeypatch):
+    monkeypatch.setattr(state, "RETRY_SECONDS", 0)
+    nhl.down = True
+    history_api.get(NOW)
+    history_api.get(NOW)
+    assert nhl.tried == 2
+    nhl.down = False
+    assert _tables(history_api.get(NOW).json())[0][-1] == SO_FAR
+
+
+def test_a_season_stored_as_finished_is_no_current_one(history_api, nhl,
+                                                       tmp_path):
+    save_season_stats(CURRENT_YEAR, CURRENT, tmp_path)
+    view = history_api.get(NOW).json()
+    assert [row[1] for row in _tables(view)[0]] == [
+        "2023-24", "2024-25", "2025-26", "2026-27", "Average"]
+    assert len(_note_texts(view)) == 2
+    history_api.get(NOW)
+    # the NHL said once which season is the current one
+    assert (nhl.tried, nhl.asked) == (1, 0)
+    assert history_api.post(REFRESH, json={}).json() == {
+        "season": None, "loaded_at": None}
+    assert os.listdir(tmp_path).count("current_20262027.csv") == 0
 
 
 def test_a_league_cannot_take_the_address_of_a_page():

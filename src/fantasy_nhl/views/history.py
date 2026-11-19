@@ -1,4 +1,6 @@
 """Player history: one player's stored NHL seasons."""
+from typing import TYPE_CHECKING
+
 import pandas as pd
 
 from ..analysis import (
@@ -10,6 +12,9 @@ from ..analysis import (
     season_name,
 )
 from .model import INFO, TableView, View, note
+
+if TYPE_CHECKING:
+    from ..sources.nhl import CurrentSeason
 
 COLUMN_CHOICES = {"fantasy": "Fantasy categories", "all": "All"}
 CELL_CHOICES = {"total": "Season totals", "rate": "Per game"}
@@ -59,40 +64,78 @@ def _shown(column: str, values: pd.Series, decimals: int) -> pd.Series:
             else values.round(0).astype("Int64"))
 
 
+def _measured(seasons: pd.DataFrame) -> list[str]:
+    """The number columns with a value in any of the seasons."""
+    numbers = seasons.select_dtypes("number")
+    return [column for column in numbers if numbers[column].notna().any()]
+
+
+def _current_note(current: "CurrentSeason | None", played: bool,
+                  failed: bool) -> str:
+    if current is None:
+        return "The current season could not be read from the NHL."
+    name = season_name(current.season)
+    loaded = current.loaded
+    return ((f"{name} so far: " if played
+             else f"No NHL games in {name} so far, by ")
+            + f"the NHL's numbers of {loaded:%b} {loaded.day}, "
+            f"{loaded:%H:%M}"
+            + (" (they could not be refreshed)" if failed else "")
+            + ("; not part of the Average." if played else "."))
+
+
 def build_player_history(history: pd.DataFrame, player_id: int,
-                         columns: str = "fantasy",
-                         cells: str = "total") -> View:
+                         columns: str = "fantasy", cells: str = "total",
+                         current: "CurrentSeason | None" = None,
+                         failed: bool = False) -> View:
     """
     :param history: the stored seasons, a row per player and season
     :param player_id: a player of that table (his NHL id)
     :param columns: one of COLUMN_CHOICES
     :param cells: one of CELL_CHOICES
+    :param current: the season being played, shown in a row of its own
+    :param failed: that season could not be downloaded when it was due
     """
     seasons = player_seasons(history, player_id)
     latest = seasons.iloc[-1]
     goalie = latest["position"] == "G"
     rate = cells == "rate"
+    now = None
+    if current is not None and (
+            current.stats["player_id"] == player_id).any():
+        now = player_seasons(current.stats, player_id)
     shown = list(GOALIE_COLUMNS if goalie else SKATER_COLUMNS)
     if columns == "all":
-        numbers = seasons.select_dtypes("number")
+        measured = _measured(seasons) + (
+            _measured(now) if now is not None else [])
         # per game, the ice time is the TOI/GP column
-        shown += [column for column in numbers
-                  if column not in shown and numbers[column].notna().any()
-                  and not (rate and column == "TOI")]
+        shown += [column for column in dict.fromkeys(measured)
+                  if column not in shown and not (rate and column == "TOI")]
     values = (per_game(seasons) if rate else seasons).reindex(columns=shown)
     average = career_average(seasons, rate).reindex(shown).to_frame().T
 
     table = pd.DataFrame({
         "Season": [season_name(season) for season in seasons.index],
         "Team": [_teams(teams) for teams in seasons["teams"]]})
-    footer = pd.DataFrame({"Season": ["Average"], "Team": [""]}, index=[""])
+    footer = {"Season": ["Average"], "Team": [""]}
+    if now is not None:
+        footer["Season"].append(f"{season_name(current.season)} so far")
+        footer["Team"].append(_teams(now["teams"].iloc[0]))
+        now = (per_game(now) if rate else now).reindex(columns=shown)
     for column in shown:
         games = column in GAMES
         table[column] = _shown(column, values[column],
                                2 if rate and not games else 0).array
-        footer[column] = _shown(column, average[column],
-                                2 if rate and not games else 1).array
+        below = list(_shown(column, average[column],
+                            2 if rate and not games else 1))
+        if now is not None:
+            below += list(_shown(column, now[column],
+                                 2 if rate and not games else 0))
+        # one row is rounded as an average, the other as a season
+        footer[column] = pd.Series(below, dtype=object)
     table.index = [""] * len(table)
+    footer = pd.DataFrame(footer)
+    footer.index = [""] * len(footer)
 
     stored = sorted(history["season"].unique())
     missing = [season_name(season) for season in stored
@@ -105,10 +148,7 @@ def build_player_history(history: pd.DataFrame, player_id: int,
     units = [text for column, text in (
         ("STP", "STP = PPP + SHP"), ("TOI/GP", "TOI/GP in minutes:seconds"),
         ("TOI", "TOI in minutes")) if column in shown]
-    return View([
-        TableView(f"{latest['name']} ({latest['position']}) — NHL regular "
-                  f"seasons, {CELL_CHOICES[cells].lower()}", table,
-                  footer=footer),
+    notes = [
         note(f"Average: counts are {counts}; rates and ratios ({rates}) are "
              "taken over all those games together, not as the mean of the "
              "seasons." + (f" {'; '.join(units)}." if units else ""),
@@ -117,4 +157,11 @@ def build_player_history(history: pd.DataFrame, player_id: int,
             f"{season_name(stored[0])} to {season_name(stored[-1])}"
             if len(stored) > 1 else season_name(stored[0]))
              + (f"; no NHL games in {', '.join(missing)}" if missing else "")
-             + ".", level=INFO)])
+             + ".", level=INFO)]
+    if current is not None or failed:
+        notes.append(note(_current_note(current, now is not None, failed),
+                          level=INFO))
+    return View([
+        TableView(f"{latest['name']} ({latest['position']}) — NHL regular "
+                  f"seasons, {CELL_CHOICES[cells].lower()}", table,
+                  footer=footer), *notes])

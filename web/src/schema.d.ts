@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/history/current/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Current
+         * @description Download the current season from the NHL now.
+         */
+        post: operations["refresh_current_api_history_current_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/history/player": {
         parameters: {
             query?: never;
@@ -540,6 +560,13 @@ export interface components {
              */
             type: "number" | "text";
         };
+        /** CurrentInfo */
+        CurrentInfo: {
+            /** Loaded At */
+            loaded_at: string | null;
+            /** Season */
+            season: string | null;
+        };
         /** DayInfo */
         DayInfo: {
             /** Label */
@@ -834,12 +861,33 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    refresh_current_api_history_current_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentInfo"];
+                };
+            };
+        };
+    };
     player_history_api_history_player_get: {
         parameters: {
             query: {
                 player: number;
                 columns?: "fantasy" | "all";
                 cells?: "total" | "rate";
+                current?: boolean;
             };
             header?: never;
             path?: never;

@@ -565,3 +565,19 @@ def write_history(folder, years=tuple(HISTORY)) -> None:
     """Store the synthetic seasons as the download would."""
     for year in years:
         save_season_stats(year, HISTORY[year], folder)
+
+
+# the season after those while it is played: a traded player, a goalie and
+# a rookie the history does not know; Mia Gap and two namesakes are absent
+CURRENT_YEAR = 2027
+CURRENT = [
+    _history_skater(2027, 1, "Alex Center", "C", "EDM", 20, 10, 15, 8, 0,
+                    60, 10, 5, 4, 6, 1230, 130),
+    _history_skater(2027, 2, "Tom Trade", "D", "TOR,BOS", 18, 1, 5, 0, 0,
+                    20, 60, 30, 12, -2, 1080, 40),
+    _history_skater(2027, 3, "Sam Twin", "L", "NYR", 12, 0, 2, 0, 0, 9,
+                    20, 4, 6, -1, 630, 15),
+    _history_skater(2027, 8, "Rex Rookie", "C", "SJ", 19, 6, 6, 3, 0, 40,
+                    12, 6, 2, -5, 900, 80),
+    _history_goalie(2027, 6, "Gus Goalie", "WPG", 15, 14, 9, 4, 1, 420,
+                    35, 1, 50400)]

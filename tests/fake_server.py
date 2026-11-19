@@ -3,8 +3,8 @@
     .venv/bin/python tests/fake_server.py [scenario]
 
 with a scenario of tests/support.py: midseason (default), finished,
-opening_day, preseason, pre_draft or undrafted. The NHL history is the
-synthetic one as well.
+opening_day, preseason, pre_draft or undrafted. The NHL history and the
+current NHL season are the synthetic ones as well.
 """
 import sys
 import tempfile
@@ -15,7 +15,14 @@ from pytest import MonkeyPatch
 
 from fantasy_nhl.api import create_app
 from fantasy_nhl.api.app import HOST, PORT
-from support import SCENARIOS, FakeLeague, patch_everywhere, write_history
+from support import (
+    CURRENT,
+    CURRENT_YEAR,
+    SCENARIOS,
+    FakeLeague,
+    patch_everywhere,
+    write_history,
+)
 
 
 def main() -> None:
@@ -25,6 +32,10 @@ def main() -> None:
         patch_everywhere(patches, name, getattr(league, name))
     patch_everywhere(patches, "fetch_league_data", lambda config: league.data)
     patch_everywhere(patches, "save_calibration", lambda name, calibration: None)
+    patch_everywhere(patches, "fetch_current_season",
+                     lambda today=None, timeout=None: CURRENT_YEAR)
+    patch_everywhere(patches, "fetch_season_stats",
+                     lambda year, timeout=None: CURRENT)
     with tempfile.TemporaryDirectory() as history:
         write_history(Path(history))
         uvicorn.run(create_app(league.sources, Path(history)), host=HOST,

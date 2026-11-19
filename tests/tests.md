@@ -15,12 +15,12 @@ frontend's tests live in `web/src` and are described in
 
 | File | Tests |
 | --- | --- |
-| [support.py](support.py) | Not a test: the synthetic league, its scenarios, the synthetic NHL history, and helpers to find and patch package names |
-| [fake_server.py](fake_server.py) | Not a test: the web backend on the synthetic league and history, for frontend work |
+| [support.py](support.py) | Not a test: the synthetic league, its scenarios, the synthetic NHL history and current season, and helpers to find and patch package names |
+| [fake_server.py](fake_server.py) | Not a test: the web backend on the synthetic league, history and current season, for frontend work |
 | [test_analysis.py](test_analysis.py) | The functions of `analysis`, grouped in classes by function |
 | [test_config.py](test_config.py) | Loading `config.yaml` and `secrets.yaml`, the default league, storing calibrations |
 | [test_espn_data.py](test_espn_data.py) | The ESPN layer on ESPN-shaped data and stub sessions: calendar parsing, saved lineups, IR, today's games |
-| [test_nhl_history.py](test_nhl_history.py) | The NHL stats download on stubbed API answers: the season's rows, refused reports, the CSV file, the `fantasy-nhl-history` command; reading the stored files |
+| [test_nhl_history.py](test_nhl_history.py) | The NHL stats download on stubbed API answers: the season's rows, refused reports, the CSV file, the `fantasy-nhl-history` command; reading the stored files; the current season and its file |
 | [test_plots.py](test_plots.py) | The player figures render to PNG |
 | [test_views_model.py](test_views_model.py) | Tones, their terminal styles, cell texts |
 | [test_prompts.py](test_prompts.py) | ESC and Ctrl-C against real `questionary` prompts |
@@ -63,6 +63,14 @@ a traded player, three namesakes of whom two share a label, a player
 without the middle season, a goalie with a five-start and a sixty-start
 season, a stat the oldest season lacks. The numbers are round, so the
 expected tables in `test_api.py` can be checked by hand.
+
+`CURRENT` is the season after those (`CURRENT_YEAR`) while it is played:
+some of the same players, one of them traded, and a rookie the history
+does not know. A test or the fake server stubs `fetch_current_season`
+and `fetch_season_stats` with it, so the real download code stores it;
+the `nhl` fixture of `test_api.py` can also make the NHL unreachable
+and counts how often it was asked. A download of another day is a file
+whose modification time the test sets back.
 
 ## Golden transcripts
 
@@ -111,6 +119,6 @@ intended API change regenerate it as described in
 ## Manual checks
 
 `fake_server.py [scenario]` serves the built frontend on the synthetic
-league and the synthetic NHL history at `http://127.0.0.1:8000`, without
-ESPN and without touching `calibration.yaml` or `data/`. A check against real leagues is manual: start
+league and the synthetic NHL history and current season at
+`http://127.0.0.1:8000`, without ESPN, without the NHL and without touching `calibration.yaml` or `data/`. A check against real leagues is manual: start
 `.venv/bin/fantasy-nhl-web`.

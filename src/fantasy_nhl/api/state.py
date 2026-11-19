@@ -1,13 +1,14 @@
 """Server-side state: every configured league, loaded on first use and
 again once the load is old, with a short-lived cache of what else was
-fetched from ESPN; and the stored NHL seasons."""
+fetched from ESPN; and the stored NHL seasons, the current one downloaded
+once a day."""
 import logging
 import re
 import threading
 import time
 import traceback
 from collections.abc import Callable
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -15,10 +16,20 @@ import pandas as pd
 
 from ..config import LeagueConfig
 from ..sources.espn import LeagueData, fetch_league_data
-from ..sources.nhl import read_history, season_path, stored_seasons
+from ..sources.nhl import (
+    CurrentSeason,
+    NhlStatsError,
+    current_file,
+    read_current_season,
+    read_history,
+    refresh_current_season,
+    season_path,
+    stored_seasons,
+)
 
 CACHE_SECONDS = 300  # a fetch within a session
 SESSION_SECONDS = 900  # the league load itself
+RETRY_SECONDS = 60  # after the NHL's current season could not be read
 # first parts of the web app's addresses that name no league
 PAGES = ("history",)
 
@@ -126,24 +137,72 @@ class LeagueStore:
             self.leagues[league_id] = LeagueEntry(league_id, config)
 
 
+def _written(path: Path) -> tuple:
+    """What changes when a file is written anew."""
+    written = path.stat()
+    return path.name, written.st_mtime_ns, written.st_size
+
+
 class HistoryStore:
     """The stored NHL seasons of a folder, read again when a file of
-    theirs changed, came or went."""
+    theirs changed, came or went; and the current season, downloaded into
+    that folder when its file is not of today."""
 
     def __init__(self, folder: Path) -> None:
         self._folder = folder
         self._lock = threading.Lock()
         self._read: tuple[list, pd.DataFrame] | None = None
+        # of its own: a download must not hold up the stored seasons
+        self._current_lock = threading.Lock()
+        self._current: tuple[tuple, CurrentSeason] | None = None
+        self._checked: date | None = None  # the day the NHL last answered
+        self._retry_at = 0.0
 
     def frame(self) -> pd.DataFrame:
         """A row per player and season (see read_history); not to be
         changed, every request gets the same table."""
         with self._lock:
-            files = []
-            for year in stored_seasons(self._folder):
-                path = season_path(year, self._folder)
-                written = path.stat()
-                files.append((path.name, written.st_mtime_ns, written.st_size))
+            files = [_written(season_path(year, self._folder))
+                     for year in stored_seasons(self._folder)]
             if self._read is None or self._read[0] != files:
                 self._read = (files, read_history(self._folder))
             return self._read[1]
+
+    def _due(self) -> bool:
+        """Whether the current season was not downloaded today: its file
+        says when it was."""
+        today = date.today()
+        path = current_file(self._folder)
+        if path is None:  # as when it is stored as a finished season
+            return self._checked != today
+        return date.fromtimestamp(path.stat().st_mtime) != today
+
+    def _download(self) -> None:
+        refresh_current_season(self._folder)
+        self._checked = date.today()
+
+    def current(self, refresh: bool = False,
+                ) -> tuple[CurrentSeason | None, bool]:
+        """The current season as stored (None: there is no file of it,
+        or it is stored as a finished season) and whether its download
+        was due but failed. It is downloaded first when it is not of
+        today, at most every RETRY_SECONDS once that failed, or when
+        ``refresh`` asks, whose failure raises NhlStatsError."""
+        with self._current_lock:
+            failed = False
+            if refresh:
+                self._download()
+            elif self._due():
+                failed = time.monotonic() < self._retry_at
+                if not failed:
+                    try:
+                        self._download()
+                    except NhlStatsError:
+                        self._retry_at = time.monotonic() + RETRY_SECONDS
+                        failed = True
+            path = current_file(self._folder)
+            if path is None:
+                return None, failed
+            if self._current is None or self._current[0] != _written(path):
+                self._current = (_written(path), read_current_season(path))
+            return self._current[1], failed

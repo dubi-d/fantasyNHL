@@ -20,7 +20,7 @@ frontend that renders it is in [web](../../../web/web.md).
 | File | Holds |
 | --- | --- |
 | [app.py](app.py) | `create_app`: local-only middleware, the error handlers, the static frontend (or a hint how to build it); `main` runs it on `127.0.0.1:8000` |
-| [state.py](state.py) | `LeagueStore`, `LeagueEntry`, `LeagueSession`: loading, caching and reloading leagues; `HistoryStore`: the stored NHL seasons |
+| [state.py](state.py) | `LeagueStore`, `LeagueEntry`, `LeagueSession`: loading, caching and reloading leagues; `HistoryStore`: the stored NHL seasons and the daily download of the current one |
 | [serialize.py](serialize.py) | The response models and `serialize_view`: a `View` as JSON |
 | [figures.py](figures.py) | Figures as PNG: content fingerprint and a small cache of rendered images |
 | [routes/base.py](routes/base.py) | Shared by the route modules: league dependencies, the write guard, parameter checks, `view()` |
@@ -28,7 +28,7 @@ frontend that renders it is in [web](../../../web/web.md).
 | [routes/standings.py](routes/standings.py) | Weekly scores and awards, season standings |
 | [routes/planning.py](routes/planning.py) | Matchup preview, streaming planner, schedule outlook and calibration |
 | [routes/review.py](routes/review.py) | Players, rosters and the draft |
-| [routes/history.py](routes/history.py) | The stored NHL seasons: who is in them, a player's history |
+| [routes/history.py](routes/history.py) | The stored NHL seasons: who is in them, a player's history, refreshing the current season |
 
 ## Leagues, sessions and caching
 
@@ -66,6 +66,20 @@ frontend that renders it is in [web](../../../web/web.md).
   with 422; with no season stored, the list of players is empty.
 - A file that cannot be read as a season is answered as 500 with the
   reason (`NhlStatsError`).
+- **The current season** is added to a player's history only with
+  `current=true`; without it the endpoint asks nobody, which is what
+  lets the page show the stored seasons at once and offline.
+  `HistoryStore.current()` gives the season as
+  [sources/nhl](../sources/nhl/nhl.md) stores it and has it downloaded
+  first when its file was not written today. The file's date decides,
+  not the server's memory, so a restart downloads nothing twice. Once a
+  download failed, the next is tried after `RETRY_SECONDS` (a minute).
+- With `current=true` a known player is always answered with 200: when
+  the NHL cannot be reached, the view shows the last download and says
+  how old it is, or says that there is none. Nothing is added when the
+  season is stored as a finished one.
+- `POST /api/history/current/refresh` downloads it now, whatever the
+  file's date; a failure is a 502 with the reason.
 
 ## Endpoints
 
@@ -91,8 +105,11 @@ Everything is under `/api`; the interactive description is at
   with 422 and a reason (`invalid`, `in_range`, `team_row`). "Nothing to
   show" (no completed matchup, not drafted)
   is not an error: the view is a single warning note.
-- Reads are `GET` and change nothing. What changes state (reload, saving
-  a calibration) is `POST`/`PUT` behind `local_write`.
+- Reads are `GET` and change nothing in a league. What changes state
+  (reload, saving a calibration, refreshing the NHL's current season) is
+  `POST`/`PUT` behind `local_write`. One `GET` writes a file: a player's
+  history with `current=true` stores the current season when it is not
+  of today.
 
 ## What the JSON looks like
 
@@ -165,5 +182,6 @@ A test on each side fails when one of the two files is out of date.
 synthetic league: every view is served, its tables equal the terminal's,
 wrong parameters are refused, sessions expire and reload cleanly, state
 changes are guarded, failures leak nothing. The history endpoints run on
-the synthetic NHL seasons, with leagues that cannot be loaded. See
+the synthetic NHL seasons, with leagues that cannot be loaded and a
+stubbed NHL for the current season. See
 [tests.md](../../../tests/tests.md).

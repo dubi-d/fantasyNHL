@@ -84,7 +84,8 @@ one CSV file per season. A season is named by the year it ends in, as in
 `config.yaml` (`2026` is 2025-26). A season already stored is skipped
 unless `--refresh` is given; one whose regular season is not over is
 refused. The web app shows the stored seasons per player (*Player
-history*). The columns and the terms of the
+history*) and keeps the current season next to them itself, in
+`data/nhl/current_<season>.csv`. The columns and the terms of the
 source are in [nhl.md](src/fantasy_nhl/sources/nhl/nhl.md).
 
 ## Web app
@@ -109,8 +110,12 @@ the league was read ("as of"). A new browser tab opens on the
 
 Below the menu, *NHL history* has one page that belongs to no league:
 **Player history** (`#/history`) shows a player's seasons from the
-[stored NHL stats](#historical-nhl-stats). It reads local files only, so
-it works without an internet connection; a league whose data cannot be
+[stored NHL stats](#historical-nhl-stats) and, in a row below their
+average, his current season. The stored seasons are local files, so
+they show without an internet connection. The current season is
+downloaded from the NHL once a day, when the page first needs it, and
+when you click *Refresh current season*; offline the page shows the last
+download. A league whose data cannot be
 loaded from ESPN shows the error on its own pages and leaves the rest
 usable.
 

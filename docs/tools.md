@@ -192,7 +192,7 @@ In the web app, a click on a column header sorts a table by that column
 - **Player history** (web app only, under *NHL history*) — Not a tool of
   a league: it shows the NHL seasons stored by `fantasy-nhl-history`
   (see the [README](../README.md#historical-nhl-stats)) and asks nothing
-  from ESPN, so it also works offline. Type a name to pick a player; the
+  from ESPN. Type a name to pick a player; the
   table has one row per stored regular season he played in, with his
   team or teams, and an `Average` row below (see
   [Player history average](methodology.md#player-history-average)).
@@ -202,6 +202,18 @@ In the web app, a click on a column header sorts a table by that column
   `GA`, `GAA`, `SV%`, `SO`) and all the NHL reports, the further ones
   under the NHL's own names. *Cells show* chooses between season totals
   and per game. A season he did not play in the NHL is left out and
-  named in the note below the table. The current season is not part of
-  it: it is stored only once it is over.
+  named in the note below the table.
+
+  Below the `Average`, the row `<season> so far` is the season being
+  played, with the same columns and cells; it is not part of the
+  average. The app downloads that season from the NHL (all players at
+  once, into `data/nhl/current_<season>.csv`) the first time it is
+  needed on a day, and when you click *Refresh current season*; the note
+  below the table says from when the numbers are. The stored seasons
+  show at once and the row joins them when it is there. Without an
+  internet connection the page shows the last download, or no such row.
+  A player without an NHL game this season has no row, and the row ends
+  once the season is stored as a finished one, where it becomes a row
+  like the others. Only players of a stored finished season can be
+  picked, so not a rookie.
 
